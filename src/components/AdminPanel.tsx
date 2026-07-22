@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Product, ShopSettings } from '../types';
 import { playOrderAlertSound } from '../utils/audioAlert';
+import { compressImageFile } from '../lib/imageUtils';
 import { 
   Store, 
   Bell, 
@@ -124,16 +125,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     inStock: true
   });
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setProductForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file);
+        setProductForm((prev) => ({ ...prev, imageUrl: compressed }));
+      } catch (err) {
+        console.error('Image compress error:', err);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            setProductForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -1356,21 +1363,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(fileEv) => {
+                          onChange={async (fileEv) => {
                             const file = fileEv.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                if (typeof reader.result === 'string') {
-                                  const base64 = reader.result as string;
-                                  setProductForm((prev) => {
-                                    const updatedImgs = [...(prev.images || [])];
-                                    updatedImgs[photoIdx] = base64;
-                                    return { ...prev, images: updatedImgs };
-                                  });
-                                }
-                              };
-                              reader.readAsDataURL(file);
+                              try {
+                                const base64 = await compressImageFile(file);
+                                setProductForm((prev) => {
+                                  const updatedImgs = [...(prev.images || [])];
+                                  updatedImgs[photoIdx] = base64;
+                                  return { ...prev, images: updatedImgs };
+                                });
+                              } catch (err) {
+                                console.error('Compress photo error:', err);
+                              }
                             }
                           }}
                           className="w-24 text-[10px] text-gray-500 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-amber-200 file:text-amber-950 cursor-pointer border rounded-lg"

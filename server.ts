@@ -8,7 +8,8 @@ import { INITIAL_PRODUCTS, DEFAULT_SHOP_SETTINGS } from './src/data/initialProdu
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Data storage setup
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -185,6 +186,12 @@ app.post('/api/products', (req, res) => {
   const products = loadProducts();
   products.unshift(newProduct);
   saveProducts(products);
+
+  broadcastSSE({
+    type: 'PRODUCTS_UPDATED',
+    products
+  });
+
   res.status(201).json(newProduct);
 });
 
@@ -200,6 +207,12 @@ app.put('/api/products/:id', (req, res) => {
 
   products[index] = { ...products[index], ...updatedData };
   saveProducts(products);
+
+  broadcastSSE({
+    type: 'PRODUCTS_UPDATED',
+    products
+  });
+
   res.json(products[index]);
 });
 
@@ -208,6 +221,12 @@ app.delete('/api/products/:id', (req, res) => {
   let products = loadProducts();
   products = products.filter(p => p.id !== id);
   saveProducts(products);
+
+  broadcastSSE({
+    type: 'PRODUCTS_UPDATED',
+    products
+  });
+
   res.json({ success: true, id });
 });
 

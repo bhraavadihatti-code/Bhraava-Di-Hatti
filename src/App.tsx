@@ -107,12 +107,36 @@ export default function App() {
     fetchOrders();
     fetchSettings();
 
-    // Poll for order status changes every 15s as fallback
-    const interval = setInterval(() => {
-      fetchOrders();
-    }, 15000);
+    // Real-time EventSource listener for cross-device sync
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource('/api/notifications/stream');
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'PRODUCTS_UPDATED' && Array.isArray(data.products)) {
+            setProducts(data.products);
+          } else if (data.type === 'NEW_ORDER' || data.type === 'ORDER_UPDATED') {
+            fetchOrders();
+          }
+        } catch (e) {
+          console.error('SSE sync error:', e);
+        }
+      };
+    } catch (err) {
+      console.warn('EventSource connect fail:', err);
+    }
 
-    return () => clearInterval(interval);
+    // Poll for product & order updates every 8s as reliable cross-device fallback
+    const interval = setInterval(() => {
+      fetchProducts();
+      fetchOrders();
+    }, 8000);
+
+    return () => {
+      clearInterval(interval);
+      if (eventSource) eventSource.close();
+    };
   }, []);
 
   // Category List
@@ -258,10 +282,15 @@ export default function App() {
         body: JSON.stringify(product)
       });
       if (res.ok) {
-        fetchProducts();
+        await fetchProducts();
+        alert(`✅ Product "${product.name}" (${product.id}) added and published live!`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(`❌ Failed to save product: ${errData.error || res.statusText || 'Server Error'}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Add product error:', e);
+      alert(`❌ Network/Server Error saving product: ${e?.message || 'Check connection'}`);
     }
   };
 
@@ -273,10 +302,15 @@ export default function App() {
         body: JSON.stringify(updated)
       });
       if (res.ok) {
-        fetchProducts();
+        await fetchProducts();
+        alert(`✅ Product updated successfully!`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(`❌ Failed to update product: ${errData.error || res.statusText}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Update product error:', e);
+      alert(`❌ Error updating product: ${e?.message || 'Check connection'}`);
     }
   };
 
@@ -284,10 +318,14 @@ export default function App() {
     try {
       const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        fetchProducts();
+        await fetchProducts();
+        alert(`🗑️ Product ${id} deleted successfully.`);
+      } else {
+        alert(`❌ Failed to delete product ${id}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Delete product error:', e);
+      alert(`❌ Error deleting product: ${e?.message}`);
     }
   };
 
