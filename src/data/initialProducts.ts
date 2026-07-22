@@ -190,5 +190,26 @@ export const INITIAL_PRODUCTS: Product[] = [
     isBestSeller: false,
     isNewArrival: false,
     rating: 4.6
+  },
+  {
+    id: "BDH-109",
+    name: "Georgette Thread Embroidery Festive Suit",
+    firmName: "Jai Durga Cloth Emporium",
+    shopName: "Bhraava Di Hatti",
+    category: "Punjabi Suits",
+    price: 1599,
+    originalPrice: 2299,
+    description: "Lightweight premium georgette suit with fine thread and mirror sequin work, paired with heavy Nazneen dupatta.",
+    fabric: "Faux Georgette & Nazneen Dupatta",
+    workType: "Multi-Thread Embroidery & Mirror Sequins",
+    colors: ["Rani Pink", "Peach Pink", "Sky Blue", "Mint Green"],
+    sizes: ["Unstitched", "M (38)", "L (40)", "XL (42)"],
+    imageUrl: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+    images: ["https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800"],
+    inStock: true,
+    isBestSeller: true,
+    isNewArrival: true,
+    rating: 4.9,
+    tags: ["Punjabi Suits", "Georgette", "Festive Collection"]
   }
 ];
