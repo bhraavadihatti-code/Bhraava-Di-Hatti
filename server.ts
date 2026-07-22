@@ -11,6 +11,15 @@ const PORT = 3000;
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
+// Error handling for JSON body parsing
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err) {
+    console.error('Express request error:', err);
+    return res.status(400).json({ error: 'Invalid payload or file size too large.' });
+  }
+  next();
+});
+
 // Data storage setup
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
@@ -172,62 +181,77 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-  const newProduct: Product = req.body;
-  if (!newProduct.name || !newProduct.price) {
-    return res.status(400).json({ error: 'Product name and price are required' });
+  try {
+    const newProduct: Product = req.body;
+    if (!newProduct || !newProduct.name || !newProduct.price) {
+      return res.status(400).json({ error: 'Product name and price are required' });
+    }
+    
+    if (!newProduct.id) {
+      newProduct.id = `BDH-${Date.now().toString().slice(-4)}`;
+    }
+    newProduct.firmName = newProduct.firmName || "Jai Durga Cloth Emporium";
+    newProduct.shopName = newProduct.shopName || "Bhraava Di Hatti";
+
+    const products = loadProducts();
+    products.unshift(newProduct);
+    saveProducts(products);
+
+    broadcastSSE({
+      type: 'PRODUCTS_UPDATED',
+      products
+    });
+
+    res.status(201).json(newProduct);
+  } catch (err: any) {
+    console.error('Error adding product:', err);
+    res.status(500).json({ error: err?.message || 'Server error adding product' });
   }
-  
-  if (!newProduct.id) {
-    newProduct.id = `BDH-${Date.now().toString().slice(-4)}`;
-  }
-  newProduct.firmName = newProduct.firmName || "Jai Durga Cloth Emporium";
-  newProduct.shopName = newProduct.shopName || "Bhraava Di Hatti";
-
-  const products = loadProducts();
-  products.unshift(newProduct);
-  saveProducts(products);
-
-  broadcastSSE({
-    type: 'PRODUCTS_UPDATED',
-    products
-  });
-
-  res.status(201).json(newProduct);
 });
 
 app.put('/api/products/:id', (req, res) => {
-  const { id } = req.params;
-  const updatedData: Partial<Product> = req.body;
-  const products = loadProducts();
-  
-  const index = products.findIndex(p => p.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Product not found' });
+  try {
+    const { id } = req.params;
+    const updatedData: Partial<Product> = req.body;
+    const products = loadProducts();
+    
+    const index = products.findIndex(p => p.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    products[index] = { ...products[index], ...updatedData };
+    saveProducts(products);
+
+    broadcastSSE({
+      type: 'PRODUCTS_UPDATED',
+      products
+    });
+
+    res.json(products[index]);
+  } catch (err: any) {
+    console.error('Error updating product:', err);
+    res.status(500).json({ error: err?.message || 'Server error updating product' });
   }
-
-  products[index] = { ...products[index], ...updatedData };
-  saveProducts(products);
-
-  broadcastSSE({
-    type: 'PRODUCTS_UPDATED',
-    products
-  });
-
-  res.json(products[index]);
 });
 
 app.delete('/api/products/:id', (req, res) => {
-  const { id } = req.params;
-  let products = loadProducts();
-  products = products.filter(p => p.id !== id);
-  saveProducts(products);
+  try {
+    const { id } = req.params;
+    let products = loadProducts();
+    products = products.filter(p => p.id !== id);
+    saveProducts(products);
 
-  broadcastSSE({
-    type: 'PRODUCTS_UPDATED',
-    products
-  });
+    broadcastSSE({
+      type: 'PRODUCTS_UPDATED',
+      products
+    });
 
-  res.json({ success: true, id });
+    res.json({ success: true, id });
+  } catch (err: any) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ error: err?.message || 'Server error deleting product' });
+  }
 });
 
 // Orders API
