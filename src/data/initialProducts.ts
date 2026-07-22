@@ -28,6 +28,27 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
  */
 
 export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: "BDH-109",
+    name: "Cotton Stuff Punjabi Suit",
+    firmName: "Jai Durga Cloth Emporium",
+    shopName: "Bhraava Di Hatti",
+    category: "Punjabi Suits",
+    price: 400,
+    originalPrice: 999,
+    description: "Daily wear pure cotton stuff Punjabi suit with soft breathable unstitched fabric and matching dupatta.",
+    fabric: "100% Pure Cotton Stuff",
+    workType: "Printed & Unstitched Thread Work",
+    colors: ["Royal Blue", "Crimson Red", "Mustard Yellow", "Bottle Green"],
+    sizes: ["Unstitched Material", "L (40)", "XL (42)"],
+    imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+    images: ["https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"],
+    inStock: true,
+    isBestSeller: true,
+    isNewArrival: true,
+    rating: 4.9,
+    tags: ["Punjabi Suits", "Cotton Suit", "Budget Collection", "Daily Wear"]
+  },
   /* --- CODE TEMPLATE FOR NEW PRODUCTS (Copy & Paste this block) ---
   {
     id: "BDH-109",
