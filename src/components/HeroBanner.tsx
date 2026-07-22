@@ -1,8 +1,7 @@
 import React from 'react';
 import { QrCode, Gift, Sparkles, Truck, Award, Percent, Calendar, ShieldCheck } from 'lucide-react';
 import { ShopSettings } from '../types';
-
-const heroBannerImg = '/src/assets/images/hero_cloth_banner_1784686263964.jpg';
+import heroBannerImg from '../assets/images/hero_cloth_banner_1784686263964.jpg';
 
 interface HeroBannerProps {
   settings: ShopSettings;
@@ -16,10 +15,13 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
       {/* Background Hero Image with Subtle Blend overlay */}
       <div className="absolute inset-0 z-0 opacity-25 mix-blend-overlay">
         <img
-          src={heroBannerImg}
+          src={heroBannerImg || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
           alt="Bhraava Di Hatti Shop"
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+          }}
         />
       </div>
 

@@ -474,9 +474,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               /* SLIDE CAROUSEL MODE WITH PINCH / ZOOM */
               <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
                 <img
-                  src={currentImageUrl}
+                  src={currentImageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                   alt={product.name}
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                  }}
                   onClick={toggleZoom}
                   style={{ transform: `scale(${zoomScale})` }}
                   className="max-w-full max-h-[82vh] object-contain transition-transform duration-200 cursor-zoom-in"
@@ -509,9 +512,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {allImages.map((imgUrl, i) => (
                   <div key={i} className="relative rounded-2xl overflow-hidden border border-stone-800 shadow-2xl bg-black">
                     <img
-                      src={imgUrl}
+                      src={imgUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                       alt={`Full photo ${i + 1}`}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                      }}
                       className="w-full h-auto object-contain max-h-[85vh]"
                     />
                     <div className="absolute top-3 left-3 bg-black/80 text-amber-300 text-xs px-2.5 py-1 rounded-full font-mono border border-amber-500/30">
@@ -541,9 +547,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   }`}
                 >
                   <img
-                    src={img}
+                    src={img || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                     alt={`Thumb ${idx + 1}`}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </button>

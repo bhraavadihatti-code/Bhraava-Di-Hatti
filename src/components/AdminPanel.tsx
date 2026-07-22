@@ -1537,9 +1537,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {Array.from(new Set([productForm.imageUrl, ...(productForm.images || [])].filter((img): img is string => Boolean(img && img.trim())))).map((img, i) => (
                       <div key={i} className="relative group shrink-0">
                         <img
-                          src={img}
+                          src={img || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                           alt={`Preview ${i + 1}`}
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                          }}
                           className="w-12 h-14 object-cover rounded-lg border border-amber-400 shadow-2xs"
                         />
                         <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[8px] px-1 font-mono rounded-tl">
@@ -1770,7 +1773,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 {workerForm.imageUrl ? (
                   <div className="relative w-full h-36 bg-black rounded-2xl overflow-hidden border-2 border-amber-500 shadow-inner group">
-                    <img src={workerForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <img
+                      src={workerForm.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
+                      alt="Preview"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                      }}
+                      className="w-full h-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => setWorkerForm({ ...workerForm, imageUrl: '' })}
