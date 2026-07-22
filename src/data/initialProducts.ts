@@ -5,14 +5,16 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   firmName: "Jai Durga Cloth Emporium",
   upiId: "bhraavadihatti@upi",
   payeeName: "Jai Durga Cloth Emporium",
-  phoneNumber: "+91 98140 12345",
-  whatsappNumber: "919814012345",
-  address: "Main Bazaar, Opp. Town Hall, Clothing Market",
-  city: "Amritsar",
-  pincode: "143001",
+  phoneNumber: "94171-24082",
+  phoneNumber2: "99150-46357",
+  whatsappNumber: "919417124082",
+  address: "Bus Stand Road, Maur Mandi",
+  city: "District Bathinda, Punjab",
+  pincode: "151509",
   gstNumber: "03AABCU9603R1ZM",
   minOrderForFreeShipping: 1999,
-  noticeText: "⚡ Flat ₹100 Instant Discount on all UPI Payments! Direct Home Delivery across India."
+  noticeText: "🎁 RAKHI SPECIAL MEGA SALE IS LIVE TILL 29 AUGUST! FLAT DISCOUNTS + INDIA POST DESPATCH",
+  adminPin: "BDH-1986"
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

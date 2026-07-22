@@ -24,9 +24,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   if (!isOpen) return null;
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const upiDiscount = subtotal > 0 ? 100 : 0;
   const shippingFee = subtotal >= settings.minOrderForFreeShipping || subtotal === 0 ? 0 : 99;
-  const totalAmount = Math.max(0, subtotal - upiDiscount + shippingFee);
+  const totalAmount = subtotal + shippingFee;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end">
@@ -125,11 +124,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="flex justify-between">
                 <span>Items Subtotal</span>
                 <span className="font-mono font-semibold">₹{subtotal.toLocaleString('en-IN')}</span>
-              </div>
-
-              <div className="flex justify-between text-green-700 font-medium">
-                <span>UPI Payment Discount</span>
-                <span className="font-mono font-bold">-₹{upiDiscount}</span>
               </div>
 
               <div className="flex justify-between">

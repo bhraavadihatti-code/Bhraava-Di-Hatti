@@ -61,13 +61,13 @@ function loadOrders(): Order[] {
       createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
       customer: {
         fullName: "Gurpreet Singh",
-        phone: "+91 98765 43210",
+        phone: "94171-24082",
         email: "gurpreet@example.com",
-        address: "House 142, Model Town, near Gurudwara Sahib",
-        city: "Amritsar",
+        address: "House 142, Bus Stand Road, Maur Mandi",
+        city: "District Bathinda",
         state: "Punjab",
-        pincode: "143001",
-        notes: "Please deliver before 6 PM"
+        pincode: "151509",
+        notes: "Unstitched Punjabi Suit Material - Speed Post India Post"
       },
       items: [
         {
@@ -303,10 +303,16 @@ app.get('/api/orders/track/:query', (req, res) => {
   const query = req.params.query.trim().toLowerCase();
   const orders = loadOrders();
 
+  if (query === 'all' || query === '') {
+    return res.json(orders);
+  }
+
   const matched = orders.filter(o => 
-    o.id.toLowerCase() === query || 
-    o.utsNumber.toLowerCase() === query ||
-    o.customer.phone.replace(/[^0-9]/g, '').includes(query.replace(/[^0-9]/g, ''))
+    o.id.toLowerCase().includes(query) || 
+    o.utsNumber.toLowerCase().includes(query) ||
+    o.customer.phone.replace(/[^0-9]/g, '').includes(query.replace(/[^0-9]/g, '')) ||
+    o.customer.fullName.toLowerCase().includes(query) ||
+    (o.trackingNumber && o.trackingNumber.toLowerCase().includes(query))
   );
 
   res.json(matched);

@@ -9,13 +9,14 @@ export type ProductCategory =
   | 'Festive Collection';
 
 export interface Product {
-  id: string;
+  id: string; // Serial No. e.g. BDH-101
   name: string;
   firmName: string; // "Jai Durga Cloth Emporium"
   shopName: string; // "Bhraava Di Hatti"
   category: ProductCategory;
-  price: number;
-  originalPrice?: number;
+  tags?: string[]; // e.g. ["Punjabi Suits", "Cotton Suits", "3-Piece Suit"]
+  price: number; // BDH Price
+  originalPrice?: number; // MRP Price
   description: string;
   fabric: string;
   workType: string;
@@ -48,11 +49,11 @@ export interface CustomerDetails {
 
 export type OrderStatus = 
   | 'pending_acceptance'
-  | 'payment_verified'
-  | 'processing'
-  | 'shipped'
+  | 'order_confirmed'
+  | 'shipping_post_office'
+  | 'out_for_delivery'
   | 'delivered'
-  | 'rejected';
+  | 'cancelled';
 
 export interface PaymentDetails {
   method: 'UPI_QR';
@@ -75,8 +76,8 @@ export interface Order {
   totalAmount: number;
   payment: PaymentDetails;
   status: OrderStatus;
-  courierName?: string;
-  trackingNumber?: string;
+  courierName?: string; // India Post / Speed Post
+  trackingNumber?: string; // India Post Tracking Number (e.g. ED123456789IN)
   adminNotes?: string;
   rejectionReason?: string;
 }
@@ -86,12 +87,14 @@ export interface ShopSettings {
   firmName: string; // "Jai Durga Cloth Emporium"
   upiId: string;    // e.g. "bhraavadihatti@upi"
   payeeName: string; // "Jai Durga Cloth Emporium"
-  phoneNumber: string; // e.g. "+91 98765 43210"
-  whatsappNumber: string; // e.g. "919876543210"
+  phoneNumber: string; // "94171-24082"
+  phoneNumber2: string; // "99150-46357"
+  whatsappNumber: string; // "919417124082"
   address: string;
   city: string;
   pincode: string;
   gstNumber?: string;
   minOrderForFreeShipping: number;
   noticeText: string;
+  adminPin?: string; // Default '7860' or '1234'
 }

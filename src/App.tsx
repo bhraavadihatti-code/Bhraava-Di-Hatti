@@ -16,11 +16,15 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminPasswordModal } from './components/AdminPasswordModal';
+import { CategoryAndPriceFilter, PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
 import { Footer } from './components/Footer';
 
 export default function App() {
   // App view mode
   const [activeView, setActiveView] = useState<'shop' | 'admin'>('shop');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
 
   // Core Data State
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -29,6 +33,8 @@ export default function App() {
 
   // Filter & Search State
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('All');
+  const [priceFilter, setPriceFilter] = useState<PriceFilterOption>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Cart State
@@ -41,13 +47,14 @@ export default function App() {
     }
   });
 
-  // Modal States
+  // Modal & Notification States
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState<Order | null>(null);
   const [trackerModalOpen, setTrackerModalOpen] = useState(false);
   const [trackerQuery, setTrackerQuery] = useState('');
+  const [addedToastMessage, setAddedToastMessage] = useState<string | null>(null);
 
   // Save cart to LocalStorage
   useEffect(() => {
@@ -120,15 +127,50 @@ export default function App() {
     'Festive Collection'
   ];
 
-  // Filtered Products
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
-    const matchesSearch = 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.fabric.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Filtered & Sorted Products
+  const filteredProducts = products
+    .filter((p) => {
+      // Category Match
+      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+
+      // Search Query Match
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch = 
+        !query ||
+        p.name.toLowerCase().includes(query) ||
+        p.fabric.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query) ||
+        p.id.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query);
+
+      // Price Filter Match
+      let matchesPrice = true;
+      if (priceFilter === 'under1500') {
+        matchesPrice = p.price < 1500;
+      } else if (priceFilter === '1500to3000') {
+        matchesPrice = p.price >= 1500 && p.price <= 3000;
+      } else if (priceFilter === '3000to5000') {
+        matchesPrice = p.price > 3000 && p.price <= 5000;
+      } else if (priceFilter === 'above5000') {
+        matchesPrice = p.price > 5000;
+      }
+
+      return matchesCategory && matchesSearch && matchesPrice;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'priceAsc') {
+        return a.price - b.price;
+      }
+      if (sortBy === 'priceDesc') {
+        return b.price - a.price;
+      }
+      if (sortBy === 'discount') {
+        const discountA = a.originalPrice ? a.originalPrice - a.price : 0;
+        const discountB = b.originalPrice ? b.originalPrice - b.price : 0;
+        return discountB - discountA;
+      }
+      return 0; // 'featured' keeps original order
+    });
 
   // Cart Helpers
   const handleAddToCart = (product: Product, selectedColor: string, selectedSize: string, quantity: number) => {
@@ -148,13 +190,18 @@ export default function App() {
 
       return [...prev, { product, selectedColor, selectedSize, quantity }];
     });
+
+    // Show toast message instead of opening cart drawer
+    setAddedToastMessage(`Product is successfully added to cart`);
+    setTimeout(() => {
+      setAddedToastMessage(null);
+    }, 3500);
   };
 
   const handleQuickAdd = (product: Product) => {
     const defaultColor = product.colors[0] || 'Standard';
     const defaultSize = product.sizes[0] || 'Free Size';
     handleAddToCart(product, defaultColor, defaultSize, 1);
-    setIsCartOpen(true);
   };
 
   const handleBuyNow = (product: Product, color: string, size: string, quantity: number) => {
@@ -260,11 +307,25 @@ export default function App() {
     }
   };
 
+  const handleRequestAdmin = () => {
+    if (isAdminAuthenticated) {
+      setActiveView('admin');
+    } else {
+      setIsAdminPasswordModalOpen(true);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    setActiveView('shop');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const pendingOrdersCount = orders.filter(o => o.status === 'pending_acceptance').length;
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
       
       {/* Navigation Header */}
       <Navbar
@@ -272,15 +333,23 @@ export default function App() {
         categories={categories}
         selectedCategory={selectedCategory}
         onSelectCategory={(cat) => setSelectedCategory(cat)}
+        priceFilter={priceFilter}
+        onSelectPriceFilter={(p) => setPriceFilter(p)}
         searchQuery={searchQuery}
         onSearchChange={(q) => setSearchQuery(q)}
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenTracker={() => setTrackerModalOpen(true)}
-        onOpenAdmin={() => setActiveView('admin')}
+        onOpenAdmin={handleRequestAdmin}
         pendingOrdersCount={pendingOrdersCount}
         activeView={activeView}
-        setActiveView={(v) => setActiveView(v)}
+        setActiveView={(v) => {
+          if (v === 'admin' && !isAdminAuthenticated) {
+            handleRequestAdmin();
+          } else {
+            setActiveView(v);
+          }
+        }}
       />
 
       {/* Main Content Area */}
@@ -296,6 +365,7 @@ export default function App() {
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}
             onUpdateSettings={handleUpdateSettings}
+            onLogout={handleAdminLogout}
           />
         ) : (
           <div className="space-y-6">
@@ -309,23 +379,23 @@ export default function App() {
               }}
             />
 
-            {/* Catalog Section Header */}
-            <div id="catalog-section" className="pt-4 flex items-center justify-between">
+            {/* Catalog Section Anchor */}
+            <div id="catalog-section" className="pt-2 flex items-center justify-between border-b border-amber-200 pb-2">
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold font-serif text-gray-900">
-                  {selectedCategory === 'All' ? 'Our Exclusive Clothing Catalog' : selectedCategory}
+                <h2 className="text-lg sm:text-xl font-bold font-serif text-stone-900 flex items-center gap-2">
+                  <span>{selectedCategory === 'All' ? '👗 Exclusive Suit Catalog' : selectedCategory}</span>
+                  <span className="text-xs font-sans text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md font-mono">
+                    {filteredProducts.length} items
+                  </span>
                 </h2>
-                <p className="text-xs text-amber-800">
-                  Showing {filteredProducts.length} premium Indian ethnic wear items
-                </p>
               </div>
 
               {selectedCategory !== 'All' && (
                 <button
                   onClick={() => setSelectedCategory('All')}
-                  className="text-xs font-semibold text-amber-800 hover:underline"
+                  className="text-xs font-extrabold text-amber-900 hover:text-red-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl transition-colors"
                 >
-                  View All Categories ➔
+                  View All ➔
                 </button>
               )}
             </div>
@@ -357,10 +427,39 @@ export default function App() {
       <Footer
         settings={settings}
         onOpenTracker={() => setTrackerModalOpen(true)}
-        onOpenAdmin={() => setActiveView('admin')}
+        onOpenAdmin={handleRequestAdmin}
       />
 
+      {/* Product Added Success Toast Banner */}
+      {addedToastMessage && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#32080E] text-amber-100 px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-300 font-sans text-xs sm:text-sm font-bold">
+          <span className="bg-emerald-600 text-white p-1 rounded-full text-xs font-black">✓</span>
+          <span className="font-semibold">{addedToastMessage}</span>
+          <button 
+            onClick={() => {
+              setIsCartOpen(true);
+              setAddedToastMessage(null);
+            }}
+            className="ml-1 bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs px-2.5 py-1 rounded-xl transition-colors shrink-0"
+          >
+            View Cart 🛒
+          </button>
+        </div>
+      )}
+
       {/* MODALS & DRAWERS */}
+      
+      {/* Admin Password Lock Modal */}
+      <AdminPasswordModal
+        isOpen={isAdminPasswordModalOpen}
+        onClose={() => setIsAdminPasswordModalOpen(false)}
+        onSuccess={() => {
+          setIsAdminAuthenticated(true);
+          setIsAdminPasswordModalOpen(false);
+          setActiveView('admin');
+        }}
+        settings={settings}
+      />
       
       {/* Product Detail Modal */}
       <ProductDetailModal

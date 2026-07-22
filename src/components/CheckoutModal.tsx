@@ -43,9 +43,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     phone: '',
     email: '',
     address: '',
-    city: settings.city || 'Amritsar',
+    city: settings.city || 'District Bathinda, Punjab',
     state: 'Punjab',
-    pincode: '143001',
+    pincode: settings.pincode || '151509',
     notes: ''
   });
 
@@ -53,9 +53,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [utrNumber, setUtrNumber] = useState('');
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const discount = subtotal > 0 ? 100 : 0; // UPI instant discount
-  const shippingFee = subtotal >= settings.minOrderForFreeShipping ? 0 : 99;
-  const totalAmount = Math.max(0, subtotal - discount + shippingFee);
+  const shippingFee = subtotal >= settings.minOrderForFreeShipping || subtotal === 0 ? 0 : 99;
+  const totalAmount = subtotal + shippingFee;
 
   // UPI payment deep link string
   const upiString = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.payeeName)}&am=${totalAmount}&cu=INR&tn=BDH-Cloth-Order`;
@@ -98,7 +97,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           customer,
           items: cartItems,
           subtotal,
-          discount,
+          discount: 0,
           shippingFee,
           totalAmount,
           payment: {
@@ -264,7 +263,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
               <div>
                 <span className="font-bold text-gray-800">Total payable for {cartItems.length} item(s):</span>
-                <p className="text-[11px] text-green-700 font-medium">Includes ₹100 UPI discount</p>
+                <p className="text-[11px] text-gray-600 font-medium">India Post Delivery Dispatch</p>
               </div>
               <span className="text-base font-extrabold font-mono text-red-900">
                 ₹{totalAmount.toLocaleString('en-IN')}

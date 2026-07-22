@@ -21,7 +21,10 @@ export const Footer: React.FC<FooterProps> = ({ settings, onOpenTracker, onOpenA
                 भ
               </div>
               <div>
-                <h3 className="font-serif font-bold text-xl text-amber-100">{settings.shopName}</h3>
+                <h3 className="font-serif font-bold text-xl text-amber-100 flex items-center gap-2">
+                  {settings.shopName}
+                  <span className="text-[10px] bg-amber-500/30 text-amber-300 font-extrabold px-1.5 py-0.5 rounded border border-amber-400/40">Since 1986</span>
+                </h3>
                 <p className="text-xs text-amber-300 font-medium">{settings.firmName}</p>
               </div>
             </div>
@@ -72,20 +75,17 @@ export const Footer: React.FC<FooterProps> = ({ settings, onOpenTracker, onOpenA
             </ul>
           </div>
 
-          {/* Shop Owner Portal Quick Link */}
-          <div className="space-y-3 bg-amber-900/40 border border-amber-700/50 p-4 rounded-2xl backdrop-blur-sm text-xs">
-            <h4 className="font-bold text-amber-200 uppercase tracking-wider">
-              Store Manager Access
+          {/* Store Guarantee Info */}
+          <div className="space-y-3 bg-amber-900/30 border border-amber-700/40 p-4 rounded-2xl backdrop-blur-sm text-xs">
+            <h4 className="font-bold text-amber-200 uppercase tracking-wider flex items-center gap-1.5 font-serif">
+              <ShieldCheck className="w-4 h-4 text-amber-400" /> 100% Quality Assurance
             </h4>
-            <p className="text-amber-300/80 text-[11px]">
-              Access admin portal to view incoming orders with UTR numbers, accept orders, and manage stock.
+            <p className="text-amber-300/80 text-[11px] leading-relaxed">
+              Every suit is carefully inspected for pure fabric quality, embroidery thread count, and color fastness before dispatching.
             </p>
-            <button
-              onClick={onOpenAdmin}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold py-2 rounded-xl text-xs shadow-md transition-colors"
-            >
-              Open Owner Admin Panel
-            </button>
+            <div className="text-[10px] text-amber-200/90 font-mono bg-black/20 p-2 rounded-xl border border-amber-500/20">
+              📍 Direct Dispatch from {settings.city}, Punjab
+            </div>
           </div>
 
         </div>
