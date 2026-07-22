@@ -1019,9 +1019,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div key={p.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs flex flex-col justify-between p-3">
                   <div className="flex gap-3">
                     <img
-                      src={p.imageUrl}
+                      src={p.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                       alt={p.name}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                      }}
                       className="w-22 h-28 object-cover rounded-xl border border-gray-200 shrink-0"
                     />
                     <div className="flex-1 min-w-0 text-xs space-y-1">

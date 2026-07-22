@@ -86,9 +86,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               onClick={() => setIsLightboxOpen(true)}
             >
               <img
-                src={currentImageUrl}
+                src={currentImageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
                 alt={`${product.name} photo ${activeImgIdx + 1}`}
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                }}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
 
@@ -155,6 +158,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       src={img}
                       alt={`Thumbnail ${idx + 1}`}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+                      }}
                       className="w-full h-full object-cover"
                     />
                     <span className="absolute bottom-0 right-0 bg-black/80 text-[8px] text-amber-200 px-1 font-mono">

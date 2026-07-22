@@ -1,0 +1,233 @@
+[
+  {
+    "id": "BDH-101",
+    "name": "Royal Crimson Punjabi Salwar Suit",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Punjabi Suits",
+    "price": 2499,
+    "originalPrice": 3499,
+    "description": "Premium pure chinon silk Punjabi suit with intricate metallic zari border, gottapatti neck detailing, and heavy chiffon dupatta. Perfect for weddings, festivals, and Punjabi family celebrations.",
+    "fabric": "Chinon Silk with Heavy Chiffon Dupatta",
+    "workType": "Zari, Gotta Patti & Hand Work",
+    "colors": [
+      "Crimson Red",
+      "Royal Blue",
+      "Bottle Green",
+      "Mustard Yellow"
+    ],
+    "sizes": [
+      "Unstitched",
+      "M (38)",
+      "L (40)",
+      "XL (42)",
+      "XXL (44)"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+    "images": [
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1583391733975-ac82098b9e68?auto=format&fit=crop&q=80&w=800"
+    ],
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": false,
+    "rating": 4.9
+  },
+  {
+    "id": "BDH-102",
+    "name": "Heritage Banarasi Woven Silk Saree",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Banarasi Sarees",
+    "price": 3899,
+    "originalPrice": 4999,
+    "description": "Exquisite handwoven Banarasi art silk saree in royal maroon and antique gold zari weave. Comes with matching unstitched blouse piece.",
+    "fabric": "Pure Banarasi Art Silk",
+    "workType": "Golden Jacquard Zari Weaving",
+    "colors": [
+      "Deep Maroon",
+      "Emerald Green",
+      "Peacock Blue",
+      "Rani Pink"
+    ],
+    "sizes": [
+      "Standard 6.3 Mtr (with Blouse)"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800",
+    "images": [
+      "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
+    ],
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": true,
+    "rating": 5
+  },
+  {
+    "id": "BDH-103",
+    "name": "Royal Blue Designer Men's Kurta Pyjama",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Men Kurtas",
+    "price": 1899,
+    "originalPrice": 2499,
+    "description": "Elegant silk blend men's kurta pajama set featuring an embroidered self-textured Nehru jacket. Lightweight, comfortable, and regal.",
+    "fabric": "Dupion Silk Blend",
+    "workType": "Thread Embroidery & Mandarin Collar",
+    "colors": [
+      "Royal Blue",
+      "Cream Ivory",
+      "Maroon",
+      "Golden Yellow"
+    ],
+    "sizes": [
+      "38 (S)",
+      "40 (M)",
+      "42 (L)",
+      "44 (XL)"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+    "inStock": true,
+    "isBestSeller": false,
+    "isNewArrival": true,
+    "rating": 4.8
+  },
+  {
+    "id": "BDH-104",
+    "name": "Pastel Pink Embroidered Bridal Lehenga",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Lehengas",
+    "price": 6499,
+    "originalPrice": 8999,
+    "description": "Heavy semi-stitched velvet lehenga choli adorned with sequin mirror work, dori embroidery, and double net dupatta for festive occasions.",
+    "fabric": "Micro Velvet & Net",
+    "workType": "Sequin, Mirror & Dori Work",
+    "colors": [
+      "Dusty Pink",
+      "Royal Red",
+      "Wine Maroon"
+    ],
+    "sizes": [
+      "Semi-Stitched (Fits up to 44 waist)"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1583391733975-ac82098b9e68?auto=format&fit=crop&q=80&w=800",
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": true,
+    "rating": 4.9
+  },
+  {
+    "id": "BDH-105",
+    "name": "Pure Cotton Jaipuri Unstitched Dress Material",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Dress Materials",
+    "price": 1299,
+    "originalPrice": 1799,
+    "description": "100% Breathable Jaipuri block print cotton suit material with Kota Doria dupatta. Ideal for daily summer wear and office wear.",
+    "fabric": "Pure 60x60 Cotton",
+    "workType": "Sanganeri Hand Block Print",
+    "colors": [
+      "Indigo Blue",
+      "Turmeric Yellow",
+      "Peach Pink"
+    ],
+    "sizes": [
+      "Top 2.5m + Bottom 2.5m + Dupatta 2.25m"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+    "inStock": true,
+    "isBestSeller": false,
+    "isNewArrival": false,
+    "rating": 4.7
+  },
+  {
+    "id": "BDH-106",
+    "name": "Heavy Phulkari Handcrafted Silk Dupatta",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Dupattas & Shawls",
+    "price": 999,
+    "originalPrice": 1499,
+    "description": "Traditional Punjabi handcrafted Bagh Phulkari dupatta with vibrant pat silk thread embroidery on chanderi base.",
+    "fabric": "Chanderi Silk",
+    "workType": "Pat Silk Thread Phulkari Bagh",
+    "colors": [
+      "Multi-Color Bright",
+      "Yellow Gold",
+      "Rani Red"
+    ],
+    "sizes": [
+      "2.4 Mtr Length"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": false,
+    "rating": 4.9
+  },
+  {
+    "id": "BDH-107",
+    "name": "Cotton Stuff Daily Wear Punjabi Suit",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Punjabi Suits",
+    "price": 400,
+    "originalPrice": 999,
+    "description": "Daily wear pure cotton stuff Punjabi suit with soft breathable unstitched fabric and matching dupatta.",
+    "fabric": "100% Pure Cotton Stuff",
+    "workType": "Printed & Unstitched Thread Work",
+    "colors": [
+      "Royal Blue",
+      "Crimson Red",
+      "Mustard Yellow",
+      "Bottle Green"
+    ],
+    "sizes": [
+      "Unstitched Material",
+      "L (40)",
+      "XL (42)"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+    "images": [
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
+    ],
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": true,
+    "rating": 4.9,
+    "tags": [
+      "Punjabi Suits",
+      "Cotton Suit",
+      "Budget Collection",
+      "Daily Wear"
+    ]
+  },
+  {
+    "id": "BDH-108",
+    "name": "Pashmina Woolen Jacquard Winter Suit",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Punjabi Suits",
+    "price": 1899,
+    "originalPrice": 2599,
+    "description": "Warm Kashmir Pashmina woolen suit material with woven Kashmiri shawl dupatta. Extremely soft, cozy, and vibrant for winter season.",
+    "fabric": "Kashmiri Pashmina Wool",
+    "workType": "Woven Jacquard Jamawar",
+    "colors": [
+      "Wine Red",
+      "Pine Green",
+      "Navy Blue"
+    ],
+    "sizes": [
+      "Unstitched Suit Set with Shawl"
+    ],
+    "imageUrl": "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800",
+    "inStock": true,
+    "isBestSeller": false,
+    "isNewArrival": false,
+    "rating": 4.6
+  }
+]

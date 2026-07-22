@@ -30,9 +30,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         className="relative aspect-[3/4] bg-stone-100 overflow-hidden cursor-pointer"
       >
         <img
-          src={product.imageUrl}
+          src={product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
           alt={product.name}
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+          }}
           className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
         />
 

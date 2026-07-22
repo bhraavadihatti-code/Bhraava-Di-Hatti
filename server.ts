@@ -37,19 +37,13 @@ function loadProducts(): Product[] {
     if (fs.existsSync(PRODUCTS_FILE)) {
       const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
       const savedProducts: Product[] = JSON.parse(data);
-      const savedIds = new Set(savedProducts.map(p => p.id));
-      const missing = INITIAL_PRODUCTS.filter(p => !savedIds.has(p.id));
-      if (missing.length > 0) {
-        const merged = [...missing, ...savedProducts];
-        saveProducts(merged);
-        return merged;
+      if (Array.isArray(savedProducts) && savedProducts.length > 0) {
+        return savedProducts;
       }
-      return savedProducts;
     }
   } catch (err) {
     console.error('Error reading products file, falling back to initial:', err);
   }
-  // Initialize file with default products
   saveProducts(INITIAL_PRODUCTS);
   return INITIAL_PRODUCTS;
 }
