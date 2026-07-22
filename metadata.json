@@ -1,0 +1,6 @@
+{
+  "name": "Bhraava Di Hatti - Jai Durga Cloth Emporium",
+  "description": "E-commerce online shop and order processing system for Bhraava Di Hatti (Jai Durga Cloth Emporium) with UPI/QR payment, UTR tracking, manual order acceptance, and real-time push alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
