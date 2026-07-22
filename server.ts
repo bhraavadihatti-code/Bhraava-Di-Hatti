@@ -197,10 +197,7 @@ app.post('/api/products', (req, res) => {
     products.unshift(newProduct);
     saveProducts(products);
 
-    broadcastSSE({
-      type: 'PRODUCTS_UPDATED',
-      products
-    });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
 
     res.status(201).json(newProduct);
   } catch (err: any) {
@@ -223,10 +220,7 @@ app.put('/api/products/:id', (req, res) => {
     products[index] = { ...products[index], ...updatedData };
     saveProducts(products);
 
-    broadcastSSE({
-      type: 'PRODUCTS_UPDATED',
-      products
-    });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
 
     res.json(products[index]);
   } catch (err: any) {
@@ -242,10 +236,7 @@ app.delete('/api/products/:id', (req, res) => {
     products = products.filter(p => p.id !== id);
     saveProducts(products);
 
-    broadcastSSE({
-      type: 'PRODUCTS_UPDATED',
-      products
-    });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
 
     res.json({ success: true, id });
   } catch (err: any) {
