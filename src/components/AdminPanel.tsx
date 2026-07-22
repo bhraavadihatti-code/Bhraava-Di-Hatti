@@ -262,6 +262,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     if (!productForm.name || !productForm.price) return;
 
+    const allImagesList = Array.from(new Set([
+      productForm.imageUrl,
+      ...(productForm.images || [])
+    ].filter((img): img is string => Boolean(img && img.trim()))));
+
     const finalProduct: Product = {
       id: productForm.id || getSuggestedSerialNo(),
       name: productForm.name,
@@ -276,7 +281,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       workType: productForm.workType || 'Traditional Punjabi Work',
       colors: productForm.colors && productForm.colors.length > 0 ? productForm.colors : ['Crimson Red', 'Royal Blue'],
       sizes: productForm.sizes && productForm.sizes.length > 0 ? productForm.sizes : ['Unstitched'],
-      imageUrl: productForm.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+      imageUrl: allImagesList[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+      images: allImagesList,
       inStock: productForm.inStock !== undefined ? productForm.inStock : true,
       isBestSeller: productForm.isBestSeller || false,
       isNewArrival: productForm.isNewArrival || true,
@@ -651,11 +657,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       {/* Items List */}
                       <div className="space-y-2 border-t lg:border-t-0 lg:border-l border-gray-200 pt-3 lg:pt-0 lg:pl-4">
                         <p className="font-bold text-gray-800">Unstitched Fabrics Ordered ({order.items.length}):</p>
-                        <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                           {order.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-[11px] bg-slate-50 p-1.5 rounded-lg">
-                              <span className="font-medium text-gray-800 line-clamp-1">{item.product.name} ({item.selectedSize}, {item.selectedColor})</span>
-                              <span className="font-mono font-bold text-gray-900">x{item.quantity}</span>
+                            <div key={idx} className="bg-amber-50/80 border border-amber-200 p-2 rounded-xl space-y-1">
+                              <div className="flex items-start justify-between text-[11px] gap-2">
+                                <span className="font-bold text-stone-900 leading-tight">{item.product.name}</span>
+                                <span className="font-mono font-black text-amber-950 bg-amber-200 px-2 py-0.5 rounded-md text-[10px] shrink-0">x{item.quantity}</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                <span className="bg-[#32080E] text-amber-200 font-extrabold px-2.5 py-0.5 rounded-md border border-amber-700/60 shadow-2xs flex items-center gap-1">
+                                  🎨 Color: <span className="text-white underline">{item.selectedColor || 'Standard'}</span>
+                                </span>
+                                <span className="bg-white text-stone-800 font-bold px-2 py-0.5 rounded-md border border-amber-300">
+                                  📏 Size: {item.selectedSize || 'Free Size'}
+                                </span>
+                                <span className="font-mono text-stone-700 font-bold ml-auto text-[11px]">
+                                  ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1280,51 +1299,107 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </div>
 
-              {/* Photo Upload & Preview */}
-              <div className="space-y-2 border-t pt-2">
-                <label className="block font-bold text-gray-800 mb-1">Product Photo Upload</label>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  <div className="sm:col-span-2 space-y-2">
-                    <div>
-                      <span className="text-[11px] text-gray-600 block mb-1">Option A: Upload Photo directly from Phone / Computer</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoUpload}
-                        className="block w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer border border-gray-300 rounded-xl p-1"
-                      />
-                    </div>
+              {/* Photo Upload & Multi-Photo Gallery (4-5 Photos) */}
+              <div className="space-y-3 border-t pt-3 bg-amber-50/50 p-3 rounded-2xl border border-amber-200">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-amber-950 text-xs uppercase tracking-wider">
+                    📸 Product Photos Gallery (Up to 5 Photos)
+                  </label>
+                  <span className="text-[10px] text-amber-900 font-bold bg-amber-200/80 px-2 py-0.5 rounded-full font-mono">
+                    {Array.from(new Set([productForm.imageUrl, ...(productForm.images || [])].filter(Boolean))).length} / 5 Loaded
+                  </span>
+                </div>
 
-                    <div>
-                      <span className="text-[11px] text-gray-600 block mb-1">Option B: Or paste Image URL link</span>
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={productForm.imageUrl}
-                        onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
-                        className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Thumbnail Preview */}
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-amber-300 p-2 rounded-2xl bg-amber-50/50">
-                    <span className="text-[10px] font-bold text-amber-900 mb-1">Photo Preview:</span>
-                    {productForm.imageUrl ? (
-                      <img
-                        src={productForm.imageUrl}
-                        alt="Preview"
-                        referrerPolicy="no-referrer"
-                        className="w-20 h-24 object-cover rounded-xl border border-amber-300 shadow-xs"
-                      />
-                    ) : (
-                      <div className="w-20 h-24 bg-gray-100 rounded-xl flex items-center justify-center text-[10px] text-gray-400">
-                        No Photo
-                      </div>
-                    )}
+                {/* Primary Cover Photo 1 */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-gray-800">Photo 1 (Main Cover Image):</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-amber-800 file:text-white cursor-pointer border border-gray-300 rounded-xl p-1 bg-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Or paste main image URL https://..."
+                      value={productForm.imageUrl || ''}
+                      onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                      className="sm:col-span-2 w-full bg-white border border-amber-300 rounded-xl p-2 text-xs"
+                    />
                   </div>
                 </div>
+
+                {/* Additional Photos 2, 3, 4, 5 Inputs */}
+                <div className="space-y-2 pt-2 border-t border-amber-200">
+                  <span className="text-[11px] font-bold text-stone-800 block">Additional Angle & Fabric Photos (Photos 2 to 5):</span>
+                  {[1, 2, 3, 4].map((photoIdx) => {
+                    const currentImgs = productForm.images || [];
+                    const currentVal = currentImgs[photoIdx] || '';
+                    return (
+                      <div key={photoIdx} className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-bold text-amber-950 w-16 shrink-0">Photo #{photoIdx + 1}:</span>
+                        <input
+                          type="text"
+                          placeholder={`Paste URL for photo ${photoIdx + 1} (e.g., Dupatta close-up / back view)`}
+                          value={currentVal}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProductForm((prev) => {
+                              const updatedImgs = [...(prev.images || [])];
+                              updatedImgs[photoIdx] = val;
+                              return { ...prev, images: updatedImgs };
+                            });
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-xl p-1.5 text-xs font-mono"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(fileEv) => {
+                            const file = fileEv.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (typeof reader.result === 'string') {
+                                  const base64 = reader.result as string;
+                                  setProductForm((prev) => {
+                                    const updatedImgs = [...(prev.images || [])];
+                                    updatedImgs[photoIdx] = base64;
+                                    return { ...prev, images: updatedImgs };
+                                  });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-24 text-[10px] text-gray-500 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-amber-200 file:text-amber-950 cursor-pointer border rounded-lg"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Thumbnail Preview strip for all 5 photos */}
+                <div className="pt-2 border-t border-amber-200">
+                  <span className="text-[10px] font-bold text-amber-900 block mb-1">Loaded Photos Preview:</span>
+                  <div className="flex items-center gap-2 overflow-x-auto p-1 bg-white rounded-xl border border-amber-200 min-h-16">
+                    {Array.from(new Set([productForm.imageUrl, ...(productForm.images || [])].filter((img): img is string => Boolean(img && img.trim())))).map((img, i) => (
+                      <div key={i} className="relative group shrink-0">
+                        <img
+                          src={img}
+                          alt={`Preview ${i + 1}`}
+                          referrerPolicy="no-referrer"
+                          className="w-12 h-14 object-cover rounded-lg border border-amber-400 shadow-2xs"
+                        />
+                        <span className="absolute bottom-0 right-0 bg-black/80 text-white text-[8px] px-1 font-mono rounded-tl">
+                          #{i + 1}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
 
               {/* Colors Manager */}

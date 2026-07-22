@@ -23,6 +23,7 @@ export interface Product {
   colors: string[];
   sizes: string[];
   imageUrl: string;
+  images?: string[]; // Multiple photos (4-5 images per product)
   inStock: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;

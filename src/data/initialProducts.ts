@@ -32,6 +32,13 @@ export const INITIAL_PRODUCTS: Product[] = [
     colors: ["Crimson Red", "Royal Blue", "Bottle Green", "Mustard Yellow"],
     sizes: ["Unstitched", "M (38)", "L (40)", "XL (42)", "XXL (44)"],
     imageUrl: "/src/assets/images/punjabi_suit_red_1784686277398.jpg",
+    images: [
+      "/src/assets/images/punjabi_suit_red_1784686277398.jpg",
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1583391733975-ac82098b9e68?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800"
+    ],
     inStock: true,
     isBestSeller: true,
     isNewArrival: false,
@@ -51,6 +58,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     colors: ["Deep Maroon", "Emerald Green", "Peacock Blue", "Rani Pink"],
     sizes: ["Standard 6.3 Mtr (with Blouse)"],
     imageUrl: "/src/assets/images/designer_saree_silk_1784686300587.jpg",
+    images: [
+      "/src/assets/images/designer_saree_silk_1784686300587.jpg",
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&q=80&w=800"
+    ],
     inStock: true,
     isBestSeller: true,
     isNewArrival: true,
