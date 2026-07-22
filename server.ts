@@ -180,6 +180,32 @@ app.get('/api/products', (req, res) => {
   res.json(products);
 });
 
+app.post('/api/products/sync-from-code', (req, res) => {
+  try {
+    saveProducts(INITIAL_PRODUCTS);
+    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
+    res.json({ success: true, count: INITIAL_PRODUCTS.length, products: INITIAL_PRODUCTS });
+  } catch (err: any) {
+    console.error('Error syncing products from code:', err);
+    res.status(500).json({ error: err?.message || 'Failed to sync products from code' });
+  }
+});
+
+app.post('/api/products/bulk', (req, res) => {
+  try {
+    const newProducts = req.body;
+    if (!Array.isArray(newProducts)) {
+      return res.status(400).json({ error: 'Expected an array of products' });
+    }
+    saveProducts(newProducts);
+    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
+    res.json({ success: true, count: newProducts.length, products: newProducts });
+  } catch (err: any) {
+    console.error('Error saving bulk products:', err);
+    res.status(500).json({ error: err?.message || 'Failed to save bulk products' });
+  }
+});
+
 app.post('/api/products', (req, res) => {
   try {
     const newProduct: Product = req.body;

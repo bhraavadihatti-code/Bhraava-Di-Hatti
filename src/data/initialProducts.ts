@@ -17,7 +17,39 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   adminPin: "BDH-1986"
 };
 
+/**
+ * ====================================================================
+ *  Bhraava Di Hatti — Product Catalog Code File
+ * ====================================================================
+ *  HOW TO ADD PRODUCTS IN CODE:
+ *  1. Simply copy the template object below.
+ *  2. Change name, price, category, colors, and image URL.
+ *  3. In the Admin Panel, click "🔄 Sync Products from Code"!
+ */
+
 export const INITIAL_PRODUCTS: Product[] = [
+  /* --- CODE TEMPLATE FOR NEW PRODUCTS (Copy & Paste this block) ---
+  {
+    id: "BDH-109",
+    name: "New Product Name Here",
+    firmName: "Jai Durga Cloth Emporium",
+    shopName: "Bhraava Di Hatti",
+    category: "Punjabi Suits", // Categories: Punjabi Suits, Banarasi Sarees, Men Kurtas, Lehengas, Dress Materials, Dupattas & Shawls, Festive Collection
+    price: 1999,
+    originalPrice: 2999,
+    description: "Write details about fabric, suit length, and dupatta...",
+    fabric: "100% Pure Cotton",
+    workType: "Zari & Gotta Patti",
+    colors: ["Red", "Royal Blue", "Green"],
+    sizes: ["Unstitched", "M", "L", "XL"],
+    imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
+    images: ["https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"],
+    inStock: true,
+    isBestSeller: false,
+    isNewArrival: true,
+    rating: 4.9
+  },
+  ------------------------------------------------------------------ */
   {
     id: "BDH-101",
     name: "Royal Crimson Punjabi Salwar Suit",
