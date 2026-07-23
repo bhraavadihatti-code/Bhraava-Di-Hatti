@@ -110,107 +110,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Add Product Form state
   const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [showWorkerModal, setShowWorkerModal] = useState(false);
-  const [workerForm, setWorkerForm] = useState({
-    id: '',
-    name: '',
-    price: '',
-    category: 'Punjabi Suits',
-    imageUrl: '',
-    color: 'Standard / Multi'
-  });
-  const [bulkJsonText, setBulkJsonText] = useState('');
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [newColorInput, setNewColorInput] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
-
-  const handleWorkerQuickSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!workerForm.name.trim() || !workerForm.price) {
-      alert('❌ Please fill in Product Name and Price!');
-      return;
-    }
-    const priceNum = Number(workerForm.price);
-    const finalProduct: Product = {
-      id: workerForm.id || getSuggestedSerialNo(),
-      name: workerForm.name.trim(),
-      firmName: settings.firmName || "Jai Durga Cloth Emporium",
-      shopName: settings.shopName || "Bhraava Di Hatti",
-      category: workerForm.category || 'Punjabi Suits',
-      tags: [workerForm.category || 'Punjabi Suits', 'Shop Item'],
-      price: priceNum,
-      originalPrice: priceNum + 500,
-      description: `${workerForm.name.trim()} - Unstitched cloth suit material available at ${settings.shopName}.`,
-      fabric: '100% Pure High Quality Cotton/Silk',
-      workType: 'Gotta Patti & Zari Thread Work',
-      colors: [workerForm.color || 'Standard / Multi'],
-      sizes: ['Unstitched', 'L (40)', 'XL (42)'],
-      imageUrl: workerForm.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
-      images: [workerForm.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800'],
-      inStock: true,
-      isBestSeller: false,
-      isNewArrival: true,
-      rating: 4.9
-    };
-
-    try {
-      await onAddProduct(finalProduct);
-      alert(`🎉 Product "${finalProduct.name}" (${finalProduct.id}) Added Live!`);
-      setShowWorkerModal(false);
-      setWorkerForm({
-        id: '',
-        name: '',
-        price: '',
-        category: 'Punjabi Suits',
-        imageUrl: '',
-        color: 'Standard / Multi'
-      });
-    } catch (err: any) {
-      alert(`❌ Error saving product: ${err?.message}`);
-    }
-  };
-
-  const handleSyncFromCode = async () => {
-    if (!confirm('Sync products directly from code file (/src/data/initialProducts.ts)?\n\nThis will load all products defined in code!')) return;
-    try {
-      const res = await fetch('/api/products/sync-from-code', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`✅ Successfully synced ${data.count} products from code (initialProducts.ts)!`);
-        window.location.reload();
-      } else {
-        alert(`❌ Sync failed: ${data.error}`);
-      }
-    } catch (e: any) {
-      alert(`❌ Error syncing from code: ${e?.message}`);
-    }
-  };
-
-  const handleSaveBulkJson = async () => {
-    try {
-      const parsed = JSON.parse(bulkJsonText);
-      if (!Array.isArray(parsed)) {
-        alert('❌ Invalid JSON format: Must be an array of products starting with [ and ending with ]');
-        return;
-      }
-      const res = await fetch('/api/products/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsed)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`✅ Successfully saved ${data.count} products from JSON!`);
-        setShowBulkModal(false);
-        window.location.reload();
-      } else {
-        alert(`❌ Error saving bulk products: ${data.error}`);
-      }
-    } catch (e: any) {
-      alert(`❌ Invalid JSON syntax: ${e?.message}`);
-    }
-  };
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
     id: '',
@@ -946,64 +848,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => {
-                    setWorkerForm({
-                      id: getSuggestedSerialNo(),
-                      name: '',
-                      price: '',
-                      category: 'Punjabi Suits',
-                      imageUrl: '',
-                      color: 'Standard / Multi'
-                    });
-                    setShowWorkerModal(true);
-                  }}
-                  className="bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-700 hover:to-amber-900 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg transition-transform active:scale-95 border border-amber-400 cursor-pointer animate-pulse"
-                  title="Super easy 3-step form for shop staff to add products with camera photo"
-                >
-                  <Zap className="w-4 h-4 text-yellow-300 fill-yellow-300" /> ⚡ Easy Shop Worker Add (आसान वर्कर फॉर्म)
-                </button>
-
-                <button
-                  onClick={handleSyncFromCode}
-                  className="bg-emerald-800 hover:bg-emerald-900 text-amber-100 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-transform active:scale-95 border border-emerald-600 cursor-pointer"
-                  title="Reload all products defined in src/data/initialProducts.ts code file"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-emerald-300" /> Sync Code
-                </button>
-
-                <button
-                  onClick={() => {
-                    setBulkJsonText(JSON.stringify(products, null, 2));
-                    setShowBulkModal(true);
-                  }}
-                  className="bg-stone-800 hover:bg-stone-900 text-stone-100 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-transform active:scale-95 border border-stone-600 cursor-pointer"
-                  title="View or Paste product catalog in raw JSON format"
-                >
-                  <FileText className="w-3.5 h-3.5 text-amber-300" /> JSON
-                </button>
-
-                <button
-                  onClick={() => {
                     setEditingProductId(null);
+                    const nextSerial = getSuggestedSerialNo();
                     setProductForm({
-                      id: getSuggestedSerialNo(),
+                      id: nextSerial,
                       name: '',
                       category: 'Punjabi Suits',
-                      tags: ['Punjabi Suits', 'Cotton Suit', '3-Piece Material'],
-                      price: 1999,
-                      originalPrice: 2999,
+                      tags: ['Punjabi Suits', 'Cotton Suit', 'Unstitched'],
+                      price: undefined,
+                      originalPrice: undefined,
                       description: 'Premium unstitched Punjabi suit material with heavy embroidery dupatta.',
                       fabric: '100% Pure Cotton',
                       workType: 'Gotta Patti & Zari Embroidery',
                       colors: ['Crimson Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
                       sizes: ['Unstitched', 'L (40)', 'XL (42)'],
-                      imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
-                      inStock: true
+                      imageUrl: '',
+                      images: [],
+                      inStock: true,
+                      isBestSeller: true,
+                      isNewArrival: true,
+                      rating: 4.8
                     });
                     setShowAddProductModal(true);
                   }}
-                  className="bg-amber-900/80 hover:bg-amber-950 text-white font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1 shadow-md transition-transform active:scale-95 cursor-pointer"
+                  className="bg-amber-900 hover:bg-amber-950 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center gap-2 shadow-lg transition-transform active:scale-95 border border-amber-600 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Full Form ({getSuggestedSerialNo()})
+                  <Plus className="w-4 h-4 text-amber-300" /> ➕ Add New Product (नया सूट / ड्रेस जोड़ें)
                 </button>
               </div>
             </div>
@@ -1659,258 +1529,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* BULK JSON CODE EDITOR MODAL */}
-      {showBulkModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div>
-                <h2 className="text-lg font-bold font-serif text-amber-950 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-amber-700" /> Bulk Products Code / JSON Editor
-                </h2>
-                <p className="text-xs text-stone-500">
-                  Directly edit or paste product catalog JSON. You can also edit <code className="bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-mono text-[11px]">src/data/initialProducts.ts</code> in code!
-                </p>
-              </div>
-              <button
-                onClick={() => setShowBulkModal(false)}
-                className="text-gray-400 hover:text-gray-700 font-bold text-xl px-2"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-xs text-amber-950 space-y-1 font-medium">
-              <p>💡 <strong>Two ways to add products easily in Code:</strong></p>
-              <ul className="list-disc pl-5 space-y-0.5 text-[11px] text-stone-700">
-                <li><strong>Method 1:</strong> Edit the code file <code className="bg-white text-red-900 px-1 rounded font-mono">src/data/initialProducts.ts</code> and then click <span className="font-bold text-emerald-800">"Sync Products from Code"</span> button!</li>
-                <li><strong>Method 2:</strong> Copy or paste the product JSON array directly in the box below and click <span className="font-bold text-amber-900">"Save All JSON Products"</span>.</li>
-              </ul>
-            </div>
-
-            <textarea
-              rows={14}
-              value={bulkJsonText}
-              onChange={(e) => setBulkJsonText(e.target.value)}
-              placeholder="Paste JSON array here..."
-              className="w-full bg-stone-900 text-emerald-400 font-mono text-xs p-3 rounded-2xl border border-stone-700 focus:outline-hidden focus:ring-2 focus:ring-amber-500 shrink min-h-60"
-            />
-
-            <div className="flex items-center justify-between pt-2 border-t">
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    const parsed = JSON.parse(bulkJsonText);
-                    alert(`✅ Valid JSON! Contains ${parsed.length} products.`);
-                  } catch (e: any) {
-                    alert(`❌ Invalid JSON: ${e?.message}`);
-                  }
-                }}
-                className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold px-3 py-2 rounded-xl"
-              >
-                Verify JSON Syntax
-              </button>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBulkModal(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveBulkJson}
-                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-5 py-2 rounded-xl text-xs shadow-md transition-transform active:scale-95 cursor-pointer"
-                >
-                  Save All JSON Products
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* SHOP WORKER EASY QUICK-ADD MODAL */}
-      {showWorkerModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-5 shadow-2xl space-y-4 border-2 border-amber-500 animate-in fade-in zoom-in-95 duration-200 my-auto">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-800 text-white flex items-center justify-center shadow-md">
-                  <Zap className="w-6 h-6 text-yellow-300 fill-yellow-300" />
-                </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-amber-950 font-serif">
-                    आसान दुकान वर्कर फॉर्म (Quick Worker Form)
-                  </h2>
-                  <p className="text-[11px] text-stone-500 font-medium">
-                    1-Minute Easy Product Add for Shop Employees
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowWorkerModal(false)}
-                className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleWorkerQuickSave} className="space-y-4">
-              
-              {/* Item Serial Code */}
-              <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase text-amber-900 tracking-wider block">Item Serial Code (आइटम कोड)</span>
-                  <span className="text-xs text-stone-600 font-medium">Auto-assigned for stock tracking</span>
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={workerForm.id}
-                  onChange={(e) => setWorkerForm({ ...workerForm, id: e.target.value })}
-                  className="bg-white border-2 border-amber-400 font-mono font-extrabold text-amber-950 text-sm px-3 py-1 rounded-xl text-center w-28 shadow-xs"
-                />
-              </div>
-
-              {/* Step 1: Photo Upload / Camera Capture */}
-              <div className="space-y-2 bg-stone-50 p-3 rounded-2xl border border-stone-200">
-                <label className="block text-xs font-extrabold text-stone-900 flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-amber-700" /> 1. Photo (कपड़े की फोटो खींचें या चुनें)
-                </label>
-
-                {workerForm.imageUrl ? (
-                  <div className="relative w-full h-36 bg-black rounded-2xl overflow-hidden border-2 border-amber-500 shadow-inner group">
-                    <img
-                      src={workerForm.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
-                      alt="Preview"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
-                      }}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setWorkerForm({ ...workerForm, imageUrl: '' })}
-                      className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2.5 py-1 rounded-xl shadow-md"
-                    >
-                      Remove / Retake 🔄
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-amber-400 rounded-2xl bg-amber-50/60 hover:bg-amber-100/70 cursor-pointer transition-colors p-2 text-center">
-                    <Camera className="w-8 h-8 text-amber-800 mb-1 animate-bounce" />
-                    <span className="text-xs font-extrabold text-amber-950">📸 Click to Take Photo / Choose File</span>
-                    <span className="text-[10px] text-amber-800">Mobile camera will open directly</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          try {
-                            const compressed = await compressImageFile(file);
-                            setWorkerForm((prev) => ({ ...prev, imageUrl: compressed }));
-                          } catch (err) {
-                            console.error('Compress fail:', err);
-                          }
-                        }
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-
-              {/* Step 2: Name & Price */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-extrabold text-stone-900 mb-1">
-                    2. Product Name (कपड़े का नाम) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Pink Embroidery Punjabi Suit"
-                    value={workerForm.name}
-                    onChange={(e) => setWorkerForm({ ...workerForm, name: e.target.value })}
-                    className="w-full bg-stone-50 border-2 border-stone-300 focus:border-amber-600 rounded-xl p-2.5 text-xs font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-extrabold text-stone-900 mb-1">
-                    3. Price in ₹ (बेचने का दाम) *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-xs font-bold text-stone-500">₹</span>
-                    <input
-                      type="number"
-                      required
-                      placeholder="1499"
-                      value={workerForm.price}
-                      onChange={(e) => setWorkerForm({ ...workerForm, price: e.target.value })}
-                      className="w-full bg-stone-50 border-2 border-stone-300 focus:border-amber-600 rounded-xl p-2.5 pl-7 text-xs font-extrabold text-emerald-950 font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 3: Category Selection */}
-              <div>
-                <label className="block text-xs font-extrabold text-stone-900 mb-1.5">
-                  4. Select Category (सामान की वैराइटी)
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  {['Punjabi Suits', 'Banarasi Sarees', 'Lehengas', 'Men Kurtas', 'Dress Materials', 'Dupattas & Shawls'].map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setWorkerForm({ ...workerForm, category: cat })}
-                      className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all ${
-                        workerForm.category === cat
-                          ? 'bg-amber-800 text-white border-amber-900 shadow-md scale-95'
-                          : 'bg-stone-100 text-stone-800 border-stone-300 hover:bg-stone-200'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="pt-2 border-t flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWorkerModal(false)}
-                  className="w-1/3 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold py-3 rounded-2xl text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-2/3 bg-gradient-to-r from-emerald-700 to-emerald-900 hover:from-emerald-800 hover:to-emerald-950 text-white font-extrabold py-3 rounded-2xl text-xs shadow-xl transition-transform active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Zap className="w-4 h-4 text-yellow-300 fill-yellow-300" /> Save & Publish Live (सामान जोड़ें)
-                </button>
-              </div>
-
-            </form>
-
           </div>
         </div>
       )}
