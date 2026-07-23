@@ -187,6 +187,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Settings Form state
   const [settingsForm, setSettingsForm] = useState<ShopSettings>(settings);
 
+  // Category management state
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
+  const DEFAULT_CAT_LIST = [
+    'Punjabi Suits',
+    'Banarasi Sarees',
+    'Lehengas',
+    'Men Kurtas',
+    'Dress Materials',
+    'Dupattas & Shawls',
+    'Festive Collection'
+  ];
+
+  const handleAddCategory = () => {
+    const val = newCategoryInput.trim();
+    if (!val) return;
+    const currentCats = (settingsForm.categories && settingsForm.categories.length > 0)
+      ? settingsForm.categories
+      : ['All', ...DEFAULT_CAT_LIST];
+    if (!currentCats.includes(val)) {
+      const updatedCats = [...currentCats, val];
+      setSettingsForm((prev) => ({ ...prev, categories: updatedCats }));
+    }
+    setNewCategoryInput('');
+  };
+
+  const handleRemoveCategory = (catToRemove: string) => {
+    const currentCats = (settingsForm.categories && settingsForm.categories.length > 0)
+      ? settingsForm.categories
+      : ['All', ...DEFAULT_CAT_LIST];
+    const updatedCats = currentCats.filter((c) => c !== catToRemove);
+    setSettingsForm((prev) => ({ ...prev, categories: updatedCats }));
+  };
+
+  const handleResetCategories = () => {
+    setSettingsForm((prev) => ({ ...prev, categories: ['All', ...DEFAULT_CAT_LIST] }));
+  };
+
   // Sync settings form when prop changes
   useEffect(() => {
     setSettingsForm(settings);
@@ -1241,6 +1279,64 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </div>
 
+              {/* Category Management Card */}
+              <div className="bg-amber-50/90 border border-amber-300 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-amber-950 text-xs flex items-center gap-1.5">
+                    🏷️ Manage Shop Product Categories (ਕੈਟੇਗਰੀਆਂ ਮੈਨੇਜ ਕਰੋ):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleResetCategories}
+                    className="text-[10px] font-bold text-red-800 hover:underline"
+                  >
+                    Reset Defaults
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Georgette Suits, Cotton Suits, Winter Wear..."
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCategory();
+                      }
+                    }}
+                    className="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="bg-amber-900 hover:bg-amber-950 text-amber-100 font-bold px-3 py-2 rounded-xl text-xs transition-colors shadow-2xs shrink-0"
+                  >
+                    + Add Category
+                  </button>
+                </div>
+
+                {/* Display current category pills */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {(settingsForm.categories && settingsForm.categories.length > 0 ? settingsForm.categories : ['All', ...DEFAULT_CAT_LIST])
+                    .filter(c => c !== 'All')
+                    .map((cat) => (
+                      <span key={cat} className="bg-white text-stone-900 border border-amber-300 px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                        <span>{cat}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCategory(cat)}
+                          className="text-red-700 hover:text-red-900 font-extrabold text-xs ml-0.5"
+                          title="Remove Category"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-amber-900 hover:bg-amber-950 text-white font-bold py-3 rounded-xl transition-colors text-sm shadow-md"
@@ -1392,7 +1488,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
                     className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2.5 text-sm font-semibold"
                   >
-                    {['Punjabi Suits', 'Banarasi Sarees', 'Lehengas', 'Men Kurtas', 'Dress Materials', 'Dupattas & Shawls', 'Festive Collection'].map(c => (
+                    {(settingsForm.categories && settingsForm.categories.length > 0 
+                      ? settingsForm.categories.filter(c => c !== 'All') 
+                      : DEFAULT_CAT_LIST
+                    ).map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>

@@ -24,6 +24,26 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   const fetchOrders = async (searchStr: string) => {
     setLoading(true);
     setSearched(true);
+    
+    // 1. Read locally saved orders first
+    let localOrders: Order[] = [];
+    try {
+      const savedBdh = localStorage.getItem('bdh_orders');
+      if (savedBdh) {
+        const parsed = JSON.parse(savedBdh);
+        if (Array.isArray(parsed)) localOrders.push(...parsed);
+      }
+      const savedCust = localStorage.getItem('bdh_customer_orders');
+      if (savedCust) {
+        const parsed = JSON.parse(savedCust);
+        if (Array.isArray(parsed)) localOrders.push(...parsed);
+      }
+    } catch (e) {
+      console.warn('Local orders load warning:', e);
+    }
+
+    // 2. Fetch server orders
+    let serverOrders: Order[] = [];
     try {
       const endpoint = (!searchStr.trim() || searchStr.trim().toLowerCase() === 'all')
         ? '/api/orders'
@@ -31,13 +51,42 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
       const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        setOrders(data);
+        if (Array.isArray(data)) serverOrders = data;
       }
     } catch (e) {
-      console.error('Track error:', e);
-    } finally {
-      setLoading(false);
+      console.warn('Track API fetch error:', e);
     }
+
+    // 3. Merge server and local orders (deduplicate by ID)
+    const map = new Map<string, Order>();
+    serverOrders.forEach(o => map.set(o.id, o));
+    localOrders.forEach(o => {
+      if (!map.has(o.id)) {
+        map.set(o.id, o);
+      } else {
+        // If local version is newer or has status, keep best
+        const existing = map.get(o.id)!;
+        map.set(o.id, { ...existing, ...o });
+      }
+    });
+
+    let combined = Array.from(map.values());
+
+    // 4. Filter according to search string if provided
+    const s = searchStr.trim().toLowerCase();
+    if (s && s !== 'all') {
+      const cleanNum = s.replace(/[^0-9]/g, '');
+      combined = combined.filter(o => 
+        o.id.toLowerCase().includes(s) ||
+        (o.utsNumber && o.utsNumber.toLowerCase().includes(s)) ||
+        (o.customer?.phone && cleanNum && o.customer.phone.replace(/[^0-9]/g, '').includes(cleanNum)) ||
+        (o.customer?.fullName && o.customer.fullName.toLowerCase().includes(s)) ||
+        (o.trackingNumber && o.trackingNumber.toLowerCase().includes(s))
+      );
+    }
+
+    setOrders(combined);
+    setLoading(false);
   };
 
   useEffect(() => {

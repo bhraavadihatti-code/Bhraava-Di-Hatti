@@ -1,5 +1,16 @@
 import { Product, ShopSettings } from '../types';
 
+export const DEFAULT_CATEGORIES: string[] = [
+  'All',
+  'Punjabi Suits',
+  'Banarasi Sarees',
+  'Lehengas',
+  'Men Kurtas',
+  'Dress Materials',
+  'Dupattas & Shawls',
+  'Festive Collection'
+];
+
 export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   shopName: "Bhraava Di Hatti",
   firmName: "Jai Durga Cloth Emporium",
@@ -14,7 +25,8 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   gstNumber: "03AABCU9603R1ZM",
   minOrderForFreeShipping: 1999,
   noticeText: "🎁 RAKHI SPECIAL MEGA SALE IS LIVE TILL 29 AUGUST! FLAT DISCOUNTS + INDIA POST DESPATCH",
-  adminPin: "BDH-1986"
+  adminPin: "BDH-1986",
+  categories: DEFAULT_CATEGORIES
 };
 
 /**

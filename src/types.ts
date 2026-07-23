@@ -1,12 +1,4 @@
-export type ProductCategory = 
-  | 'All'
-  | 'Punjabi Suits'
-  | 'Banarasi Sarees'
-  | 'Lehengas'
-  | 'Men Kurtas'
-  | 'Dress Materials'
-  | 'Dupattas & Shawls'
-  | 'Festive Collection';
+export type ProductCategory = string;
 
 export interface Product {
   id: string; // Serial No. e.g. BDH-101
@@ -98,4 +90,5 @@ export interface ShopSettings {
   minOrderForFreeShipping: number;
   noticeText: string;
   adminPin?: string; // Default '7860' or '1234'
+  categories?: string[];
 }

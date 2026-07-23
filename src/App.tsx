@@ -6,7 +6,7 @@ import {
   ShopSettings, 
   ProductCategory 
 } from './types';
-import { DEFAULT_SHOP_SETTINGS, INITIAL_PRODUCTS } from './data/initialProducts';
+import { DEFAULT_SHOP_SETTINGS, INITIAL_PRODUCTS, DEFAULT_CATEGORIES } from './data/initialProducts';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
@@ -185,16 +185,9 @@ export default function App() {
   }, []);
 
   // Category List
-  const categories: ProductCategory[] = [
-    'All',
-    'Punjabi Suits',
-    'Banarasi Sarees',
-    'Lehengas',
-    'Men Kurtas',
-    'Dress Materials',
-    'Dupattas & Shawls',
-    'Festive Collection'
-  ];
+  const categories: ProductCategory[] = settings.categories && settings.categories.length > 0
+    ? (settings.categories.includes('All') ? settings.categories : ['All', ...settings.categories])
+    : DEFAULT_CATEGORIES;
 
   // Filtered & Sorted Products
   const filteredProducts = products
@@ -309,6 +302,14 @@ export default function App() {
       } catch (e) {}
       return updated;
     });
+
+    try {
+      const savedCust = localStorage.getItem('bdh_customer_orders');
+      let custOrders: Order[] = savedCust ? JSON.parse(savedCust) : [];
+      if (!Array.isArray(custOrders)) custOrders = [];
+      custOrders = [order, ...custOrders.filter(o => o.id !== order.id)];
+      localStorage.setItem('bdh_customer_orders', JSON.stringify(custOrders));
+    } catch (e) {}
 
     fetchOrders(); // Sync with server list
   };

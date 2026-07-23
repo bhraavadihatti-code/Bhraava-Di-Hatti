@@ -181,22 +181,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* My Orders / Track Order Button */}
             <button
               onClick={onOpenTracker}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-black text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shadow-2xs"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-black text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shadow-2xs shrink-0"
               title="Track Order Status"
             >
-              <Truck className="w-3.5 h-3.5 text-amber-800" />
+              <Truck className="w-3.5 h-3.5 text-amber-800 shrink-0" />
               <span className="hidden sm:inline">My Orders</span>
-              <span className="sm:hidden text-[11px]">Orders</span>
+              <span className="sm:hidden text-[10px]">Orders</span>
             </button>
 
             {/* Cart Button */}
             <button
               onClick={onOpenCart}
-              className="relative flex items-center gap-1 sm:gap-1.5 px-3 sm:px-3.5 py-1.5 bg-[#32080E] hover:bg-amber-950 text-amber-100 rounded-xl font-black text-xs transition-colors shadow-sm border border-amber-500/40"
+              className="relative flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-[#32080E] hover:bg-amber-950 text-amber-100 rounded-xl font-black text-xs transition-colors shadow-sm border border-amber-500/40 shrink-0"
               title="View Cart Bag"
             >
-              <ShoppingBag className="w-4 h-4 text-amber-300" />
-              <span>Cart</span>
+              <ShoppingBag className="w-4 h-4 text-amber-300 shrink-0" />
+              <span className="hidden sm:inline">Cart</span>
               {cartCount > 0 && (
                 <span className="bg-amber-400 text-amber-950 font-black text-[10px] px-1.5 py-0.2 rounded-full font-mono">
                   {cartCount}
