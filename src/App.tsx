@@ -37,7 +37,16 @@ export default function App() {
     } catch (e) {}
     return INITIAL_PRODUCTS;
   });
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const saved = localStorage.getItem('bdh_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [settings, setSettings] = useState<ShopSettings>(DEFAULT_SHOP_SETTINGS);
 
   // Filter & Search State
@@ -100,7 +109,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.warn('Network fetching products (using local fallback):', err);
     }
   };
 
@@ -108,11 +117,21 @@ export default function App() {
     try {
       const res = await fetch('/api/orders');
       if (res.ok) {
-        const data = await res.json();
-        setOrders(data);
+        const serverData: Order[] = await res.json();
+        if (Array.isArray(serverData)) {
+          setOrders((prev) => {
+            const serverIds = new Set(serverData.map(o => o.id));
+            const localOnly = prev.filter(o => !serverIds.has(o.id));
+            const merged = [...serverData, ...localOnly];
+            try {
+              localStorage.setItem('bdh_orders', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
       }
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      console.warn('Network fetching orders (using local fallback):', err);
     }
   };
 
@@ -124,7 +143,7 @@ export default function App() {
         setSettings(data);
       }
     } catch (err) {
-      console.error('Error fetching settings:', err);
+      console.warn('Network fetching settings (using local fallback):', err);
     }
   };
 
@@ -281,7 +300,17 @@ export default function App() {
     setCartItems([]);
     setIsCheckoutOpen(false);
     setPlacedOrderSuccess(order);
-    fetchOrders(); // Refresh admin orders list
+    
+    setOrders((prev) => {
+      const filtered = prev.filter(o => o.id !== order.id);
+      const updated = [order, ...filtered];
+      try {
+        localStorage.setItem('bdh_orders', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    fetchOrders(); // Sync with server list
   };
 
   // Admin Actions

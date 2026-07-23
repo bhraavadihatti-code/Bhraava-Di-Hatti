@@ -77,15 +77,6 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
     } catch (e) {
       console.warn('Confetti fail silent:', e);
     }
-
-    // Auto open WhatsApp with Meesho Bill for 94171-24082
-    const timer = setTimeout(() => {
-      try {
-        window.open(whatsappUrl, '_blank');
-      } catch (e) {}
-    }, 1200);
-
-    return () => clearTimeout(timer);
   }, [order.id]);
 
   return (

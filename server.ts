@@ -339,47 +339,58 @@ app.get('/api/orders', (req, res) => {
 });
 
 app.post('/api/orders', (req, res) => {
-  const { customer, items, subtotal, discount, shippingFee, totalAmount, payment } = req.body;
+  try {
+    const { customer, items, subtotal, discount, shippingFee, totalAmount, payment, utsNumber } = req.body;
 
-  if (!customer || !items || !items.length || !payment || !payment.utrNumber) {
-    return res.status(400).json({ error: 'Incomplete order details or missing UTR/UTS payment reference number.' });
+    if (!customer || !customer.fullName || !items || !items.length) {
+      return res.status(400).json({ error: 'Incomplete order details. Please provide customer details and items.' });
+    }
+
+    const utrRef = (payment?.utrNumber || utsNumber || `UTS-${Date.now().toString().slice(-6)}`).toString().trim();
+
+    const orders = loadOrders();
+    const orderCount = orders.length + 1001;
+    const newOrder: Order = {
+      id: `BDH-2026-${orderCount}`,
+      utsNumber: utrRef,
+      createdAt: new Date().toISOString(),
+      customer,
+      items,
+      subtotal: subtotal || 0,
+      discount: discount || 0,
+      shippingFee: shippingFee || 0,
+      totalAmount: totalAmount || 0,
+      payment: {
+        method: 'UPI_QR',
+        upiIdUsed: payment?.upiIdUsed || loadSettings().upiId,
+        utrNumber: utrRef,
+        screenshotUrl: payment?.screenshotUrl,
+        paymentTimestamp: new Date().toISOString(),
+        verifiedByAdmin: false
+      },
+      status: 'pending_acceptance'
+    };
+
+    orders.unshift(newOrder);
+    saveOrders(orders);
+
+    // Broadcast real-time push notification alert to Admin
+    try {
+      broadcastSSE({
+        type: 'NEW_ORDER',
+        message: `🚨 New Order received! Order #${newOrder.id} from ${newOrder.customer.fullName} for ₹${newOrder.totalAmount} (UTS: ${newOrder.utsNumber})`,
+        order: newOrder,
+        timestamp: new Date().toISOString()
+      });
+    } catch (sseErr) {
+      console.warn('SSE broadcast warning:', sseErr);
+    }
+
+    return res.status(201).json(newOrder);
+  } catch (err: any) {
+    console.error('Error in POST /api/orders:', err);
+    return res.status(500).json({ error: 'Failed to save order on server.' });
   }
-
-  const orders = loadOrders();
-  const orderCount = orders.length + 1001;
-  const newOrder: Order = {
-    id: `BDH-2026-${orderCount}`,
-    utsNumber: payment.utrNumber.trim(),
-    createdAt: new Date().toISOString(),
-    customer,
-    items,
-    subtotal: subtotal || 0,
-    discount: discount || 0,
-    shippingFee: shippingFee || 0,
-    totalAmount: totalAmount || 0,
-    payment: {
-      method: 'UPI_QR',
-      upiIdUsed: payment.upiIdUsed || loadSettings().upiId,
-      utrNumber: payment.utrNumber.trim(),
-      screenshotUrl: payment.screenshotUrl,
-      paymentTimestamp: new Date().toISOString(),
-      verifiedByAdmin: false
-    },
-    status: 'pending_acceptance'
-  };
-
-  orders.unshift(newOrder);
-  saveOrders(orders);
-
-  // Broadcast real-time push notification alert to Admin
-  broadcastSSE({
-    type: 'NEW_ORDER',
-    message: `🚨 New Order received! Order #${newOrder.id} from ${newOrder.customer.fullName} for ₹${newOrder.totalAmount} (UTS: ${newOrder.utsNumber})`,
-    order: newOrder,
-    timestamp: new Date().toISOString()
-  });
-
-  res.status(201).json(newOrder);
 });
 
 app.put('/api/orders/:id/status', (req, res) => {
