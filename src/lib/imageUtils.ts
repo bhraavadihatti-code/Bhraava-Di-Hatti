@@ -1,4 +1,23 @@
 /**
+ * Normalizes image URLs, automatically converting share links (such as kommodo.ai/i/...)
+ * into direct CDN image URLs.
+ */
+export function formatImageUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const kommodoMatch = trimmed.match(/kommodo\.ai\/i\/([a-zA-Z0-9_-]+)/);
+  if (kommodoMatch) {
+    const id = kommodoMatch[1];
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `https://plain-apac-prod-public.komododecks.com/${yyyy}${mm}/${dd}/${id}/image.png`;
+  }
+  return trimmed;
+}
+
+/**
  * Image compression utility to convert raw camera/file uploads (which can be 5MB-15MB)
  * into lightweight, crystal-clear base64 images (~60KB - 120KB).
  */

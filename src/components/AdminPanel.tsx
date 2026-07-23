@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Product, ShopSettings } from '../types';
 import { playOrderAlertSound } from '../utils/audioAlert';
-import { compressImageFile } from '../lib/imageUtils';
+import { compressImageFile, formatImageUrl } from '../lib/imageUtils';
 import { 
   Store, 
   Bell, 
@@ -213,7 +213,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
-    id: 'BDH-109',
+    id: '',
     name: '',
     category: 'Punjabi Suits',
     tags: ['Punjabi Suits', 'Cotton Suit', '3-Piece Material'],
@@ -370,18 +370,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productForm.name || !productForm.price) return;
+    if (!productForm.name || !productForm.name.trim()) {
+      alert('❌ Please enter Product Title / Name!');
+      return;
+    }
+    if (!productForm.price || Number(productForm.price) <= 0) {
+      alert('❌ Please enter a valid Price (e.g. 1999)!');
+      return;
+    }
 
-    const allImagesList = Array.from(new Set([
+    const rawImagesList = Array.from(new Set([
       productForm.imageUrl,
       ...(productForm.images || [])
     ].filter((img): img is string => Boolean(img && img.trim()))));
 
+    const allImagesList = rawImagesList.map(img => formatImageUrl(img));
+    if (allImagesList.length === 0) {
+      allImagesList.push('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
+    }
+
+    const targetId = productForm.id && productForm.id.trim() ? productForm.id.trim() : getSuggestedSerialNo();
+
     const finalProduct: Product = {
-      id: productForm.id || getSuggestedSerialNo(),
-      name: productForm.name,
-      firmName: settings.firmName,
-      shopName: settings.shopName,
+      id: targetId,
+      name: productForm.name.trim(),
+      firmName: settings.firmName || "Jai Durga Cloth Emporium",
+      shopName: settings.shopName || "Bhraava Di Hatti",
       category: productForm.category || 'Punjabi Suits',
       tags: productForm.tags && productForm.tags.length > 0 ? productForm.tags : [productForm.category || 'Punjabi Suits'],
       price: Number(productForm.price),
@@ -391,25 +405,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       workType: productForm.workType || 'Traditional Punjabi Work',
       colors: productForm.colors && productForm.colors.length > 0 ? productForm.colors : ['Crimson Red', 'Royal Blue'],
       sizes: productForm.sizes && productForm.sizes.length > 0 ? productForm.sizes : ['Unstitched'],
-      imageUrl: allImagesList[0] || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+      imageUrl: allImagesList[0],
       images: allImagesList,
       inStock: productForm.inStock !== undefined ? productForm.inStock : true,
       isBestSeller: productForm.isBestSeller || false,
       isNewArrival: productForm.isNewArrival || true,
-      rating: 4.8
+      rating: productForm.rating || 4.8
     };
 
-    if (editingProductId) {
-      await onUpdateProduct(editingProductId, finalProduct);
-    } else {
-      await onAddProduct(finalProduct);
+    try {
+      if (editingProductId) {
+        await onUpdateProduct(editingProductId, finalProduct);
+      } else {
+        await onAddProduct(finalProduct);
+      }
+
+      // Remove reused ID from deletedSerialNumbers list if present
+      setDeletedSerialNumbers((prev) => prev.filter((id) => id !== finalProduct.id));
+
+      setShowAddProductModal(false);
+      setEditingProductId(null);
+    } catch (err: any) {
+      alert(`❌ Error saving product: ${err?.message || 'Server error'}`);
     }
-
-    // Remove reused ID from deletedSerialNumbers list if present
-    setDeletedSerialNumbers((prev) => prev.filter((id) => id !== finalProduct.id));
-
-    setShowAddProductModal(false);
-    setEditingProductId(null);
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -1333,10 +1351,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <input
                   type="text"
                   required
-                  value={productForm.id || 'BDH-109'}
+                  value={productForm.id || ''}
                   onChange={(e) => setProductForm({ ...productForm, id: e.target.value.toUpperCase() })}
                   className="w-full bg-white border border-amber-400 rounded-xl px-3 py-2 text-sm font-mono font-black text-red-950"
-                  placeholder="e.g. BDH-109"
+                  placeholder={`e.g. ${getSuggestedSerialNo()}`}
                 />
 
                 {/* Recycled deleted serials quick selection */}
@@ -1476,7 +1494,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       type="text"
                       placeholder="Or paste main image URL https://..."
                       value={productForm.imageUrl || ''}
-                      onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                      onChange={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
+                      onBlur={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
                       className="sm:col-span-2 w-full bg-white border border-amber-300 rounded-xl p-2 text-xs"
                     />
                   </div>

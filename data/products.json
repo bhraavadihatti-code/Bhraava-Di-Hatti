@@ -266,5 +266,41 @@
       "Georgette",
       "Festive Collection"
     ]
+  },
+  {
+    "id": "BDH-110",
+    "name": "Exclusive Punjabi Designer Suit",
+    "firmName": "Jai Durga Cloth Emporium",
+    "shopName": "Bhraava Di Hatti",
+    "category": "Punjabi Suits",
+    "price": 1299,
+    "originalPrice": 1999,
+    "description": "Exclusive designer Punjabi suit set crafted with fine fabric, intricate embroidery detailing, and a matching full length dupatta.",
+    "fabric": "Premium Cotton Silk Blend",
+    "workType": "Hand Thread Embroidery & Mirror Accent",
+    "colors": [
+      "Pink & Magenta",
+      "Bottle Green",
+      "Royal Blue"
+    ],
+    "sizes": [
+      "Unstitched Material",
+      "M (38)",
+      "L (40)",
+      "XL (42)"
+    ],
+    "imageUrl": "https://plain-apac-prod-public.komododecks.com/202607/22/WG1pnbpMmgXTh5TBWCQd/image.png",
+    "images": [
+      "https://plain-apac-prod-public.komododecks.com/202607/22/WG1pnbpMmgXTh5TBWCQd/image.png"
+    ],
+    "inStock": true,
+    "isBestSeller": true,
+    "isNewArrival": true,
+    "rating": 4.9,
+    "tags": [
+      "Punjabi Suits",
+      "New Catalog",
+      "Designer Collection"
+    ]
   }
 ]

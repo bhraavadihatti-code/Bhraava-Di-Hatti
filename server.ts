@@ -32,12 +32,34 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 // Helpers for file reading/writing
+function cleanImageUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const kommodoMatch = trimmed.match(/kommodo\.ai\/i\/([a-zA-Z0-9_-]+)/);
+  if (kommodoMatch) {
+    const id = kommodoMatch[1];
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `https://plain-apac-prod-public.komododecks.com/${yyyy}${mm}/${dd}/${id}/image.png`;
+  }
+  return trimmed;
+}
+
 function loadProducts(): Product[] {
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
       const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
       const savedProducts: Product[] = JSON.parse(data);
       if (Array.isArray(savedProducts) && savedProducts.length > 0) {
+        const savedIds = new Set(savedProducts.map(p => p.id));
+        const missing = INITIAL_PRODUCTS.filter(p => !savedIds.has(p.id));
+        if (missing.length > 0) {
+          const merged = [...savedProducts, ...missing];
+          saveProducts(merged);
+          return merged;
+        }
         return savedProducts;
       }
     }
@@ -214,14 +236,44 @@ app.post('/api/products', (req, res) => {
     if (!newProduct || !newProduct.name || !newProduct.price) {
       return res.status(400).json({ error: 'Product name and price are required' });
     }
-    
-    if (!newProduct.id) {
-      newProduct.id = `BDH-${Date.now().toString().slice(-4)}`;
-    }
-    newProduct.firmName = newProduct.firmName || "Jai Durga Cloth Emporium";
-    newProduct.shopName = newProduct.shopName || "Bhraava Di Hatti";
 
     const products = loadProducts();
+    
+    // Ensure unique SKU / ID
+    if (!newProduct.id || products.some(p => p.id === newProduct.id)) {
+      let maxNum = 100;
+      products.forEach((p) => {
+        const match = p.id.match(/^BDH-(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      });
+      newProduct.id = `BDH-${maxNum + 1}`;
+    }
+
+    newProduct.firmName = newProduct.firmName || "Jai Durga Cloth Emporium";
+    newProduct.shopName = newProduct.shopName || "Bhraava Di Hatti";
+    newProduct.price = Number(newProduct.price);
+    newProduct.originalPrice = newProduct.originalPrice ? Number(newProduct.originalPrice) : newProduct.price + 500;
+
+    if (newProduct.imageUrl) {
+      newProduct.imageUrl = cleanImageUrl(newProduct.imageUrl);
+    }
+    if (Array.isArray(newProduct.images) && newProduct.images.length > 0) {
+      newProduct.images = newProduct.images.map(img => cleanImageUrl(img));
+    } else if (newProduct.imageUrl) {
+      newProduct.images = [newProduct.imageUrl];
+    } else {
+      const defaultImg = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+      newProduct.imageUrl = defaultImg;
+      newProduct.images = [defaultImg];
+    }
+
+    if (!newProduct.imageUrl && newProduct.images.length > 0) {
+      newProduct.imageUrl = newProduct.images[0];
+    }
+
     products.unshift(newProduct);
     saveProducts(products);
 
@@ -243,6 +295,13 @@ app.put('/api/products/:id', (req, res) => {
     const index = products.findIndex(p => p.id === id);
     if (index === -1) {
       return res.status(404).json({ error: 'Product not found' });
+    }
+
+    if (updatedData.imageUrl) {
+      updatedData.imageUrl = cleanImageUrl(updatedData.imageUrl);
+    }
+    if (Array.isArray(updatedData.images)) {
+      updatedData.images = updatedData.images.map(img => cleanImageUrl(img));
     }
 
     products[index] = { ...products[index], ...updatedData };
