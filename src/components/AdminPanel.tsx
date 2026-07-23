@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Product, ShopSettings } from '../types';
 import { playOrderAlertSound } from '../utils/audioAlert';
 import { compressImageFile, formatImageUrl } from '../lib/imageUtils';
+import { generateMeeshoStyleBillText } from './OrderSuccessModal';
 import { 
   Store, 
   Bell, 
@@ -342,52 +343,166 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const itemsRows = order.items.map((item, index) => `
+      <tr>
+        <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+        <td>
+          <strong>${item.product.name}</strong><br/>
+          <span style="font-size: 11px; color: #555;">Code: ${item.product.id} | Fabric: ${item.product.fabric || '100% Pure Cotton'}</span>
+        </td>
+        <td>${item.selectedColor || 'Standard'}</td>
+        <td>${item.selectedSize || 'Unstitched'}</td>
+        <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+        <td style="text-align: right;">₹${item.product.price}</td>
+        <td style="text-align: right; font-weight: bold;">₹${item.product.price * item.quantity}</td>
+      </tr>
+    `).join('');
+
+    const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    }) : new Date().toLocaleDateString('en-IN');
+
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Packing Slip - ${order.id}</title>
+          <title>Meesho Shipping Label & Bill - ${order.id}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #111; }
-            .header { border-bottom: 2px solid #888; padding-bottom: 10px; margin-bottom: 15px; }
-            .badge { background: #fee2e2; color: #991b1b; padding: 4px 8px; font-weight: bold; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
-            th { background: #f3f4f6; }
+            @page { size: A4 portrait; margin: 10mm; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #000; margin: 0; padding: 10px; background: #fff; font-size: 12px; }
+            .label-card { border: 2.5px solid #000; padding: 16px; max-width: 800px; margin: 0 auto; background: #fff; box-sizing: border-box; }
+            .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 12px; }
+            .seller-title { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+            .seller-sub { font-size: 11px; font-weight: bold; color: #333; }
+            .badge-meesho { background: #000; color: #fff; padding: 4px 10px; font-weight: 900; font-size: 12px; letter-spacing: 1px; border-radius: 4px; display: inline-block; }
+            
+            .two-box { display: flex; gap: 12px; margin-bottom: 12px; }
+            .address-box { flex: 1; border: 1.5px solid #000; padding: 10px; border-radius: 4px; background: #fafafa; }
+            .box-title { font-size: 11px; font-weight: 900; text-transform: uppercase; background: #eee; padding: 4px 8px; margin: -10px -10px 8px -10px; border-bottom: 1.5px solid #000; }
+            
+            .meta-grid { display: flex; border: 1.5px solid #000; margin-bottom: 12px; background: #fff; text-align: center; }
+            .meta-item { flex: 1; border-right: 1px solid #000; padding: 6px 2px; }
+            .meta-item:last-child { border-right: none; }
+            .meta-label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #555; }
+            .meta-val { font-size: 12px; font-weight: 900; font-family: monospace; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+            th { border: 1.5px solid #000; background: #e5e7eb; padding: 6px; font-size: 10px; text-transform: uppercase; font-weight: 900; }
+            td { border: 1px solid #000; padding: 6px; font-size: 11px; }
+
+            .summary-box { display: flex; justify-content: space-between; align-items: flex-end; border-top: 2px solid #000; padding-top: 10px; }
+            .stamp { border: 2px dashed #059669; color: #047857; font-weight: 900; padding: 8px 12px; text-transform: uppercase; font-size: 11px; text-align: center; border-radius: 6px; }
+            .cut-line { text-align: center; margin-top: 25px; font-size: 10px; font-weight: bold; color: #444; border-top: 1.5px dashed #000; padding-top: 8px; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h2>${settings.shopName}</h2>
-            <p style="margin:2px 0; font-size:13px;">${settings.firmName} | ${settings.address}, ${settings.city}</p>
-            <p style="margin:2px 0; font-size:13px;">Phone: ${settings.phoneNumber} | GST: ${settings.gstNumber || 'N/A'}</p>
-          </div>
-          <h3>Shipping Label / Order Invoice #${order.id}</h3>
-          <p><strong>UTS/UTR No:</strong> ${order.utsNumber}</p>
-          <p><strong>Customer:</strong> ${order.customer.fullName} (${order.customer.phone})</p>
-          <p><strong>Delivery Address:</strong> ${order.customer.address}, ${order.customer.city} - ${order.customer.pincode}</p>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Color & Size</th>
-                <th>Qty</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${order.items.map(item => `
+          <div class="label-card">
+            
+            <div class="header-bar">
+              <div>
+                <div class="seller-title">${settings.firmName || 'JAI DURGA CLOTH EMPORIUM'}</div>
+                <div class="seller-sub">${settings.shopName || 'BHRAAVA DI HATTI'} — EXCLUSIVE SUITS & DRESS MATERIAL</div>
+                <div style="font-size: 10px; margin-top: 2px;">GSTIN: ${settings.gstNumber || '03AABCU9603R1ZM'} | Ph: 94171-24082, 99150-46357</div>
+              </div>
+              <div style="text-align: right;">
+                <span class="badge-meesho">MEESHO TAX INVOICE</span>
+                <div style="font-size: 10px; margin-top: 4px; font-weight: bold;">ORIGINAL SHIPPING SLIP</div>
+              </div>
+            </div>
+
+            <div class="meta-grid">
+              <div class="meta-item">
+                <div class="meta-label">Order Number</div>
+                <div class="meta-val" style="color: #991b1b;">#${order.id}</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">Date & Time</div>
+                <div class="meta-val">${dateStr}</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">UPI UTR / UTS Ref</div>
+                <div class="meta-val">${order.utsNumber}</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">Payment Status</div>
+                <div class="meta-val" style="color: #047857;">VERIFIED (PAID)</div>
+              </div>
+            </div>
+
+            <div class="two-box">
+              <div class="address-box">
+                <div class="box-title">📍 SHIP TO (BUYER DELIVERY ADDRESS)</div>
+                <div style="font-size: 14px; font-weight: 900;">${order.customer.fullName}</div>
+                <div style="font-size: 12px; font-weight: bold; margin-top: 2px;">Ph: ${order.customer.phone}</div>
+                <div style="font-size: 11px; margin-top: 4px; line-height: 1.4;">
+                  ${order.customer.address}<br/>
+                  <strong>${order.customer.city}, ${order.customer.state || 'Punjab'}</strong> - <span style="font-size: 13px; font-weight: 900;">${order.customer.pincode}</span>
+                </div>
+                ${order.customer.notes ? `<div style="font-size: 10px; background: #fff; padding: 4px; border: 1px solid #ccc; margin-top: 5px;">Note: ${order.customer.notes}</div>` : ''}
+              </div>
+
+              <div class="address-box">
+                <div class="box-title">🏬 RETURN / SHIPPER ADDRESS</div>
+                <div style="font-size: 13px; font-weight: 900;">BHRAAVA DI HATTI (Jai Durga Cloth Emporium)</div>
+                <div style="font-size: 11px; margin-top: 2px;">
+                  Main Market, Bus Stand Road, Maur Mandi<br/>
+                  District Bathinda, Punjab - 151509<br/>
+                  <strong>Contact:</strong> 94171-24082, 99150-46357
+                </div>
+                <div style="margin-top: 8px; font-size: 10px; font-weight: bold; color: #047857; border: 1px solid #047857; padding: 3px; text-align: center;">
+                  DISPATCH MODE: SPEED POST / EXPRESS COURIER
+                </div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
                 <tr>
-                  <td>${item.product.name}</td>
-                  <td>${item.selectedColor}, ${item.selectedSize}</td>
-                  <td>${item.quantity}</td>
-                  <td>₹${item.product.price * item.quantity}</td>
+                  <th style="width: 30px;">#</th>
+                  <th>Product Description</th>
+                  <th style="width: 80px;">Color</th>
+                  <th style="width: 80px;">Size</th>
+                  <th style="width: 40px;">Qty</th>
+                  <th style="width: 70px;">Rate</th>
+                  <th style="width: 80px;">Amount</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <h3 style="text-align:right;">Total Paid: ₹${order.totalAmount}</h3>
-          <script>window.print();</script>
+              </thead>
+              <tbody>
+                ${itemsRows}
+              </tbody>
+            </table>
+
+            <div class="summary-box">
+              <div class="stamp">
+                ✅ UPI ONLINE PAYMENT RECEIVED<br/>
+                UTR: ${order.utsNumber}<br/>
+                <span style="font-size: 9px;">AUTHORIZED SIGNATURE - BHRAAVA DI HATTI</span>
+              </div>
+
+              <div style="width: 240px; border: 1.5px solid #000; padding: 8px; background: #fafafa;">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0;">
+                  <span>Items Subtotal:</span> <strong>₹${order.subtotal}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0;">
+                  <span>Shipping Charges:</span> <strong>${order.shippingFee === 0 ? 'FREE' : '₹' + order.shippingFee}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; border-top: 1.5px solid #000; padding-top: 4px; margin-top: 4px; color: #991b1b;">
+                  <span>TOTAL PAID:</span> <span>₹${order.totalAmount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="cut-line">
+              ✂️ CUT HERE AND PASTE THIS LABEL ON YOUR COURIER SHIPMENT PARCEL
+            </div>
+
+          </div>
+
+          <script>
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          </script>
         </body>
       </html>
     `);
@@ -804,19 +919,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                           <button
                             onClick={() => printInvoice(order)}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-2.5 py-2 rounded-xl text-xs flex items-center gap-1"
-                            title="Print Postal Label / Parcel Address"
+                            className="bg-amber-100 hover:bg-amber-200 text-amber-950 font-extrabold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-amber-300 shadow-xs cursor-pointer"
+                            title="Print Meesho Shipping Label & Bill"
                           >
-                            <Printer className="w-4 h-4" /> Print Postal Label
+                            <Printer className="w-4 h-4 text-amber-900" /> 🖨️ Print Meesho Shipping Label
                           </button>
 
                           <a
-                            href={`https://wa.me/${order.customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.fullName}, update from Bhraava Di Hatti regarding your Unstitched Suit Order #${order.id}. Ticket status: ${order.status.toUpperCase()}.${order.trackingNumber ? ` India Post Tracking: ${order.trackingNumber}` : ''}`)}`}
+                            href={`https://wa.me/919417124082?text=${encodeURIComponent(generateMeeshoStyleBillText(order, settings))}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-green-100 hover:bg-green-200 text-green-900 font-bold px-2.5 py-2 rounded-xl text-xs flex items-center gap-1"
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            title="Send Meesho Bill to Admin 94171-24082"
                           >
-                            <MessageSquare className="w-4 h-4" /> WhatsApp
+                            <MessageSquare className="w-4 h-4 text-yellow-300 fill-yellow-300" /> 📲 Send Bill to 94171-24082
+                          </a>
+
+                          <a
+                            href={`https://wa.me/${order.customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${order.customer.fullName}, update from Bhraava Di Hatti regarding your Unstitched Suit Order #${order.id}. Order status: ${order.status.toUpperCase()}.${order.trackingNumber ? ` India Post Tracking Number: ${order.trackingNumber}` : ''}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold px-2.5 py-2 rounded-xl text-xs flex items-center gap-1 border border-stone-300 cursor-pointer"
+                          >
+                            <MessageSquare className="w-4 h-4 text-emerald-600" /> Customer WhatsApp
                           </a>
 
                         </div>

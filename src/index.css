@@ -44,3 +44,28 @@
   border-radius: 9999px;
 }
 
+/* Print Media Query for Meesho-Style Shipping Labels & Bills */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .printable-bill-label, .printable-bill-label * {
+    visibility: visible !important;
+  }
+  .printable-bill-label {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
