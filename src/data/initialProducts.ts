@@ -14,7 +14,7 @@ export const DEFAULT_CATEGORIES: string[] = [
 export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   shopName: "Bhraava Di Hatti",
   firmName: "Jai Durga Cloth Emporium",
-  upiId: "bhraavadihatti@upi",
+  upiId: "boism-9417124082@boi",
   payeeName: "Jai Durga Cloth Emporium",
   phoneNumber: "94171-24082",
   phoneNumber2: "99150-46357",

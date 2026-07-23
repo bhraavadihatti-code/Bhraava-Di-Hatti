@@ -141,7 +141,14 @@ function loadSettings(): ShopSettings {
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-      return JSON.parse(data);
+      const parsed: ShopSettings = JSON.parse(data);
+      if (parsed) {
+        if (!parsed.upiId || parsed.upiId === 'bhraavadihatti@upi') {
+          parsed.upiId = DEFAULT_SHOP_SETTINGS.upiId;
+          saveSettings(parsed);
+        }
+        return parsed;
+      }
     }
   } catch (err) {
     console.error('Error reading settings file:', err);
