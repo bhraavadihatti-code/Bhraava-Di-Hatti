@@ -56,114 +56,156 @@ function cleanImageUrl(url: string): string {
   return trimmed;
 }
 
+// In-memory persistent caches for cross-device sync and speed
+let cachedProducts: Product[] | null = null;
+let cachedOrders: Order[] | null = null;
+let cachedSettings: ShopSettings | null = null;
+
 function loadProducts(): Product[] {
+  if (cachedProducts && cachedProducts.length > 0) {
+    return cachedProducts;
+  }
   try {
     if (fs.existsSync(PRODUCTS_FILE)) {
       const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
-      const savedProducts: Product[] = JSON.parse(data);
-      if (Array.isArray(savedProducts) && savedProducts.length > 0) {
-        return savedProducts;
+      if (data && data.trim()) {
+        const savedProducts: Product[] = JSON.parse(data);
+        if (Array.isArray(savedProducts) && savedProducts.length > 0) {
+          cachedProducts = savedProducts;
+          return cachedProducts;
+        }
       }
     }
   } catch (err) {
     console.error('Error reading products file, falling back to initial:', err);
   }
-  saveProducts(INITIAL_PRODUCTS);
-  return INITIAL_PRODUCTS;
+  if (!cachedProducts || cachedProducts.length === 0) {
+    cachedProducts = INITIAL_PRODUCTS;
+    saveProducts(INITIAL_PRODUCTS);
+  }
+  return cachedProducts;
 }
 
 function saveProducts(products: Product[]): void {
+  cachedProducts = products;
   try {
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
+    const tmpFile = `${PRODUCTS_FILE}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(products, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, PRODUCTS_FILE);
   } catch (err) {
-    console.error('Error saving products:', err);
+    console.error('Error saving products file:', err);
   }
 }
 
 function loadOrders(): Order[] {
+  if (cachedOrders !== null) {
+    return cachedOrders;
+  }
   try {
     if (fs.existsSync(ORDERS_FILE)) {
       const data = fs.readFileSync(ORDERS_FILE, 'utf-8');
-      return JSON.parse(data);
+      if (data && data.trim()) {
+        const savedOrders: Order[] = JSON.parse(data);
+        if (Array.isArray(savedOrders)) {
+          cachedOrders = savedOrders;
+          return cachedOrders;
+        }
+      }
     }
   } catch (err) {
     console.error('Error reading orders file:', err);
   }
-  // Default mock sample order to show admin panel immediately
-  const initialOrders: Order[] = [
-    {
-      id: "BDH-2026-1001",
-      utsNumber: "420819234812",
-      createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-      customer: {
-        fullName: "Gurpreet Singh",
-        phone: "94171-24082",
-        email: "gurpreet@example.com",
-        address: "House 142, Bus Stand Road, Maur Mandi",
-        city: "District Bathinda",
-        state: "Punjab",
-        pincode: "151509",
-        notes: "Unstitched Punjabi Suit Material - Speed Post India Post"
-      },
-      items: [
-        {
-          product: INITIAL_PRODUCTS[0],
-          selectedColor: "Crimson Red",
-          selectedSize: "L (40)",
-          quantity: 1
-        }
-      ],
-      subtotal: 2499,
-      discount: 100,
-      shippingFee: 0,
-      totalAmount: 2399,
-      payment: {
-        method: "UPI_QR",
-        upiIdUsed: DEFAULT_SHOP_SETTINGS.upiId,
-        utrNumber: "420819234812",
-        paymentTimestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-        verifiedByAdmin: false
-      },
-      status: "pending_acceptance"
-    }
-  ];
-  saveOrders(initialOrders);
-  return initialOrders;
+
+  if (cachedOrders === null) {
+    // Default mock sample order to show admin panel immediately
+    const initialOrders: Order[] = [
+      {
+        id: "BDH-2026-1001",
+        utsNumber: "420819234812",
+        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        customer: {
+          fullName: "Gurpreet Singh",
+          phone: "94171-24082",
+          email: "gurpreet@example.com",
+          address: "House 142, Bus Stand Road, Maur Mandi",
+          city: "District Bathinda",
+          state: "Punjab",
+          pincode: "151509",
+          notes: "Unstitched Punjabi Suit Material - Speed Post India Post"
+        },
+        items: [
+          {
+            product: INITIAL_PRODUCTS[0],
+            selectedColor: "Crimson Red",
+            selectedSize: "L (40)",
+            quantity: 1
+          }
+        ],
+        subtotal: 2499,
+        discount: 100,
+        shippingFee: 0,
+        totalAmount: 2399,
+        payment: {
+          method: "UPI_QR",
+          upiIdUsed: DEFAULT_SHOP_SETTINGS.upiId,
+          utrNumber: "420819234812",
+          paymentTimestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+          verifiedByAdmin: false
+        },
+        status: "pending_acceptance"
+      }
+    ];
+    cachedOrders = initialOrders;
+    saveOrders(initialOrders);
+  }
+  return cachedOrders;
 }
 
 function saveOrders(orders: Order[]): void {
+  cachedOrders = orders;
   try {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), 'utf-8');
+    const tmpFile = `${ORDERS_FILE}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(orders, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, ORDERS_FILE);
   } catch (err) {
-    console.error('Error saving orders:', err);
+    console.error('Error saving orders file:', err);
   }
 }
 
 function loadSettings(): ShopSettings {
+  if (cachedSettings !== null) {
+    return cachedSettings;
+  }
   try {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = fs.readFileSync(SETTINGS_FILE, 'utf-8');
-      const parsed: ShopSettings = JSON.parse(data);
-      if (parsed) {
-        if (!parsed.upiId || parsed.upiId === 'bhraavadihatti@upi') {
-          parsed.upiId = DEFAULT_SHOP_SETTINGS.upiId;
-          saveSettings(parsed);
+      if (data && data.trim()) {
+        const parsed: ShopSettings = JSON.parse(data);
+        if (parsed) {
+          if (!parsed.upiId || parsed.upiId === 'bhraavadihatti@upi') {
+            parsed.upiId = DEFAULT_SHOP_SETTINGS.upiId;
+          }
+          cachedSettings = parsed;
+          return cachedSettings;
         }
-        return parsed;
       }
     }
   } catch (err) {
     console.error('Error reading settings file:', err);
   }
+  cachedSettings = DEFAULT_SHOP_SETTINGS;
   saveSettings(DEFAULT_SHOP_SETTINGS);
-  return DEFAULT_SHOP_SETTINGS;
+  return cachedSettings;
 }
 
 function saveSettings(settings: ShopSettings): void {
+  cachedSettings = settings;
   try {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+    const tmpFile = `${SETTINGS_FILE}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(settings, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, SETTINGS_FILE);
   } catch (err) {
-    console.error('Error saving settings:', err);
+    console.error('Error saving settings file:', err);
   }
 }
 
@@ -390,8 +432,28 @@ app.post('/api/orders', (req, res) => {
 
     let targetOrderId = existingId;
     if (!targetOrderId) {
-      const orderCount = orders.length + 1001;
-      targetOrderId = `BDH-2026-${orderCount}`;
+      let maxCounter = 1000;
+      orders.forEach((o) => {
+        const match = o.id.match(/^BDH-2026-(\d+)$/i) || o.id.match(/^BDH-(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxCounter) maxCounter = num;
+        }
+      });
+      targetOrderId = `BDH-2026-${maxCounter + 1}`;
+    }
+
+    // Ensure targetOrderId is strictly unique unless updating an existing order with explicitly provided ID
+    if (!existingId) {
+      while (orders.some(o => o.id === targetOrderId)) {
+        const match = targetOrderId.match(/^BDH-2026-(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10) + 1;
+          targetOrderId = `BDH-2026-${num}`;
+        } else {
+          targetOrderId = `BDH-2026-${Date.now().toString().slice(-4)}`;
+        }
+      }
     }
 
     const newOrder: Order = {
