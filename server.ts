@@ -257,9 +257,9 @@ app.post('/api/products', (req, res) => {
     }
 
     const products = loadProducts();
+    let targetId = newProduct.id ? newProduct.id.trim() : '';
     
-    // Ensure unique SKU / ID
-    if (!newProduct.id || products.some(p => p.id === newProduct.id)) {
+    if (!targetId) {
       let maxNum = 100;
       products.forEach((p) => {
         const match = p.id.match(/^BDH-(\d+)$/i);
@@ -268,9 +268,10 @@ app.post('/api/products', (req, res) => {
           if (num > maxNum) maxNum = num;
         }
       });
-      newProduct.id = `BDH-${maxNum + 1}`;
+      targetId = `BDH-${maxNum + 1}`;
     }
 
+    newProduct.id = targetId;
     newProduct.firmName = newProduct.firmName || "Jai Durga Cloth Emporium";
     newProduct.shopName = newProduct.shopName || "Bhraava Di Hatti";
     newProduct.price = Number(newProduct.price);
@@ -293,15 +294,21 @@ app.post('/api/products', (req, res) => {
       newProduct.imageUrl = newProduct.images[0];
     }
 
-    products.unshift(newProduct);
+    const existingIdx = products.findIndex(p => p.id === newProduct.id);
+    if (existingIdx !== -1) {
+      products[existingIdx] = { ...products[existingIdx], ...newProduct };
+    } else {
+      products.unshift(newProduct);
+    }
+
     saveProducts(products);
 
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
-    res.status(201).json(newProduct);
+    return res.status(201).json(newProduct);
   } catch (err: any) {
     console.error('Error adding product:', err);
-    res.status(500).json({ error: err?.message || 'Server error adding product' });
+    return res.status(500).json({ error: err?.message || 'Server error adding product' });
   }
 });
 
@@ -359,20 +366,38 @@ app.get('/api/orders', (req, res) => {
 
 app.post('/api/orders', (req, res) => {
   try {
-    const { customer, items, subtotal, discount, shippingFee, totalAmount, payment, utsNumber } = req.body;
+    const body = req.body;
+    if (!body) {
+      return res.status(400).json({ error: 'Empty order payload.' });
+    }
+
+    const customer = body.customer;
+    const items = body.items;
+    const subtotal = body.subtotal;
+    const discount = body.discount;
+    const shippingFee = body.shippingFee;
+    const totalAmount = body.totalAmount;
+    const payment = body.payment;
+    const utsNumber = body.utsNumber;
 
     if (!customer || !customer.fullName || !items || !items.length) {
       return res.status(400).json({ error: 'Incomplete order details. Please provide customer details and items.' });
     }
 
-    const utrRef = (payment?.utrNumber || utsNumber || `UTS-${Date.now().toString().slice(-6)}`).toString().trim();
-
     const orders = loadOrders();
-    const orderCount = orders.length + 1001;
+    const existingId = body.id ? body.id.trim() : '';
+    const utrRef = (payment?.utrNumber || utsNumber || body.utsNumber || `UTS-${Date.now().toString().slice(-6)}`).toString().trim();
+
+    let targetOrderId = existingId;
+    if (!targetOrderId) {
+      const orderCount = orders.length + 1001;
+      targetOrderId = `BDH-2026-${orderCount}`;
+    }
+
     const newOrder: Order = {
-      id: `BDH-2026-${orderCount}`,
+      id: targetOrderId,
       utsNumber: utrRef,
-      createdAt: new Date().toISOString(),
+      createdAt: body.createdAt || new Date().toISOString(),
       customer,
       items,
       subtotal: subtotal || 0,
@@ -380,24 +405,34 @@ app.post('/api/orders', (req, res) => {
       shippingFee: shippingFee || 0,
       totalAmount: totalAmount || 0,
       payment: {
-        method: 'UPI_QR',
+        method: payment?.method || 'UPI_QR',
         upiIdUsed: payment?.upiIdUsed || loadSettings().upiId,
         utrNumber: utrRef,
         screenshotUrl: payment?.screenshotUrl,
-        paymentTimestamp: new Date().toISOString(),
-        verifiedByAdmin: false
+        paymentTimestamp: payment?.paymentTimestamp || new Date().toISOString(),
+        verifiedByAdmin: payment?.verifiedByAdmin || false
       },
-      status: 'pending_acceptance'
+      status: body.status || 'pending_acceptance',
+      courierName: body.courierName,
+      trackingNumber: body.trackingNumber,
+      adminNotes: body.adminNotes,
+      rejectionReason: body.rejectionReason
     };
 
-    orders.unshift(newOrder);
+    const existingIndex = orders.findIndex(o => o.id === newOrder.id);
+    if (existingIndex !== -1) {
+      orders[existingIndex] = { ...orders[existingIndex], ...newOrder };
+    } else {
+      orders.unshift(newOrder);
+    }
+
     saveOrders(orders);
 
-    // Broadcast real-time push notification alert to Admin
+    // Broadcast real-time push notification alert to Admin & Customers
     try {
       broadcastSSE({
         type: 'NEW_ORDER',
-        message: `🚨 New Order received! Order #${newOrder.id} from ${newOrder.customer.fullName} for ₹${newOrder.totalAmount} (UTS: ${newOrder.utsNumber})`,
+        message: `🚨 Order #${newOrder.id} from ${newOrder.customer.fullName} for ₹${newOrder.totalAmount} (UTS: ${newOrder.utsNumber})`,
         order: newOrder,
         timestamp: new Date().toISOString()
       });
