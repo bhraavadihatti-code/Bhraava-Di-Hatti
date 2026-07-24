@@ -1049,22 +1049,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={async () => {
-                    try {
-                      const res = await fetch('/api/products');
-                      if (res.ok) {
-                        const data = await res.json();
-                        alert(`🔄 Catalog refreshed! ${data.length} products synced live.`);
-                        window.location.reload();
-                      }
-                    } catch (e) {
-                      alert('🔄 Refreshing page catalog...');
+                    if (onSyncProducts) {
+                      await onSyncProducts();
+                      alert(`🔄 Catalog Refreshed! (${products.length} items total)`);
+                    } else {
+                      try {
+                        const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
+                        if (res.ok) {
+                          const data = await res.json();
+                          alert(`🔄 Catalog refreshed! ${data.length} products synced live.`);
+                        }
+                      } catch (e) {}
                       window.location.reload();
                     }
                   }}
                   className="bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold px-3 py-3 rounded-2xl text-xs flex items-center gap-1.5 border border-stone-300 shadow-xs cursor-pointer"
                   title="Force Sync & Refresh Product List"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-amber-800" /> <span>Sync Catalog</span>
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-800" /> <span>Sync Catalog ({products.length})</span>
                 </button>
 
                 <button

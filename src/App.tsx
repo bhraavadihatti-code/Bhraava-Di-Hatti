@@ -84,15 +84,17 @@ export default function App() {
     }
   }, [cartItems]);
 
-  // Fetch initial data from server
+  // Fetch initial data from server with cache-busting & no-store headers
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data: Product[] = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setProducts(data);
-          localStorage.setItem('bdh_products', JSON.stringify(data));
+          try {
+            localStorage.setItem('bdh_products', JSON.stringify(data));
+          } catch (e) {}
         }
       }
     } catch (err) {
@@ -102,7 +104,7 @@ export default function App() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/orders');
+      const res = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const serverData: Order[] = await res.json();
         if (Array.isArray(serverData)) {
@@ -123,7 +125,7 @@ export default function App() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
@@ -138,35 +140,71 @@ export default function App() {
     fetchOrders();
     fetchSettings();
 
-    // Real-time EventSource listener for cross-device sync
+    // Auto-reconnecting Real-time EventSource listener for cross-device sync
     let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource('/api/notifications/stream');
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'PRODUCTS_UPDATED' && Array.isArray(data.products)) {
-            setProducts(data.products);
-          } else if (data.type === 'NEW_ORDER' || data.type === 'ORDER_UPDATED') {
-            fetchOrders();
-          }
-        } catch (e) {
-          console.error('SSE sync error:', e);
-        }
-      };
-    } catch (err) {
-      console.warn('EventSource connect fail:', err);
-    }
+    let reconnectTimeout: any = null;
 
-    // Poll for product & order updates every 8s as reliable cross-device fallback
+    const connectSSE = () => {
+      try {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/api/notifications/stream');
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'PRODUCTS_UPDATED') {
+              if (Array.isArray(data.products)) {
+                setProducts(data.products);
+                try {
+                  localStorage.setItem('bdh_products', JSON.stringify(data.products));
+                } catch (e) {}
+              } else {
+                fetchProducts();
+              }
+            } else if (data.type === 'NEW_ORDER' || data.type === 'ORDER_UPDATED') {
+              fetchOrders();
+            }
+          } catch (e) {
+            console.error('SSE sync error:', e);
+          }
+        };
+
+        eventSource.onerror = () => {
+          if (eventSource) eventSource.close();
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(connectSSE, 4000);
+        };
+      } catch (err) {
+        console.warn('EventSource connect fail:', err);
+      }
+    };
+
+    connectSSE();
+
+    // Poll for product & order updates every 5s as reliable cross-device fallback
     const interval = setInterval(() => {
       fetchProducts();
       fetchOrders();
-    }, 8000);
+    }, 5000);
+
+    // Sync immediately when user switches back to tab or unlocks phone screen
+    const handleVisibilityOrFocus = () => {
+      if (!document.hidden) {
+        fetchProducts();
+        fetchOrders();
+        fetchSettings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
 
     return () => {
       clearInterval(interval);
+      clearTimeout(reconnectTimeout);
       if (eventSource) eventSource.close();
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
     };
   }, []);
 
