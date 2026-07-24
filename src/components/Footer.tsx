@@ -132,10 +132,16 @@ export const Footer: React.FC<FooterProps> = ({ settings, onOpenTracker, onOpenA
         {/* Footer Bottom Bar */}
         <div className="mt-8 pt-6 border-t border-amber-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-amber-300/80 gap-3">
           <p>© {new Date().getFullYear()} {settings.shopName} ({settings.firmName}). All rights reserved.</p>
-          <div className="flex items-center gap-3">
-            <p className="flex items-center gap-1">
-              Handcrafted for Bhraava Di Hatti <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 inline" />
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-right">
+            <p className="flex items-center gap-1 font-medium text-amber-200">
+              Designed & Developed with <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 inline" /> by{' '}
+              <strong className="font-extrabold text-amber-300">Mr. Varun Goyal</strong>
             </p>
+            <span className="hidden sm:inline text-amber-600">•</span>
+            <div className="inline-flex items-center gap-1 bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 rounded-lg text-[11px] text-amber-200 font-bold font-mono">
+              <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+              <span>Fluxaa Technologies</span>
+            </div>
           </div>
         </div>
       </div>

@@ -53,13 +53,6 @@ function loadProducts(): Product[] {
       const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
       const savedProducts: Product[] = JSON.parse(data);
       if (Array.isArray(savedProducts) && savedProducts.length > 0) {
-        const savedIds = new Set(savedProducts.map(p => p.id));
-        const missing = INITIAL_PRODUCTS.filter(p => !savedIds.has(p.id));
-        if (missing.length > 0) {
-          const merged = [...savedProducts, ...missing];
-          saveProducts(merged);
-          return merged;
-        }
         return savedProducts;
       }
     }
@@ -284,7 +277,7 @@ app.post('/api/products', (req, res) => {
     products.unshift(newProduct);
     saveProducts(products);
 
-    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
     res.status(201).json(newProduct);
   } catch (err: any) {
@@ -314,7 +307,7 @@ app.put('/api/products/:id', (req, res) => {
     products[index] = { ...products[index], ...updatedData };
     saveProducts(products);
 
-    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
     res.json(products[index]);
   } catch (err: any) {
@@ -330,7 +323,7 @@ app.delete('/api/products/:id', (req, res) => {
     products = products.filter(p => p.id !== id);
     saveProducts(products);
 
-    broadcastSSE({ type: 'PRODUCTS_UPDATED' });
+    broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
     res.json({ success: true, id });
   } catch (err: any) {

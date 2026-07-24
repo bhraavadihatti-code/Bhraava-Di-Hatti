@@ -91,22 +91,8 @@ export default function App() {
       if (res.ok) {
         const data: Product[] = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          const savedStr = localStorage.getItem('bdh_products');
-          let finalProducts = data;
-          if (savedStr) {
-            try {
-              const savedList: Product[] = JSON.parse(savedStr);
-              if (Array.isArray(savedList)) {
-                const serverIds = new Set(data.map(p => p.id));
-                const localOnly = savedList.filter(p => !serverIds.has(p.id));
-                if (localOnly.length > 0) {
-                  finalProducts = [...localOnly, ...data];
-                }
-              }
-            } catch (e) {}
-          }
-          setProducts(finalProducts);
-          localStorage.setItem('bdh_products', JSON.stringify(finalProducts));
+          setProducts(data);
+          localStorage.setItem('bdh_products', JSON.stringify(data));
         }
       }
     } catch (err) {
@@ -400,12 +386,13 @@ export default function App() {
         }
         alert(`✅ Product "${product.name}" (${product.id}) added and published live!`);
       } else {
-        const errData = await res.json().catch(() => ({}));
         alert(`✅ Product "${product.name}" (${product.id}) added to shop catalog!`);
       }
+      fetchProducts();
     } catch (e: any) {
       console.error('Add product error:', e);
       alert(`✅ Product "${product.name}" (${product.id}) added to shop catalog!`);
+      fetchProducts();
     }
   };
 
@@ -427,8 +414,10 @@ export default function App() {
       if (res.ok) {
         alert(`✅ Product updated successfully!`);
       }
+      fetchProducts();
     } catch (e: any) {
       console.error('Update product error:', e);
+      fetchProducts();
     }
   };
 
@@ -448,9 +437,11 @@ export default function App() {
       } else {
         alert(`✅ Product ${id} removed from catalog.`);
       }
+      fetchProducts();
     } catch (e: any) {
       console.error('Delete product error:', e);
       alert(`✅ Product ${id} removed.`);
+      fetchProducts();
     }
   };
 
