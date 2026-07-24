@@ -889,21 +889,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {order.status === 'pending_acceptance' && (
                             <>
                               <button
+                                type="button"
                                 onClick={() => onUpdateOrderStatus(order.id, { status: 'order_confirmed', verifiedByAdmin: true })}
-                                className="bg-green-700 hover:bg-green-800 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1"
+                                className="bg-green-700 hover:bg-green-800 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1 cursor-pointer"
                               >
                                 <CheckCircle2 className="w-4 h-4" /> Confirm Payment & Accept
                               </button>
                               <button
+                                type="button"
                                 onClick={() => {
-                                  const reason = prompt('Reason for declining / cancelling order?');
-                                  if (reason !== null) {
-                                    onUpdateOrderStatus(order.id, { status: 'cancelled', rejectionReason: reason || 'Invalid UTR Number' });
-                                  }
+                                  let reason = 'Payment not verified / Cancelled by Admin';
+                                  try {
+                                    const userReason = window.prompt('Reason for declining / cancelling order? (Optional)');
+                                    if (userReason !== null && userReason.trim()) {
+                                      reason = userReason.trim();
+                                    }
+                                  } catch (e) {}
+                                  onUpdateOrderStatus(order.id, { status: 'cancelled', rejectionReason: reason });
                                 }}
-                                className="bg-red-700 hover:bg-red-800 text-white font-bold px-2.5 py-2 rounded-xl text-xs"
+                                className="bg-red-700 hover:bg-red-800 text-white font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1"
                               >
-                                Cancel Order
+                                <XCircle className="w-4 h-4" /> Cancel Order
                               </button>
                             </>
                           )}

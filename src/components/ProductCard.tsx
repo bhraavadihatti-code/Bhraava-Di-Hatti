@@ -39,28 +39,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
         />
 
-        {/* Overlay Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
-          <span className="bg-[#32080E] text-amber-300 font-mono font-extrabold text-[10px] px-2.5 py-1 rounded-lg shadow-lg border border-amber-500/50">
-            {product.id}
-          </span>
-          {product.isBestSeller && (
-            <span className="bg-gradient-to-r from-amber-600 to-amber-700 text-amber-50 font-extrabold text-[10px] px-2.5 py-0.5 rounded-md shadow-md uppercase tracking-wider flex items-center gap-1 border border-amber-300/40">
-              <Sparkles className="w-3 h-3 text-amber-200" /> Royal Best Seller
-            </span>
-          )}
-          {product.isNewArrival && (
-            <span className="bg-red-900 text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-md shadow-md uppercase tracking-wider">
-              New Arrival
-            </span>
-          )}
-        </div>
+        {/* Overlay Badges - Top Left over photo (BestSeller / New Arrival) */}
+        {(product.isBestSeller || product.isNewArrival) && (
+          <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1 items-start z-10">
+            {product.isBestSeller && (
+              <span className="bg-gradient-to-r from-amber-600 to-amber-700 text-amber-50 font-extrabold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md uppercase tracking-wider flex items-center gap-1 border border-amber-300/40">
+                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-200" /> Royal Best Seller
+              </span>
+            )}
+            {product.isNewArrival && (
+              <span className="bg-red-900 text-white font-extrabold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md uppercase tracking-wider">
+                New Arrival
+              </span>
+            )}
+          </div>
+        )}
 
+        {/* Discount Badge over photo (Visible on Mobile & Desktop) */}
         {discountPercent > 0 && (
-          <span className="absolute top-3 right-3 bg-green-800 text-white font-black text-xs px-2.5 py-1 rounded-lg shadow-md border border-green-400/40 font-mono">
+          <span className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-green-800 text-white font-black text-[11px] sm:text-xs px-2.5 py-1 rounded-lg shadow-md border border-green-400/40 font-mono z-10">
             {discountPercent}% OFF
           </span>
         )}
+
+        {/* Product ID Badge over Photo (Bottom Left, Small Size) */}
+        <span className="absolute bottom-2 left-2 bg-[#32080E]/90 backdrop-blur-xs text-amber-300 font-mono font-black text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md border border-amber-500/50 tracking-wider z-10">
+          {product.id}
+        </span>
 
         {/* Quick View Hover Overlay */}
         <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
@@ -77,10 +82,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Product Information */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3 bg-gradient-to-b from-white to-amber-50/20">
+      <div className="p-3.5 sm:p-5 flex-1 flex flex-col justify-between space-y-2.5 sm:space-y-3 bg-gradient-to-b from-white to-amber-50/20">
         <div>
-          <div className="text-[11px] font-extrabold text-amber-900 uppercase tracking-widest mb-1 flex items-center justify-between">
-            <span className="bg-amber-100/90 border border-amber-200/80 px-2 py-0.5 rounded-md text-[10px]">
+          {/* Top row with Category tag & Rating below photo */}
+          <div className="text-[11px] font-extrabold text-amber-900 uppercase tracking-widest mb-1.5 flex items-center justify-between flex-wrap gap-1">
+            <span className="bg-amber-100/90 border border-amber-200/80 text-amber-950 px-2 py-0.5 rounded-md text-[10px]">
               {product.category}
             </span>
             {product.rating && (

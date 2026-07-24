@@ -69,10 +69,11 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([]);
   const [placedOrderSuccess, setPlacedOrderSuccess] = useState<Order | null>(null);
   const [trackerModalOpen, setTrackerModalOpen] = useState(false);
   const [trackerQuery, setTrackerQuery] = useState('');
-  const [addedToastMessage, setAddedToastMessage] = useState<string | null>(null);
+  const [addedToastItem, setAddedToastItem] = useState<{ product: Product; selectedColor: string; selectedSize: string; quantity: number } | null>(null);
 
   // Save cart to LocalStorage
   useEffect(() => {
@@ -253,11 +254,11 @@ export default function App() {
       return [...prev, { product, selectedColor, selectedSize, quantity }];
     });
 
-    // Show toast message instead of opening cart drawer
-    setAddedToastMessage(`Product is successfully added to cart`);
+    // Rich floating notification toast
+    setAddedToastItem({ product, selectedColor, selectedSize, quantity });
     setTimeout(() => {
-      setAddedToastMessage(null);
-    }, 3500);
+      setAddedToastItem(null);
+    }, 4500);
   };
 
   const handleQuickAdd = (product: Product) => {
@@ -267,7 +268,8 @@ export default function App() {
   };
 
   const handleBuyNow = (product: Product, color: string, size: string, quantity: number) => {
-    handleAddToCart(product, color, size, quantity);
+    // Direct Product Buy strictly checks out ONLY this product without linking or polluting Cart Drawer
+    setCheckoutItems([{ product, selectedColor: color, selectedSize: size, quantity }]);
     setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
@@ -316,17 +318,54 @@ export default function App() {
 
   // Admin Actions
   const handleUpdateOrderStatus = async (orderId: string, payload: any) => {
+    // 1. Optimistic update state & localStorage immediately
+    setOrders((prev) => {
+      const updated = prev.map((o) => (o.id === orderId ? { ...o, ...payload } : o));
+      try {
+        localStorage.setItem('bdh_orders', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
     try {
-      const res = await fetch(`/api/orders/${orderId}/status`, {
+      const savedCust = localStorage.getItem('bdh_customer_orders');
+      if (savedCust) {
+        let custOrders: Order[] = JSON.parse(savedCust);
+        if (Array.isArray(custOrders)) {
+          const updatedCust = custOrders.map((o) => (o.id === orderId ? { ...o, ...payload } : o));
+          localStorage.setItem('bdh_customer_orders', JSON.stringify(updatedCust));
+        }
+      }
+    } catch (e) {}
+
+    // 2. Server API call
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
       if (res.ok) {
         fetchOrders();
+      } else if (res.status === 404) {
+        // If order missing on server, push local order to server
+        const savedBdh = localStorage.getItem('bdh_orders');
+        if (savedBdh) {
+          const list: Order[] = JSON.parse(savedBdh);
+          const target = list.find(o => o.id === orderId);
+          if (target) {
+            await fetch('/api/orders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...target, ...payload })
+            });
+            fetchOrders();
+          }
+        }
       }
     } catch (e) {
-      console.error('Update status error:', e);
+      console.warn('Update status error (saved locally):', e);
     }
   };
 
@@ -555,18 +594,37 @@ export default function App() {
       />
 
       {/* Product Added Success Toast Banner */}
-      {addedToastMessage && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#32080E] text-amber-100 px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-300 font-sans text-xs sm:text-sm font-bold">
-          <span className="bg-emerald-600 text-white p-1 rounded-full text-xs font-black">✓</span>
-          <span className="font-semibold">{addedToastMessage}</span>
+      {addedToastItem && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#32080E] text-amber-100 p-3 sm:p-3.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 max-w-[94vw] sm:max-w-md w-full font-sans">
+          <img
+            src={addedToastItem.product.imageUrl}
+            alt={addedToastItem.product.name}
+            className="w-12 h-12 rounded-xl object-cover border border-amber-400/50 shrink-0"
+          />
+          <div className="flex-1 min-w-0 text-left">
+            <div className="flex items-center gap-1 text-emerald-400 text-xs font-black">
+              <span className="w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px]">✓</span>
+              <span>Added to Shopping Bag!</span>
+            </div>
+            <p className="text-xs font-bold text-amber-100 truncate">{addedToastItem.product.name}</p>
+            <p className="text-[10px] text-amber-300/80 font-mono">
+              ₹{addedToastItem.product.price} • {addedToastItem.selectedColor} ({addedToastItem.selectedSize})
+            </p>
+          </div>
           <button 
             onClick={() => {
               setIsCartOpen(true);
-              setAddedToastMessage(null);
+              setAddedToastItem(null);
             }}
-            className="ml-1 bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs px-2.5 py-1 rounded-xl transition-colors shrink-0"
+            className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-amber-950 font-black text-xs px-3 py-2 rounded-xl transition-all shrink-0 border border-amber-200 active:scale-95 cursor-pointer shadow-md"
           >
-            View Cart 🛒
+            View Bag 🛒
+          </button>
+          <button
+            onClick={() => setAddedToastItem(null)}
+            className="text-amber-400 hover:text-white p-1 text-xs shrink-0"
+          >
+            ✕
           </button>
         </div>
       )}
@@ -601,6 +659,7 @@ export default function App() {
         onUpdateQuantity={handleUpdateQuantity}
         onRemoveItem={handleRemoveItem}
         onProceedToCheckout={() => {
+          setCheckoutItems(cartItems);
           setIsCartOpen(false);
           setIsCheckoutOpen(true);
         }}
@@ -611,7 +670,7 @@ export default function App() {
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
-        cartItems={cartItems}
+        cartItems={checkoutItems.length > 0 ? checkoutItems : cartItems}
         settings={settings}
         onOrderPlacedSuccess={handleOrderPlacedSuccess}
       />

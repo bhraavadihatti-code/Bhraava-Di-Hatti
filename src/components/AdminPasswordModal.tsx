@@ -62,10 +62,10 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
               <KeyRound className="w-3.5 h-3.5 text-amber-800" /> Admin Password:
             </label>
             <input
-              type="text"
+              type="password"
               required
               autoFocus
-              placeholder="Enter Admin Password (BDH-1986)"
+              placeholder="Enter Admin Password"
               value={pinInput}
               onChange={(e) => {
                 setPinInput(e.target.value);
@@ -81,10 +81,6 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
-
-          <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-[11px] text-amber-900 text-center font-medium">
-            🔑 Default Admin Password: <strong className="font-mono text-red-900 font-bold">BDH-1986</strong>
-          </div>
 
           <button
             type="submit"

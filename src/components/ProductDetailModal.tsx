@@ -12,7 +12,8 @@ import {
   Maximize2, 
   RotateCcw,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  ArrowLeft
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
@@ -73,10 +74,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   return (
     <>
-      {/* Main Product Detail Modal */}
-      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-        <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden border-2 border-amber-300 my-auto max-h-[94vh] flex flex-col md:flex-row">
+      {/* Main Product Detail Container - Full Page on Mobile (< sm), Centered Modal on Desktop (>= sm) */}
+      <div className="fixed inset-0 z-50 bg-white sm:bg-black/75 sm:backdrop-blur-sm flex flex-col sm:items-center sm:justify-center p-0 sm:p-4 overflow-y-auto">
+        <div className="bg-white w-full h-full sm:h-auto sm:max-h-[94vh] sm:max-w-4xl sm:rounded-3xl shadow-2xl overflow-y-auto sm:overflow-hidden border-0 sm:border-2 sm:border-amber-300 my-0 sm:my-auto flex flex-col md:flex-row">
           
+          {/* Mobile Top Navigation Header Bar (Visible on phone < sm) */}
+          <div className="sticky top-0 z-30 bg-[#32080E] text-amber-100 px-3.5 py-3 flex items-center justify-between sm:hidden shadow-md border-b border-amber-500/30 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 active:scale-95 transition-transform"
+            >
+              <ArrowLeft className="w-5 h-5 text-amber-400" />
+              <span>Back</span>
+            </button>
+            <div className="text-center truncate px-2 max-w-[180px]">
+              <p className="text-xs font-black font-cinzel text-amber-100 truncate">{product.name}</p>
+              <p className="text-[10px] font-mono text-amber-300/80 leading-none">ID: {product.id}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-full bg-black/40 text-amber-300 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
           {/* Left Side: Photo Gallery Box */}
           <div className="relative md:w-1/2 bg-stone-950 flex flex-col justify-between shrink-0">
             
@@ -95,13 +119,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
 
-              {/* Close Modal (Mobile) */}
+              {/* Close Modal (Desktop) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose();
                 }}
-                className="absolute top-3 right-3 bg-stone-900/80 hover:bg-black text-amber-200 p-2 rounded-full shadow-lg backdrop-blur-md transition-colors md:hidden border border-amber-500/40 z-10"
+                className="absolute top-3 right-3 bg-stone-900/80 hover:bg-black text-amber-200 p-2 rounded-full shadow-lg backdrop-blur-md transition-colors hidden sm:block border border-amber-500/40 z-10"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -109,7 +133,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {/* Zoom Lightbox Hint Badge */}
               <div className="absolute top-3 left-3 bg-black/60 text-amber-300 text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-amber-400/40 flex items-center gap-1.5 shadow-md">
                 <Maximize2 className="w-3 h-3 text-amber-400" />
-                <span>Click to Zoom & Slide ({activeImgIdx + 1}/{allImages.length})</span>
+                <span>Click to Zoom ({activeImgIdx + 1}/{allImages.length})</span>
               </div>
 
               {/* Slider Previous/Next Navigation Arrows */}

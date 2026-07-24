@@ -1,5 +1,5 @@
-import React from 'react';
-import { QrCode, Gift, Sparkles, Truck, Award, ShieldCheck, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { QrCode, Gift, Sparkles, Truck, Award, ShieldCheck, ChevronRight, ChevronLeft } from 'lucide-react';
 import { ShopSettings } from '../types';
 import heroBannerImg from '../assets/images/hero_cloth_banner_1784686263964.jpg';
 
@@ -8,15 +8,61 @@ interface HeroBannerProps {
   onExploreCatalog: () => void;
 }
 
+const BANNER_SLIDES = [
+  {
+    id: 1,
+    tag: "🪔 RAKHI FESTIVE SALE",
+    title: "Pure Handloom Punjabi Suits",
+    subtitle: "Unstitched Cotton, Chinon Silk & Gotta Patti Suits at Direct Wholesale Rates",
+    badge: "ESTD. 1986 • PUNJAB HERITAGE",
+    highlight: "Save Up To ₹1,000+",
+    image: heroBannerImg || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 2,
+    tag: "👑 BANARASI & CHINON SILK",
+    title: "Royal Wedding & Partywear Sets",
+    subtitle: "Pure Dupattas, Zari Embroidery & Designer Salwar Material",
+    badge: "100% PURE FABRIC GUARANTEE",
+    highlight: "Free Shipping Available",
+    image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 3,
+    tag: "📮 SPEED POST ALL-INDIA",
+    title: "Direct Doorstep Speed Delivery",
+    subtitle: "Tracked India Post Parcels Dispatched Directly from Maur Mandi, Punjab",
+    badge: "FACTORY WHOLESALE PRICING",
+    highlight: "Serial Parcel Tracking",
+    image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800"
+  }
+];
+
 export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatalog }) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Auto slide every 4.5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % BANNER_SLIDES.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % BANNER_SLIDES.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + BANNER_SLIDES.length) % BANNER_SLIDES.length);
+
+  const activeSlide = BANNER_SLIDES[currentSlide];
+
   return (
     <div className="relative bg-gradient-to-br from-[#2B040B] via-[#420812] to-[#1C0207] text-amber-50 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-2 border-amber-400/70 my-3 sm:my-5">
       
-      {/* Subtle Luxury Pattern Background Overlay */}
-      <div className="absolute inset-0 z-0 opacity-20 mix-blend-overlay">
+      {/* Background Image Layer with Fade Animation */}
+      <div className="absolute inset-0 z-0 opacity-25 mix-blend-overlay transition-opacity duration-700 ease-in-out">
         <img
-          src={heroBannerImg || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
-          alt="Bhraava Di Hatti Shop"
+          key={activeSlide.id}
+          src={activeSlide.image}
+          alt="Bhraava Di Hatti Banner"
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
           onError={(e) => {
@@ -25,119 +71,115 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
         />
       </div>
 
-      {/* Royal Gold Festive Ribbon Bar */}
-      <div className="bg-gradient-to-r from-[#D4AF37] via-[#FFF3B0] to-[#D4AF37] text-amber-950 py-1.5 px-3 text-center text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md">
+      {/* Royal Gold Top Festive Bar */}
+      <div className="bg-gradient-to-r from-[#D4AF37] via-[#FFF3B0] to-[#D4AF37] text-amber-950 py-1.5 px-3 text-center text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md relative z-10">
         <Sparkles className="w-3.5 h-3.5 text-red-950 shrink-0 animate-pulse" />
-        <span className="font-bold">🪔 RAKHI FESTIVE SALE — EXCLUSIVE BOUTIQUE SUITS AT DIRECT WHOLESALE PRICING 🪔</span>
+        <span className="font-bold tracking-wide">{activeSlide.tag} — EXCLUSIVE BOUTIQUE PRICING</span>
         <Sparkles className="w-3.5 h-3.5 text-red-950 shrink-0 animate-pulse" />
       </div>
 
       {/* ========================================================= */}
-      {/* MOBILE-ONLY PREMIUM BOUTIQUE HERO (Visible on < sm screens) */}
+      {/* MOBILE-ONLY COMPACT AUTO-SLIDING HERO (< sm) */}
       {/* ========================================================= */}
-      <div className="block sm:hidden relative z-10 p-4 text-center space-y-3.5">
+      <div className="block sm:hidden relative z-10 p-3.5 text-center space-y-2.5">
         
-        {/* Mobile Top Heritage Badge */}
-        <div className="inline-flex items-center gap-1.5 bg-black/60 text-amber-300 border border-amber-400/50 px-3 py-1 rounded-full text-[11px] font-extrabold backdrop-blur-md shadow-xs">
-          <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span>ESTD. 1986 • PUNJAB HERITAGE BOUTIQUE</span>
+        {/* Mobile Badge */}
+        <div className="inline-flex items-center gap-1 bg-black/60 text-amber-300 border border-amber-400/50 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold backdrop-blur-md">
+          <Award className="w-3 h-3 text-amber-400 shrink-0" />
+          <span>{activeSlide.badge}</span>
         </div>
 
-        {/* Mobile Brand Headings */}
-        <div>
-          <h1 className="text-2xl font-black font-cinzel text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-200 to-amber-400 tracking-tight leading-tight drop-shadow-sm">
-            {settings.shopName}
+        {/* Mobile Slide Content */}
+        <div className="min-h-[100px] flex flex-col justify-center px-2">
+          <h1 className="text-xl font-black font-cinzel text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-200 to-amber-400 tracking-tight leading-tight">
+            {activeSlide.title}
           </h1>
-          <p className="text-xs font-serif font-extrabold text-amber-300 mt-0.5 flex items-center justify-center gap-1">
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>{settings.firmName}</span>
-            <Sparkles className="w-3 h-3 text-amber-400" />
-          </p>
-          <p className="text-[11px] font-medium text-amber-100/90 mt-1.5 leading-snug">
-            100% Unstitched Punjabi Suits, Banarasi Silk, Gotta Patti & Designer Salwar Material
+          <p className="text-[11px] font-medium text-amber-100/90 mt-1 leading-snug">
+            {activeSlide.subtitle}
           </p>
         </div>
 
-        {/* Mobile 2x2 Feature Grid */}
-        <div className="grid grid-cols-2 gap-2 text-left pt-1">
-          <div className="bg-black/50 border border-amber-500/40 p-2 rounded-xl flex items-center gap-2 backdrop-blur-md">
-            <Award className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[11px] font-black text-amber-100 leading-none">100% Pure Fabric</p>
-              <p className="text-[9px] text-amber-300/80 mt-0.5">Guaranteed Quality</p>
-            </div>
+        {/* Mobile Quick Feature Pill Bar */}
+        <div className="grid grid-cols-2 gap-1.5 text-left text-[10px]">
+          <div className="bg-black/50 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 backdrop-blur-md">
+            <Award className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="font-bold text-amber-100 truncate">100% Pure Fabric</span>
           </div>
 
-          <div className="bg-black/50 border border-amber-500/40 p-2 rounded-xl flex items-center gap-2 backdrop-blur-md">
-            <Truck className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[11px] font-black text-amber-100 leading-none">Speed Post Parcel</p>
-              <p className="text-[9px] text-amber-300/80 mt-0.5">India Post Tracked</p>
-            </div>
-          </div>
-
-          <div className="bg-black/50 border border-amber-500/40 p-2 rounded-xl flex items-center gap-2 backdrop-blur-md">
-            <QrCode className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[11px] font-black text-amber-100 leading-none">Instant UPI Payment</p>
-              <p className="text-[9px] text-amber-300/80 mt-0.5">GPay / PhonePe / Paytm</p>
-            </div>
-          </div>
-
-          <div className="bg-black/50 border border-amber-500/40 p-2 rounded-xl flex items-center gap-2 backdrop-blur-md">
-            <Gift className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[11px] font-black text-amber-100 leading-none">Save Up to ₹1,000+</p>
-              <p className="text-[9px] text-amber-300/80 mt-0.5">Direct Factory Price</p>
-            </div>
+          <div className="bg-black/50 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 backdrop-blur-md">
+            <Truck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="font-bold text-amber-100 truncate">Speed Post Tracked</span>
           </div>
         </div>
 
-        {/* Mobile Touch Action Button */}
-        <div className="pt-1">
+        {/* Mobile Action Button & Controls */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={prevSlide}
+            className="p-2 rounded-xl bg-black/60 text-amber-300 border border-amber-500/30 active:scale-95"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
           <button
             onClick={onExploreCatalog}
-            className="w-full bg-gradient-to-r from-[#D4AF37] via-[#FFF3B0] to-[#B8860B] active:scale-98 text-amber-950 font-black px-5 py-3 rounded-xl shadow-lg transition-all text-xs flex items-center justify-center gap-2 border border-amber-200 tracking-wide"
+            className="flex-1 bg-gradient-to-r from-[#D4AF37] via-[#FFF3B0] to-[#B8860B] active:scale-98 text-amber-950 font-black px-4 py-2.5 rounded-xl shadow-lg transition-all text-xs flex items-center justify-center gap-1.5 border border-amber-200 tracking-wide"
           >
-            <Sparkles className="w-4 h-4 text-amber-950 shrink-0" />
-            <span>EXPLORE ROYAL SUIT CATALOG</span>
-            <ChevronRight className="w-4 h-4 text-amber-950 shrink-0" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-950 shrink-0" />
+            <span>EXPLORE CATALOG</span>
+            <ChevronRight className="w-3.5 h-3.5 text-amber-950 shrink-0" />
+          </button>
+
+          <button
+            type="button"
+            onClick={nextSlide}
+            className="p-2 rounded-xl bg-black/60 text-amber-300 border border-amber-500/30 active:scale-95"
+          >
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Mobile Footer Trust Ribbon */}
-        <div className="text-[10px] text-amber-300/90 font-bold flex items-center justify-center gap-1">
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span>Direct Factory Rates • Bus Stand Road, Maur Mandi</span>
+        {/* Slide Indicator Dots */}
+        <div className="flex items-center justify-center gap-1.5 pt-1">
+          {BANNER_SLIDES.map((slide, idx) => (
+            <button
+              key={slide.id}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-1.5 rounded-full transition-all ${
+                currentSlide === idx ? 'w-6 bg-amber-400' : 'w-1.5 bg-amber-200/40'
+              }`}
+            />
+          ))}
         </div>
 
       </div>
 
       {/* ========================================================= */}
-      {/* DESKTOP & TABLET HERO (Visible on >= sm screens) */}
+      {/* DESKTOP & TABLET AUTO-SLIDING HERO (>= sm) */}
       {/* ========================================================= */}
       <div className="hidden sm:flex relative z-10 p-8 lg:p-12 flex-col lg:flex-row items-center justify-between gap-8">
         
-        {/* Left Column: Brand & Luxury Identity */}
+        {/* Left Column: Brand & Slide Info */}
         <div className="max-w-2xl text-center lg:text-left space-y-4">
           
           <div className="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 border border-amber-400/40 px-4 py-1.5 rounded-full text-xs font-bold backdrop-blur-md">
             <Award className="w-3.5 h-3.5 text-amber-400" />
-            <span className="tracking-wide">ESTD. 1986 | PUNJAB HERITAGE</span>
+            <span className="tracking-wide">{activeSlide.badge}</span>
           </div>
 
           <div>
-            <h1 className="text-4xl lg:text-6xl font-black font-cinzel text-amber-100 leading-tight tracking-tight">
-              {settings.shopName}
+            <h1 className="text-4xl lg:text-6xl font-black font-cinzel text-amber-100 leading-tight tracking-tight min-h-[72px] sm:min-h-[110px]">
+              {activeSlide.title}
             </h1>
             <p className="text-xl lg:text-2xl font-serif font-black text-amber-300 mt-1 flex items-center justify-center lg:justify-start gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-400 inline" />
-              <span>{settings.firmName}</span>
+              <span>{settings.shopName} ({settings.firmName})</span>
             </p>
           </div>
 
           <p className="text-amber-200/90 text-sm lg:text-base leading-relaxed font-light font-sans max-w-xl">
-            Punjab's Premier Destination for Unstitched Pure Cotton Suits, Chinon Silk Dupattas, Gotta Patti Embroidery & Designer Salwar Sets. 
+            {activeSlide.subtitle}
           </p>
 
           {/* Key Heritage Badges */}
@@ -167,7 +209,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
             </div>
           </div>
 
-          {/* Action Callout Button */}
+          {/* Action Callout & Slide Nav */}
           <div className="pt-3 flex flex-wrap items-center justify-center lg:justify-start gap-4">
             <button
               onClick={onExploreCatalog}
@@ -176,10 +218,35 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
               <Sparkles className="w-5 h-5 text-amber-950" /> Explore Royal Collection ➔
             </button>
             
-            <div className="text-xs text-amber-300 flex items-center gap-1.5 font-bold">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Direct Factory Wholesale Rates + Serial Tracking</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={prevSlide}
+                className="p-3 rounded-2xl bg-black/50 hover:bg-black/80 text-amber-300 border border-amber-500/30 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={nextSlide}
+                className="p-3 rounded-2xl bg-black/50 hover:bg-black/80 text-amber-300 border border-amber-500/30 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
+          </div>
+
+          {/* Slide Indicators */}
+          <div className="flex items-center justify-center lg:justify-start gap-2 pt-2">
+            {BANNER_SLIDES.map((slide, idx) => (
+              <button
+                key={slide.id}
+                onClick={() => setCurrentSlide(idx)}
+                className={`h-2 rounded-full transition-all cursor-pointer ${
+                  currentSlide === idx ? 'w-8 bg-amber-400' : 'w-2 bg-amber-200/40 hover:bg-amber-300'
+                }`}
+              />
+            ))}
           </div>
 
         </div>
@@ -192,7 +259,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
           <div className="w-16 h-16 bg-amber-500/20 text-amber-300 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-amber-400/50 mt-1">
             <Gift className="w-8 h-8 text-amber-300 animate-bounce" />
           </div>
-          <h3 className="text-lg font-bold font-playfair text-amber-100">Save Up To ₹1,000+</h3>
+          <h3 className="text-lg font-bold font-playfair text-amber-100">{activeSlide.highlight}</h3>
           <p className="text-xs text-amber-200/90 mt-1 mb-4 font-sans">
             Every product displays original MRP and discounted BDH price with exact savings!
           </p>
@@ -205,5 +272,3 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
     </div>
   );
 };
-
-
