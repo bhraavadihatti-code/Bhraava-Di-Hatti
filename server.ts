@@ -227,6 +227,95 @@ function broadcastSSE(eventData: any) {
 }
 
 // ----------------------------------------------------
+// TELEGRAM BOT NOTIFICATIONS ENGINE
+// ----------------------------------------------------
+async function sendTelegramAlert(order: Order, title: string = "🚨 NEW ORDER RECEIVED") {
+  try {
+    const settings = loadSettings();
+    const token = (settings.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0").trim();
+    let chatId = (settings.telegramChatId || "").trim();
+
+    if (!token) {
+      console.log('Telegram Bot Token missing.');
+      return;
+    }
+
+    // Auto-detect Chat ID if missing
+    if (!chatId) {
+      try {
+        const updateRes = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+        if (updateRes.ok) {
+          const updateData = await updateRes.json();
+          if (updateData?.result && Array.isArray(updateData.result) && updateData.result.length > 0) {
+            const valid = updateData.result.reverse().find((u: any) => u.message?.chat?.id || u.channel_post?.chat?.id);
+            if (valid) {
+              const detected = valid.message?.chat?.id || valid.channel_post?.chat?.id;
+              if (detected) {
+                chatId = String(detected);
+                settings.telegramChatId = chatId;
+                saveSettings(settings);
+                console.log(`Auto-detected Telegram Chat ID: ${chatId}`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Telegram auto-detect chatId error:', e);
+      }
+    }
+
+    if (!chatId) {
+      console.warn('Telegram Notification skipped: Chat ID not set yet. Please send a message to your Telegram bot and click Auto-Detect Chat ID in Admin Panel.');
+      return;
+    }
+
+    const itemsSummary = (order.items || []).map((i, idx) => 
+      `  ${idx + 1}. <b>${i.product?.name || 'Suit Item'}</b>\n     Color: ${i.selectedColor || 'Standard'} | Size: ${i.selectedSize || 'Standard'}\n     Qty: ${i.quantity} x ₹${i.product?.price || 0}`
+    ).join('\n\n');
+
+    const messageText = 
+`<b>${title}</b>
+🏬 <b>Shop:</b> Bhraava Di Hatti (Jai Durga Cloth Emporium)
+
+📦 <b>Order ID:</b> <code>${order.id}</code>
+💳 <b>UTS/UTR Ref:</b> <code>${order.utsNumber || 'N/A'}</code>
+💵 <b>Total Amount:</b> ₹${order.totalAmount}
+
+👤 <b>Customer Details:</b>
+• <b>Name:</b> ${order.customer?.fullName || 'N/A'}
+• <b>Phone:</b> <code>${order.customer?.phone || 'N/A'}</code>
+• <b>Address:</b> ${order.customer?.address || ''}, ${order.customer?.city || ''}, ${order.customer?.state || ''} - ${order.customer?.pincode || ''}
+${order.customer?.notes ? `• <b>Notes:</b> ${order.customer.notes}\n` : ''}
+🛒 <b>Items Ordered:</b>
+${itemsSummary}
+
+📅 <b>Time:</b> ${new Date(order.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+⚡ <b>Status:</b> ${order.status?.toUpperCase() || 'PENDING'}
+
+<i>Bhraava Di Hatti - Live Store Alert System</i>`;
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: messageText,
+        parse_mode: 'HTML'
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Telegram API error:', errText);
+    } else {
+      console.log(`Telegram notification successfully sent to Chat ID ${chatId} for Order #${order.id}`);
+    }
+  } catch (err) {
+    console.error('Failed to send Telegram alert:', err);
+  }
+}
+
+// ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
 
@@ -509,6 +598,11 @@ app.post('/api/orders', (req, res) => {
       console.warn('SSE broadcast warning:', sseErr);
     }
 
+    // Trigger instant Telegram alert to shop admin's Telegram chat
+    sendTelegramAlert(newOrder, "🚨 NEW ORDER RECEIVED!").catch((err) => {
+      console.warn('Background Telegram alert error:', err);
+    });
+
     return res.status(201).json(newOrder);
   } catch (err: any) {
     console.error('Error in POST /api/orders:', err);
@@ -550,7 +644,106 @@ app.put('/api/orders/:id/status', (req, res) => {
     order: updatedOrder
   });
 
+  // Trigger Telegram update alert
+  sendTelegramAlert(updatedOrder, `🔔 ORDER STATUS UPDATED (${updatedOrder.status.toUpperCase()})`).catch((err) => {
+    console.warn('Background Telegram alert error:', err);
+  });
+
   res.json(updatedOrder);
+});
+
+// Auto-detect Telegram Chat ID from recent bot messages
+app.get('/api/telegram/autodetect', async (req, res) => {
+  try {
+    const settings = loadSettings();
+    const token = (settings.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0").trim();
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Telegram Bot Token is not configured.' });
+    }
+
+    const updateRes = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+    if (!updateRes.ok) {
+      const errText = await updateRes.text();
+      return res.status(400).json({ error: `Telegram API Error: ${errText}` });
+    }
+
+    const data = await updateRes.json();
+    if (!data.ok || !Array.isArray(data.result) || data.result.length === 0) {
+      return res.status(400).json({ 
+        error: 'No messages found in bot history. Please open Telegram, search for your bot, send /start or any message to it, and try again!' 
+      });
+    }
+
+    // Find latest chat ID
+    const validUpdate = data.result.reverse().find((u: any) => u.message?.chat?.id || u.channel_post?.chat?.id);
+    if (!validUpdate) {
+      return res.status(400).json({ error: 'No user chat ID found in recent bot updates.' });
+    }
+
+    const chat = validUpdate.message?.chat || validUpdate.channel_post?.chat;
+    const detectedChatId = String(chat.id);
+    const firstName = chat.first_name || chat.title || 'Admin';
+
+    settings.telegramChatId = detectedChatId;
+    saveSettings(settings);
+
+    // Send welcome confirmation message via Telegram
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: detectedChatId,
+        text: `✅ <b>Telegram Order Alert System Connected!</b>\n\nHello ${firstName}! Your Telegram chat is now linked with Bhraava Di Hatti (Jai Durga Cloth Emporium). You will receive instant alerts for every new order placed on any phone!`,
+        parse_mode: 'HTML'
+      })
+    }).catch((e) => console.warn('Welcome message error:', e));
+
+    return res.json({ 
+      success: true, 
+      chatId: detectedChatId, 
+      firstName,
+      message: `Successfully connected Telegram Chat ID: ${detectedChatId} (${firstName})` 
+    });
+  } catch (err: any) {
+    console.error('Error in autodetect Telegram endpoint:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to auto-detect Telegram Chat ID' });
+  }
+});
+
+// Test Telegram Bot Notification Endpoint
+app.post('/api/telegram/test', async (req, res) => {
+  try {
+    const settings = loadSettings();
+    const token = (settings.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0").trim();
+    const chatId = (req.body.chatId || settings.telegramChatId || "").trim();
+
+    if (!token) {
+      return res.status(400).json({ error: 'Telegram Bot Token is missing.' });
+    }
+    if (!chatId) {
+      return res.status(400).json({ error: 'Telegram Chat ID is missing. Click Auto-Detect Chat ID first or enter your Chat ID.' });
+    }
+
+    const testRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `🎉 <b>Telegram Order Notification Test Successful!</b>\n\n🏬 Store: Bhraava Di Hatti (Jai Durga Cloth Emporium)\n⚡ Status: Live & Ready\n\nYou will receive instant alerts on this Telegram chat for every new customer order!`,
+        parse_mode: 'HTML'
+      })
+    });
+
+    if (testRes.ok) {
+      return res.json({ success: true, message: 'Test message sent successfully to Telegram!' });
+    } else {
+      const errText = await testRes.text();
+      return res.status(400).json({ error: `Telegram error: ${errText}` });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Failed to send Telegram test message' });
+  }
 });
 
 // Track Order Endpoint for Customers

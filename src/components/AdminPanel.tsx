@@ -31,7 +31,8 @@ import {
   FileText,
   Sparkles,
   Camera,
-  Zap
+  Zap,
+  Send
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -75,6 +76,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission === 'granted' : false
   );
   const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
+  const [telegramTesting, setTelegramTesting] = useState(false);
 
   // Ship Modal State
   const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
@@ -1394,6 +1396,125 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </button>
                       </span>
                     ))}
+                </div>
+              </div>
+
+              {/* Telegram Bot Live Order Alert Integration Card */}
+              <div className="bg-sky-50 border-2 border-sky-300 p-4 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-sky-600 text-white p-2 rounded-xl shrink-0">
+                      <Send className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sky-950 text-sm">
+                        📱 Telegram Instant Order Alerts (ਤੁਰੰਤ ਆਰਡਰ ਅਲਰਟ)
+                      </h4>
+                      <p className="text-[11px] text-sky-800 font-medium">
+                        Get real-time customer order alerts on your phone's Telegram app automatically!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-bold text-sky-950 mb-1">
+                      Telegram Bot Token:
+                    </label>
+                    <input
+                      type="text"
+                      value={settingsForm.telegramBotToken || '8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0'}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, telegramBotToken: e.target.value })}
+                      className="w-full bg-white border border-sky-300 font-mono text-xs p-2.5 rounded-xl font-bold text-sky-950"
+                      placeholder="8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-sky-950">
+                        Telegram Chat ID:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setTelegramTesting(true);
+                          try {
+                            const res = await fetch('/api/telegram/autodetect');
+                            const data = await res.json();
+                            if (res.ok && data.chatId) {
+                              setSettingsForm(prev => ({ ...prev, telegramChatId: data.chatId }));
+                              alert(`✅ Connected! Auto-detected Chat ID: ${data.chatId} (${data.firstName || ''})`);
+                            } else {
+                              alert(`❌ ${data.error || 'Failed to detect Telegram Chat ID. Send /start or any message to your bot on Telegram first!'}`);
+                            }
+                          } catch (err: any) {
+                            alert(`❌ Error: ${err.message}`);
+                          } finally {
+                            setTelegramTesting(false);
+                          }
+                        }}
+                        disabled={telegramTesting}
+                        className="text-xs bg-sky-700 hover:bg-sky-800 text-white font-bold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                      >
+                        {telegramTesting ? 'Detecting...' : '🔍 Auto-Detect Chat ID'}
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={settingsForm.telegramChatId || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, telegramChatId: e.target.value })}
+                      className="w-full bg-white border border-sky-300 font-mono text-xs p-2.5 rounded-xl font-bold text-sky-950"
+                      placeholder="Click 'Auto-Detect Chat ID' or enter numeric Telegram Chat ID"
+                    />
+                  </div>
+
+                  <div className="bg-white/90 p-3 rounded-xl border border-sky-200 text-xs space-y-1">
+                    <p className="font-bold text-sky-950">💡 Telegram Connection Instructions (ਕਿਵੇਂ ਚਾਲੂ ਕਰਨਾ ਹੈ):</p>
+                    <ol className="list-decimal pl-4 text-[11px] text-sky-900 space-y-1">
+                      <li>Open Telegram on your mobile phone or computer.</li>
+                      <li>Search for your Bot (Token: <code className="bg-sky-100 px-1 py-0.5 rounded font-mono font-bold">8752135508:...</code>).</li>
+                      <li>Press <b>START</b> or send any message (like <i>"hello"</i>) to your bot.</li>
+                      <li>Click <b>"Auto-Detect Chat ID"</b> button above!</li>
+                    </ol>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setTelegramTesting(true);
+                        try {
+                          const res = await fetch('/api/telegram/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chatId: settingsForm.telegramChatId })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            alert('🎉 Test notification sent successfully to Telegram!');
+                          } else {
+                            alert(`❌ Test failed: ${data.error}`);
+                          }
+                        } catch (e: any) {
+                          alert(`❌ Error: ${e.message}`);
+                        } finally {
+                          setTelegramTesting(false);
+                        }
+                      }}
+                      disabled={telegramTesting}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {telegramTesting ? 'Sending Test Message...' : '🚀 Send Test Telegram Alert'}
+                    </button>
+
+                    <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                      Live Store Alert Active
+                    </span>
+                  </div>
                 </div>
               </div>
 

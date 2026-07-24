@@ -91,4 +91,7 @@ export interface ShopSettings {
   noticeText: string;
   adminPin?: string; // Default '7860' or '1234'
   categories?: string[];
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramEnabled?: boolean;
 }

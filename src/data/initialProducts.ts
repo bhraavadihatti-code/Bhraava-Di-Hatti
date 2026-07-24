@@ -26,7 +26,10 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   minOrderForFreeShipping: 1999,
   noticeText: "🎁 RAKHI SPECIAL MEGA SALE IS LIVE TILL 29 AUGUST! FLAT DISCOUNTS + INDIA POST DESPATCH",
   adminPin: "BDH-1986",
-  categories: DEFAULT_CATEGORIES
+  categories: DEFAULT_CATEGORIES,
+  telegramBotToken: "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0",
+  telegramChatId: "",
+  telegramEnabled: true
 };
 
 /**

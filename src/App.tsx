@@ -19,6 +19,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { CategoryAndPriceFilter, PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
 import { Footer } from './components/Footer';
+import { sendOrderTelegramNotification } from './utils/telegram';
 
 export default function App() {
   // App view mode
@@ -358,6 +359,9 @@ export default function App() {
     setIsCheckoutOpen(false);
     setPlacedOrderSuccess(order);
     
+    // Trigger automated Telegram notification alert for admin
+    sendOrderTelegramNotification(order, "🚨 NEW ORDER RECEIVED");
+
     setOrders((prev) => {
       const filtered = prev.filter(o => o.id !== order.id);
       const updated = [order, ...filtered];
