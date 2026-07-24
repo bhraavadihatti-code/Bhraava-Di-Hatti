@@ -91,8 +91,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setSubmitting(true);
     setErrorMessage('');
 
-    const fallbackOrder: Order = {
-      id: `BDH-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+    const newOrderId = `BDH-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderToSubmit: Order = {
+      id: newOrderId,
       utsNumber: utrNumber.trim(),
       createdAt: new Date().toISOString(),
       customer,
@@ -111,34 +112,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       status: 'pending_acceptance'
     };
 
+    // 1. Immediately persist in local customer orders store so order is never lost
+    try {
+      const saved = localStorage.getItem('bdh_customer_orders');
+      const existing: Order[] = saved ? JSON.parse(saved) : [];
+      const updated = [orderToSubmit, ...existing.filter(o => o.id !== orderToSubmit.id)];
+      localStorage.setItem('bdh_customer_orders', JSON.stringify(updated));
+    } catch (e) {}
+
+    // 2. Post to central server
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer,
-          items: cartItems,
-          subtotal,
-          discount: 0,
-          shippingFee,
-          totalAmount,
-          payment: {
-            method: 'UPI_QR',
-            upiIdUsed: settings.upiId,
-            utrNumber: utrNumber.trim()
-          }
-        })
+        body: JSON.stringify(orderToSubmit)
       });
 
       if (response.ok) {
-        const newOrder: Order = await response.json();
-        onOrderPlacedSuccess(newOrder);
+        const savedOrder: Order = await response.json();
+        onOrderPlacedSuccess(savedOrder);
       } else {
-        onOrderPlacedSuccess(fallbackOrder);
+        console.warn('Server responded with non-200 status when creating order, queued in local store');
+        onOrderPlacedSuccess(orderToSubmit);
       }
     } catch (err: any) {
-      console.warn('Network issue saving order to server, using local fallback:', err);
-      onOrderPlacedSuccess(fallbackOrder);
+      console.warn('Network issue saving order to server, queued in local store:', err);
+      onOrderPlacedSuccess(orderToSubmit);
     } finally {
       setSubmitting(false);
     }

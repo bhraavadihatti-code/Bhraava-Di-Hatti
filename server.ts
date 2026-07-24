@@ -413,18 +413,25 @@ app.post('/api/orders', (req, res) => {
       return res.status(400).json({ error: 'Empty order payload.' });
     }
 
-    const customer = body.customer;
-    const items = body.items;
-    const subtotal = body.subtotal;
-    const discount = body.discount;
-    const shippingFee = body.shippingFee;
-    const totalAmount = body.totalAmount;
-    const payment = body.payment;
-    const utsNumber = body.utsNumber;
+    const rawCust = body.customer || {};
+    const customer = {
+      fullName: String(rawCust.fullName || 'Customer').trim() || 'Customer',
+      phone: String(rawCust.phone || '').trim(),
+      email: String(rawCust.email || '').trim(),
+      address: String(rawCust.address || 'Address provided').trim(),
+      city: String(rawCust.city || 'District Bathinda').trim(),
+      state: String(rawCust.state || 'Punjab').trim(),
+      pincode: String(rawCust.pincode || '151509').trim(),
+      notes: String(rawCust.notes || '').trim()
+    };
 
-    if (!customer || !customer.fullName || !items || !items.length) {
-      return res.status(400).json({ error: 'Incomplete order details. Please provide customer details and items.' });
-    }
+    const items = Array.isArray(body.items) ? body.items : [];
+    const subtotal = Number(body.subtotal) || 0;
+    const discount = Number(body.discount) || 0;
+    const shippingFee = Number(body.shippingFee) || 0;
+    const totalAmount = Number(body.totalAmount) || (subtotal + shippingFee - discount);
+    const payment = body.payment || {};
+    const utsNumber = body.utsNumber;
 
     const orders = loadOrders();
     const existingId = body.id ? body.id.trim() : '';

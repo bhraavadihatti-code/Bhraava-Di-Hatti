@@ -91,40 +91,6 @@ export default function App() {
       if (res.ok) {
         const serverData: Product[] = await res.json();
         if (Array.isArray(serverData)) {
-          // Check if local storage has any products missing on server
-          let localProducts: Product[] = [];
-          try {
-            const saved = localStorage.getItem('bdh_products');
-            if (saved) localProducts = JSON.parse(saved);
-          } catch (e) {}
-
-          const serverIds = new Set(serverData.map((p) => p.id));
-          const missingLocals = localProducts.filter((p) => p && p.id && !serverIds.has(p.id));
-
-          if (missingLocals.length > 0) {
-            for (const p of missingLocals) {
-              try {
-                await fetch('/api/products', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(p)
-                });
-              } catch (err) {
-                console.warn('Auto-sync missing product error:', err);
-              }
-            }
-            // Re-fetch after syncing missing products
-            const reRes = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
-            if (reRes.ok) {
-              const freshData: Product[] = await reRes.json();
-              setProducts(freshData);
-              try {
-                localStorage.setItem('bdh_products', JSON.stringify(freshData));
-              } catch (e) {}
-              return;
-            }
-          }
-
           setProducts(serverData);
           try {
             localStorage.setItem('bdh_products', JSON.stringify(serverData));
@@ -142,26 +108,20 @@ export default function App() {
       if (res.ok) {
         const serverData: Order[] = await res.json();
         if (Array.isArray(serverData)) {
-          // Check if customer or admin local storage has orders missing on server
-          let localOrders: Order[] = [];
+          // Check if local customer orders need auto-syncing to server
+          let localCustOrders: Order[] = [];
           try {
-            const savedBdh = localStorage.getItem('bdh_orders');
             const savedCust = localStorage.getItem('bdh_customer_orders');
-            const bdhParsed = savedBdh ? JSON.parse(savedBdh) : [];
-            const custParsed = savedCust ? JSON.parse(savedCust) : [];
-            localOrders = [...bdhParsed, ...custParsed];
+            if (savedCust) localCustOrders = JSON.parse(savedCust);
           } catch (e) {}
 
           const serverIds = new Set(serverData.map((o) => o.id));
-          const missingOrdersMap = new Map<string, Order>();
-          for (const o of localOrders) {
-            if (o && o.id && !serverIds.has(o.id)) {
-              missingOrdersMap.set(o.id, o);
-            }
-          }
+          const missingLocals = Array.isArray(localCustOrders)
+            ? localCustOrders.filter((o) => o && o.id && !serverIds.has(o.id))
+            : [];
 
-          if (missingOrdersMap.size > 0) {
-            for (const [, o] of missingOrdersMap.entries()) {
+          if (missingLocals.length > 0) {
+            for (const o of missingLocals) {
               try {
                 await fetch('/api/orders', {
                   method: 'POST',
@@ -172,7 +132,7 @@ export default function App() {
                 console.warn('Auto-sync missing order error:', err);
               }
             }
-            // Re-fetch after syncing missing orders
+            // Re-fetch fresh list after syncing missing orders
             const reRes = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
             if (reRes.ok) {
               const freshOrders: Order[] = await reRes.json();
