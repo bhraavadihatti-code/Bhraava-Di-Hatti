@@ -44,6 +44,8 @@ interface AdminPanelProps {
   onDeleteProduct: (id: string) => Promise<void>;
   onUpdateSettings: (newSettings: Partial<ShopSettings>) => Promise<void>;
   onLogout?: () => void;
+  onSyncOrders?: () => Promise<void>;
+  onSyncProducts?: () => Promise<void>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -55,7 +57,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateProduct,
   onDeleteProduct,
   onUpdateSettings,
-  onLogout
+  onLogout,
+  onSyncOrders,
+  onSyncProducts
 }) => {
   // Simple PIN protection state (default PIN: 1234)
   const [pinInput, setPinInput] = useState('');
@@ -381,20 +385,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsRows = order.items.map((item, index) => `
+    const itemsRows = (order.items || []).map((item, index) => {
+      const pName = item?.product?.name || 'Unstitched Punjabi Suit Material';
+      const pId = item?.product?.id || 'BDH-SUIT';
+      const pFabric = item?.product?.fabric || '100% Pure Cotton';
+      const pPrice = item?.product?.price || 0;
+      const qty = item?.quantity || 1;
+      return `
       <tr>
         <td style="text-align: center; font-weight: bold;">${index + 1}</td>
         <td>
-          <strong>${item.product.name}</strong><br/>
-          <span style="font-size: 11px; color: #555;">Code: ${item.product.id} | Fabric: ${item.product.fabric || '100% Pure Cotton'}</span>
+          <strong>${pName}</strong><br/>
+          <span style="font-size: 11px; color: #555;">Code: ${pId} | Fabric: ${pFabric}</span>
         </td>
         <td>${item.selectedColor || 'Standard'}</td>
         <td>${item.selectedSize || 'Unstitched'}</td>
-        <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
-        <td style="text-align: right;">₹${item.product.price}</td>
-        <td style="text-align: right; font-weight: bold;">₹${item.product.price * item.quantity}</td>
+        <td style="text-align: center; font-weight: bold;">${qty}</td>
+        <td style="text-align: right;">₹${pPrice}</td>
+        <td style="text-align: right; font-weight: bold;">₹${pPrice * qty}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -712,7 +723,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Ticket Pipeline Filter Bar */}
             <div className="bg-white p-4 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-3 items-center justify-between">
               
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 scrollbar-none">
+              <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 scrollbar-none">
+                <button
+                  onClick={async () => {
+                    if (onSyncOrders) {
+                      await onSyncOrders();
+                      alert(`🔄 Live Orders Synced! (${orders.length} orders total)`);
+                    } else {
+                      window.location.reload();
+                    }
+                  }}
+                  className="bg-red-900 hover:bg-red-950 text-amber-200 font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 border border-amber-500/50 shadow-xs shrink-0 cursor-pointer active:scale-95 transition-all"
+                  title="Click to force fetch new orders placed from phone or other devices"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+                  <span>Sync Live Orders ({orders.length})</span>
+                </button>
+
                 {[
                   { id: 'all', label: 'All Tickets' },
                   { id: 'pending_acceptance', label: '🚨 1. Pending Payment' },
@@ -839,27 +866,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                       {/* Items List */}
                       <div className="space-y-2 border-t lg:border-t-0 lg:border-l border-gray-200 pt-3 lg:pt-0 lg:pl-4">
-                        <p className="font-bold text-gray-800">Unstitched Fabrics Ordered ({order.items.length}):</p>
+                        <p className="font-bold text-gray-800">Unstitched Fabrics Ordered ({(order.items || []).length}):</p>
                         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="bg-amber-50/80 border border-amber-200 p-2 rounded-xl space-y-1">
-                              <div className="flex items-start justify-between text-[11px] gap-2">
-                                <span className="font-bold text-stone-900 leading-tight">{item.product.name}</span>
-                                <span className="font-mono font-black text-amber-950 bg-amber-200 px-2 py-0.5 rounded-md text-[10px] shrink-0">x{item.quantity}</span>
+                          {(order.items || []).map((item, idx) => {
+                            const productName = item?.product?.name || 'Unstitched Punjabi Suit Material';
+                            const productPrice = item?.product?.price || 0;
+                            const qty = item?.quantity || 1;
+                            return (
+                              <div key={idx} className="bg-amber-50/80 border border-amber-200 p-2 rounded-xl space-y-1">
+                                <div className="flex items-start justify-between text-[11px] gap-2">
+                                  <span className="font-bold text-stone-900 leading-tight">{productName}</span>
+                                  <span className="font-mono font-black text-amber-950 bg-amber-200 px-2 py-0.5 rounded-md text-[10px] shrink-0">x{qty}</span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                  <span className="bg-[#32080E] text-amber-200 font-extrabold px-2.5 py-0.5 rounded-md border border-amber-700/60 shadow-2xs flex items-center gap-1">
+                                    🎨 Color: <span className="text-white underline">{item.selectedColor || 'Standard'}</span>
+                                  </span>
+                                  <span className="bg-white text-stone-800 font-bold px-2 py-0.5 rounded-md border border-amber-300">
+                                    📏 Size: {item.selectedSize || 'Free Size'}
+                                  </span>
+                                  <span className="font-mono text-stone-700 font-bold ml-auto text-[11px]">
+                                    ₹{(productPrice * qty).toLocaleString('en-IN')}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                                <span className="bg-[#32080E] text-amber-200 font-extrabold px-2.5 py-0.5 rounded-md border border-amber-700/60 shadow-2xs flex items-center gap-1">
-                                  🎨 Color: <span className="text-white underline">{item.selectedColor || 'Standard'}</span>
-                                </span>
-                                <span className="bg-white text-stone-800 font-bold px-2 py-0.5 rounded-md border border-amber-300">
-                                  📏 Size: {item.selectedSize || 'Free Size'}
-                                </span>
-                                <span className="font-mono text-stone-700 font-bold ml-auto text-[11px]">
-                                  ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
 

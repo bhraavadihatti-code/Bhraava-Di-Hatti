@@ -106,15 +106,14 @@ export default function App() {
       if (res.ok) {
         const serverData: Order[] = await res.json();
         if (Array.isArray(serverData)) {
-          setOrders((prev) => {
-            const serverIds = new Set(serverData.map(o => o.id));
-            const localOnly = prev.filter(o => !serverIds.has(o.id));
-            const merged = [...serverData, ...localOnly];
-            try {
-              localStorage.setItem('bdh_orders', JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
+          // Sort orders newest first
+          const sorted = [...serverData].sort((a, b) => 
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
+          setOrders(sorted);
+          try {
+            localStorage.setItem('bdh_orders', JSON.stringify(sorted));
+          } catch (e) {}
         }
       }
     } catch (err) {
@@ -520,6 +519,8 @@ export default function App() {
             onDeleteProduct={handleDeleteProduct}
             onUpdateSettings={handleUpdateSettings}
             onLogout={handleAdminLogout}
+            onSyncOrders={fetchOrders}
+            onSyncProducts={fetchProducts}
           />
         ) : (
           <div className="space-y-6">

@@ -193,7 +193,17 @@ app.get('/api/notifications/stream', (req, res) => {
   // Send initial ping connection
   res.write(`data: ${JSON.stringify({ type: 'CONNECTED', clientId })}\n\n`);
 
+  // Heartbeat ping every 15s to keep connection alive on Cloud Run & mobile devices
+  const heartbeatTimer = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch (e) {
+      clearInterval(heartbeatTimer);
+    }
+  }, 15000);
+
   req.on('close', () => {
+    clearInterval(heartbeatTimer);
     sseClients = sseClients.filter(c => c.id !== clientId);
   });
 });
