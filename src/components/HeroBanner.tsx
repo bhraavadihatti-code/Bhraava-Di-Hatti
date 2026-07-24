@@ -269,6 +269,46 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
         </div>
 
       </div>
+
+      {/* Bottom Offer Tabs Bar */}
+      <div className="border-t border-amber-500/30 bg-black/40 backdrop-blur-md px-3 py-2.5 flex items-center justify-between overflow-x-auto gap-2 scrollbar-none text-[11px]">
+        <button
+          onClick={() => setCurrentSlide(0)}
+          className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+            currentSlide === 0
+              ? 'bg-amber-400 text-amber-950 border-amber-300 shadow-md font-extrabold scale-102'
+              : 'bg-amber-950/60 text-amber-200 border-amber-500/30 hover:bg-amber-900/60'
+          }`}
+        >
+          <span>🪔 Rakhi Festive Sale</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentSlide(1)}
+          className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+            currentSlide === 1
+              ? 'bg-amber-400 text-amber-950 border-amber-300 shadow-md font-extrabold scale-102'
+              : 'bg-amber-950/60 text-amber-200 border-amber-500/30 hover:bg-amber-900/60'
+          }`}
+        >
+          <span>👑 Silk & Partywear Offer</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentSlide(2)}
+          className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+            currentSlide === 2
+              ? 'bg-amber-400 text-amber-950 border-amber-300 shadow-md font-extrabold scale-102'
+              : 'bg-amber-950/60 text-amber-200 border-amber-500/30 hover:bg-amber-900/60'
+          }`}
+        >
+          <span>📮 Speed Post All-India Delivery</span>
+        </button>
+
+        <div className="shrink-0 text-amber-300 font-mono font-bold px-2.5 py-1 bg-amber-900/40 rounded-xl border border-amber-500/30">
+          ✨ Use Code <strong className="text-amber-100">BDH2026</strong> for Extra Discount
+        </div>
+      </div>
     </div>
   );
 };
