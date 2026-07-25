@@ -182,8 +182,14 @@ function loadSettings(): ShopSettings {
       if (data && data.trim()) {
         const parsed: ShopSettings = JSON.parse(data);
         if (parsed) {
+          if (!parsed.categories || parsed.categories.length === 0 || parsed.categories.includes('Banarasi Sarees')) {
+            parsed.categories = DEFAULT_CATEGORIES;
+          }
           if (!parsed.upiId || parsed.upiId === 'bhraavadihatti@upi') {
             parsed.upiId = DEFAULT_SHOP_SETTINGS.upiId;
+          }
+          if (!parsed.googleSheetWebhookUrl) {
+            parsed.googleSheetWebhookUrl = "https://script.google.com/macros/s/AKfycbxoIXICrDxONN81CJHKqzGKzQVsNjVZeQUggeaefkQx_z27vTHk20LOZ8M1lFrrTsLd/exec";
           }
           cachedSettings = parsed;
           return cachedSettings;
@@ -312,6 +318,72 @@ ${itemsSummary}
     }
   } catch (err) {
     console.error('Failed to send Telegram alert:', err);
+  }
+}
+
+// ----------------------------------------------------
+// GOOGLE SHEETS AUTOMATED SYNC ENGINE
+// ----------------------------------------------------
+async function sendGoogleSheetRow(order: Order) {
+  try {
+    const settings = loadSettings();
+    const webhookUrl = (settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "https://script.google.com/macros/s/AKfycbxoIXICrDxONN81CJHKqzGKzQVsNjVZeQUggeaefkQx_z27vTHk20LOZ8M1lFrrTsLd/exec").trim();
+    if (!webhookUrl) return;
+
+    let currentSerial = settings.nextSheetSerialNo || 1;
+    const items = order.items && order.items.length > 0 ? order.items : [null];
+
+    for (const item of items) {
+      const serialNoStr = String(currentSerial);
+      currentSerial++;
+
+      const itemName = item?.product?.name || 'Suit Item';
+      const colorStr = item?.selectedColor || 'Standard';
+      const sizeStr = item?.selectedSize || 'Standard';
+      const qtyStr = item?.quantity || 1;
+      const itemPrice = item ? (item.product?.price || 0) * qtyStr : (order.totalAmount || 0);
+
+      const itemSummaryFormatted = item
+        ? `${itemName} (Color: ${colorStr}, Size: ${sizeStr}) x${qtyStr}`
+        : 'Suit Item';
+
+      const payload = {
+        id: serialNoStr,                 // <--- "Order ID" column in Google Sheet receives Serial No (1, 2, 3...)
+        serialNo: serialNoStr,
+        orderId: order.id,
+        createdAt: new Date(order.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        date: new Date(order.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        customerName: order.customer?.fullName || '',
+        customerPhone: order.customer?.phone || '',
+        phone: order.customer?.phone || '',
+        customerAddress: order.customer?.address || '',
+        address: `${order.customer?.address || ''}, ${order.customer?.city || ''}, ${order.customer?.state || ''} - ${order.customer?.pincode || ''}`,
+        city: order.customer?.city || '',
+        state: order.customer?.state || '',
+        pincode: order.customer?.pincode || '',
+        items: itemSummaryFormatted,
+        itemsDetailed: itemSummaryFormatted,
+        colors: colorStr,
+        sizes: sizeStr,
+        utsNumber: order.utsNumber || '',
+        totalAmount: itemPrice,
+        status: order.status || 'pending_acceptance',
+        notes: order.customer?.notes || ''
+      };
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      console.log(`Google Sheet Row S.No #${serialNoStr} for Order #${order.id} sent. Response: ${res.status}`);
+    }
+
+    // Save updated serial counter to settings
+    settings.nextSheetSerialNo = currentSerial;
+    saveSettings(settings);
+  } catch (e) {
+    console.warn('Failed to send order row to Google Sheet Webhook:', e);
   }
 }
 
@@ -603,6 +675,11 @@ app.post('/api/orders', (req, res) => {
       console.warn('Background Telegram alert error:', err);
     });
 
+    // Trigger Google Sheet Webhook Sync
+    sendGoogleSheetRow(newOrder).catch((err) => {
+      console.warn('Background Google Sheet error:', err);
+    });
+
     return res.status(201).json(newOrder);
   } catch (err: any) {
     console.error('Error in POST /api/orders:', err);
@@ -649,7 +726,62 @@ app.put('/api/orders/:id/status', (req, res) => {
     console.warn('Background Telegram alert error:', err);
   });
 
+  // Trigger Google Sheet update
+  sendGoogleSheetRow(updatedOrder).catch((err) => {
+    console.warn('Background Google Sheet error:', err);
+  });
+
   res.json(updatedOrder);
+});
+
+// Test Google Sheet Webhook Endpoint
+app.post('/api/googlesheet/test', async (req, res) => {
+  try {
+    const settings = loadSettings();
+    const webhookUrl = (req.body.webhookUrl || settings.googleSheetWebhookUrl || "").trim();
+
+    if (!webhookUrl) {
+      return res.status(400).json({ error: 'Google Sheet Webhook URL is missing.' });
+    }
+
+    const testPayload = {
+      id: "BDH-TEST-001",
+      orderId: "BDH-TEST-001",
+      createdAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      customerName: "Test Customer (Bhraava Di Hatti)",
+      customerPhone: "9876543210",
+      phone: "9876543210",
+      customerAddress: "Main Market, Rampura Phul",
+      address: "Main Market, Rampura Phul, Bathinda, Punjab - 151509",
+      city: "Rampura Phul",
+      state: "Punjab",
+      pincode: "151509",
+      items: "Velvet Suit (x1)",
+      itemsDetailed: "Velvet Suit (Color: Red, Size: Unstitched) x1",
+      colors: "Red",
+      sizes: "Unstitched",
+      totalAmount: 1499,
+      utsNumber: "UTS-TEST-123456",
+      status: "test_connected",
+      notes: "Google Sheet Connection Test Success!"
+    };
+
+    const testRes = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(testPayload)
+    });
+
+    if (testRes.ok || testRes.status === 200 || testRes.status === 302 || testRes.status === 201) {
+      return res.json({ success: true, message: 'Test order row sent successfully to your Google Sheet!' });
+    } else {
+      const text = await testRes.text();
+      return res.status(400).json({ error: `Google Apps Script returned status ${testRes.status}: ${text}` });
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || 'Failed to send Google Sheet test row' });
+  }
 });
 
 // Auto-detect Telegram Chat ID from recent bot messages

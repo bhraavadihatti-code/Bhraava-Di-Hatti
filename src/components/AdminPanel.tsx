@@ -77,6 +77,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   );
   const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
   const [telegramTesting, setTelegramTesting] = useState(false);
+  const [sheetTesting, setSheetTesting] = useState(false);
 
   // Ship Modal State
   const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
@@ -1513,6 +1514,86 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300 flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
                       Live Store Alert Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Google Sheets Live Sync Integration Card */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-100 p-4 sm:p-5 rounded-2xl border-2 border-emerald-400/80 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      📊
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm font-serif text-emerald-950">
+                        Google Sheets Auto-Sync (Real-time Excel Orders)
+                      </h3>
+                      <p className="text-[11px] text-emerald-800">
+                        Har phone order automatic aapki Google Sheet me row-by-row enter ho jayega!
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-extrabold bg-emerald-200 text-emerald-950 px-2.5 py-1 rounded-full border border-emerald-400">
+                    LIVE AUTOMATION
+                  </span>
+                </div>
+
+                <div className="space-y-2 bg-white p-3.5 rounded-xl border border-emerald-300 text-xs">
+                  <div>
+                    <label className="block font-bold text-emerald-950 mb-1">
+                      Google Apps Script Web App Webhook URL:
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                      value={settingsForm.googleSheetWebhookUrl || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, googleSheetWebhookUrl: e.target.value.trim() })}
+                      className="w-full bg-emerald-50/50 border border-emerald-400 rounded-xl p-2.5 text-xs font-mono font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                    />
+                    <p className="text-[10px] text-emerald-800 mt-1">
+                      Paste the Web App URL generated from Google Sheet Extensions → Apps Script.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between gap-2 flex-wrap border-t border-emerald-200">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!settingsForm.googleSheetWebhookUrl) {
+                          alert('❌ Please enter your Google Sheet Webhook URL first!');
+                          return;
+                        }
+                        setSheetTesting(true);
+                        try {
+                          const res = await fetch('/api/googlesheet/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            alert('🎉 Test row successfully sent to your Google Sheet!');
+                          } else {
+                            alert(`❌ Test failed: ${data.error}`);
+                          }
+                        } catch (e: any) {
+                          alert(`❌ Connection error: ${e.message}`);
+                        } finally {
+                          setSheetTesting(false);
+                        }
+                      }}
+                      disabled={sheetTesting}
+                      className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <span>📊</span>
+                      {sheetTesting ? 'Sending Test Row...' : '🧪 Send Test Row to Google Sheet'}
+                    </button>
+
+                    <span className="text-[10px] text-emerald-900 font-bold bg-emerald-200/80 px-2.5 py-1 rounded-full border border-emerald-300">
+                      {settingsForm.googleSheetWebhookUrl ? '✅ Webhook Configured' : '⚠️ Pending Setup'}
                     </span>
                   </div>
                 </div>

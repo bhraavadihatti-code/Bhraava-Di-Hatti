@@ -326,13 +326,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   {cat === 'All' && <span>🛍️</span>}
-                  {cat === 'Punjabi Suits' && <span>🥻</span>}
-                  {cat === 'Banarasi Sarees' && <span>✨</span>}
-                  {cat === 'Lehengas' && <span>👑</span>}
-                  {cat === 'Men Kurtas' && <span>👔</span>}
-                  {cat === 'Dress Materials' && <span>🧵</span>}
-                  {cat === 'Dupattas & Shawls' && <span>🧣</span>}
-                  {cat === 'Festive Collection' && <span>🎆</span>}
+                  {cat === 'Punjabi Suit' && <span>🥻</span>}
+                  {cat === 'Farshi Suit' && <span>👑</span>}
+                  {cat === 'Cotton Suit' && <span>🧵</span>}
+                  {cat === 'Dupatta Suit' && <span>🧣</span>}
+                  {cat === 'Trousers Salwar Suits' && <span>👖</span>}
+                  {cat === 'AK Tax' && <span>🏷️</span>}
+                  {cat === 'Om Creation' && <span>✨</span>}
+                  {cat === 'Shiva' && <span>⚜️</span>}
                   <span>{cat}</span>
                 </button>
               );

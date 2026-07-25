@@ -138,9 +138,9 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </div>
             <div>
               <h2 className="font-serif font-bold text-base sm:text-lg text-amber-100">
-                My Orders & Shipping Status
+                My Orders
               </h2>
-              <p className="text-[11px] text-amber-200/80">Track suits shipment & India Post consignment numbers</p>
+              <p className="text-[11px] text-amber-200/80">View your purchased suits and delivery details</p>
             </div>
           </div>
           <button
@@ -157,7 +157,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search by Order ID, Phone number, or UTS Ref..."
+                placeholder="Search by Phone number or Name..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full bg-white border border-amber-300 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 font-medium"
@@ -196,7 +196,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             <div className="text-center py-12 text-stone-500 text-sm">
               <AlertTriangle className="w-10 h-10 text-amber-600 mx-auto mb-2" />
               <p className="font-bold text-stone-800">No orders found.</p>
-              <p className="text-xs text-stone-500 mt-1">Check your Order ID or phone number and try searching again.</p>
+              <p className="text-xs text-stone-500 mt-1">Check your phone number or search query.</p>
               <button
                 onClick={() => {
                   setQuery('');
@@ -204,148 +204,57 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
                 }}
                 className="mt-3 bg-amber-800 text-white font-bold px-4 py-1.5 rounded-xl text-xs hover:bg-amber-900"
               >
-                View All Shop Orders
+                View All Orders
               </button>
             </div>
           ) : (
             orders.map((o) => {
-              const effectiveCourier = o.courierName || 'India Post (Speed Post)';
-              const effectiveTrackingNo = o.trackingNumber || o.utsNumber;
-
               return (
                 <div key={o.id} className="bg-white border-2 border-amber-200/80 rounded-2xl p-4 space-y-3.5 shadow-sm hover:shadow-md transition-shadow">
                   
-                  {/* Card Header */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 pb-2.5">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono font-black text-red-950 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
-                          Order #{o.id}
-                        </span>
-                        <span className="text-[11px] text-stone-500">
-                          {new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-500 font-mono mt-0.5">Payment UTR/UTS: <span className="font-bold text-stone-700">{o.utsNumber}</span></p>
-                    </div>
-                    <div>{getStatusBadge(o.status)}</div>
-                  </div>
-
-                  {/* Tracking Progress Ticket Pipeline Timeline */}
-                  <div className="py-1">
-                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-stone-600 mb-1.5">
-                      <span className={o.status !== 'cancelled' ? 'text-amber-900' : ''}>1. Order Placed</span>
-                      <span className={['order_confirmed', 'shipping_post_office', 'out_for_delivery', 'delivered'].includes(o.status) ? 'text-blue-900' : ''}>2. Confirmed</span>
-                      <span className={['shipping_post_office', 'out_for_delivery', 'delivered'].includes(o.status) ? 'text-indigo-900' : ''}>3. India Post Dispatched</span>
-                      <span className={['out_for_delivery', 'delivered'].includes(o.status) ? 'text-purple-900' : ''}>4. Out For Delivery</span>
-                      <span className={o.status === 'delivered' ? 'text-green-900' : ''}>5. Delivered</span>
-                    </div>
-
-                    <div className="w-full bg-stone-200 rounded-full h-2.5 overflow-hidden flex">
-                      <div
-                        className="bg-gradient-to-r from-amber-600 via-indigo-600 to-green-600 h-full transition-all duration-500"
-                        style={{
-                          width: o.status === 'pending_acceptance' ? '20%' :
-                                 o.status === 'order_confirmed' ? '40%' :
-                                 o.status === 'shipping_post_office' ? '60%' :
-                                 o.status === 'out_for_delivery' ? '80%' :
-                                 o.status === 'delivered' ? '100%' : '5%'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Courier & Tracking Number Box (India Post Focus) */}
-                  <div className="bg-gradient-to-br from-indigo-50/90 to-amber-50/80 border-2 border-indigo-200/90 p-3 rounded-2xl space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="text-[10px] uppercase font-black text-indigo-950 bg-indigo-200 px-2 py-0.5 rounded-full tracking-wider">
-                          Shipping Company / Courier
-                        </span>
-                        <p className="text-xs sm:text-sm font-black text-indigo-950 mt-0.5 flex items-center gap-1.5">
-                          <span>📮</span>
-                          <span>{effectiveCourier}</span>
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] uppercase font-black text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full tracking-wider">
-                          Tracking / Consignment No.
-                        </span>
-                        <p className="text-xs sm:text-sm font-mono font-black text-amber-950 mt-0.5">
-                          {effectiveTrackingNo}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons: Copy Tracking & Track on India Post Portal */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-indigo-200/60">
-                      
-                      {/* Copy Tracking Number */}
-                      <button
-                        onClick={() => handleCopyTracking(effectiveTrackingNo, o.id)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                          copiedId === o.id
-                            ? 'bg-emerald-600 text-white border-emerald-700'
-                            : 'bg-white text-indigo-950 border-indigo-300 hover:bg-indigo-100/60 shadow-2xs'
-                        }`}
-                      >
-                        {copiedId === o.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-white" />
-                            <span>Tracking No. Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5 text-indigo-800" />
-                            <span>Copy Tracking No.</span>
-                          </>
-                        )}
-                      </button>
-
-                      {/* Direct Track on India Post Website */}
-                      <a
-                        href="https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-red-900 hover:bg-red-950 text-amber-100 border border-red-800 shadow-sm transition-all"
-                      >
-                        <span>🇮🇳 Track on India Post Website</span>
-                        <ExternalLink className="w-3.5 h-3.5 text-amber-300" />
-                      </a>
-
-                    </div>
-                  </div>
-
-                  {/* Customer Info & Order Items Summary */}
-                  <div className="bg-stone-50 border border-stone-200 p-3 rounded-xl text-xs space-y-2">
-                    <div className="flex justify-between items-start text-stone-700">
-                      <div>
-                        <span className="font-bold text-stone-900">Delivery Address:</span>
-                        <p className="text-[11px] text-stone-600 font-medium">
-                          {o.customer.fullName} ({o.customer.phone}) - {o.customer.address}, {o.customer.city}, {o.customer.state} - {o.customer.pincode}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-stone-200 pt-2">
-                      <p className="font-bold text-stone-900 mb-1">Items Ordered:</p>
-                      <div className="space-y-1">
-                        {o.items.map((item, i) => (
-                          <div key={i} className="flex justify-between text-[11px] text-stone-700">
-                            <span>• {item.product.name} ({item.selectedColor}, {item.selectedSize}) × {item.quantity}</span>
-                            <span className="font-mono font-bold">₹{(item.product.price * item.quantity).toLocaleString('en-IN')}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-stone-200 pt-1.5 flex justify-between items-center text-xs">
-                      <span className="text-stone-500 text-[11px]">Mode: UPI Payment Verified</span>
-                      <span className="font-mono text-sm font-extrabold text-red-950">
-                        Total Amount: ₹{o.totalAmount.toLocaleString('en-IN')}
+                  {/* 1. Items Ordered */}
+                  <div>
+                    <h4 className="font-extrabold text-stone-900 text-xs sm:text-sm mb-2 font-serif flex items-center justify-between border-b border-amber-100 pb-1.5">
+                      <span>🛍️ Items Ordered</span>
+                      <span className="text-[11px] font-sans font-normal text-stone-500">
+                        {new Date(o.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
+                    </h4>
+                    <div className="space-y-2">
+                      {o.items.map((item, i) => (
+                        <div key={i} className="flex items-center justify-between bg-amber-50/50 p-2.5 rounded-xl border border-amber-200/60 text-xs text-stone-800">
+                          <div>
+                            <p className="font-extrabold text-stone-900 text-xs sm:text-sm">{item.product.name}</p>
+                            <p className="text-[11px] text-amber-950 font-medium mt-0.5">
+                              Color: <b>{item.selectedColor}</b> | Size: <b>{item.selectedSize}</b> | Qty: <b>{item.quantity}</b>
+                            </p>
+                          </div>
+                          <span className="font-mono font-black text-amber-950 text-xs sm:text-sm bg-white px-2.5 py-1 rounded-lg border border-amber-200">
+                            ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+
+                  {/* 2. Delivery Address */}
+                  <div className="bg-stone-50 border border-stone-200 p-3 rounded-xl text-xs space-y-1">
+                    <span className="font-bold text-stone-900 block text-xs">📍 Delivery Address:</span>
+                    <p className="text-xs text-stone-800 font-medium leading-relaxed">
+                      <b>{o.customer.fullName}</b> ({o.customer.phone})<br />
+                      {o.customer.address}, {o.customer.city}, {o.customer.state} - <b>{o.customer.pincode}</b>
+                      {o.customer.notes && (
+                        <span className="block text-[11px] text-stone-500 mt-1 italic">Note: {o.customer.notes}</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* 3. Total Amount */}
+                  <div className="bg-gradient-to-r from-amber-100 via-amber-50 to-amber-100 border border-amber-300 p-3 rounded-xl flex justify-between items-center text-xs">
+                    <span className="font-extrabold text-stone-800 text-xs sm:text-sm">Total Amount:</span>
+                    <span className="font-mono text-base sm:text-lg font-black text-red-950">
+                      ₹{o.totalAmount.toLocaleString('en-IN')}
+                    </span>
                   </div>
 
                 </div>

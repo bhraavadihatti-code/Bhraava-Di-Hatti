@@ -94,4 +94,6 @@ export interface ShopSettings {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramEnabled?: boolean;
+  googleSheetWebhookUrl?: string;
+  nextSheetSerialNo?: number;
 }
