@@ -23,7 +23,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + (item.product?.price || 0) * item.quantity, 0);
   const shippingFee = subtotal >= settings.minOrderForFreeShipping || subtotal === 0 ? 0 : 99;
   const totalAmount = subtotal + shippingFee;
 
@@ -60,12 +60,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           ) : (
             cartItems.map((item, idx) => (
               <div
-                key={`${item.product.id}-${item.selectedColor}-${item.selectedSize}-${idx}`}
+                key={`${item.product?.id || idx}-${item.selectedColor}-${item.selectedSize}-${idx}`}
                 className="bg-amber-50/40 p-3 rounded-2xl border border-amber-100 flex gap-3 items-center"
               >
                 <img
-                  src={item.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
-                  alt={item.product.name}
+                  src={item.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
+                  alt={item.product?.name || "Product"}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
@@ -75,7 +75,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-gray-900 text-xs sm:text-sm truncate">
-                    {item.product.name}
+                    {item.product?.name || "Suit"}
                   </h4>
 
                   <div className="text-[11px] text-gray-500 mt-0.5 space-x-2">
@@ -86,7 +86,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                   <div className="flex items-center justify-between mt-2">
                     <span className="font-mono font-bold text-red-900 text-sm">
-                      ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                      ₹{((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}
                     </span>
 
                     <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg text-xs">

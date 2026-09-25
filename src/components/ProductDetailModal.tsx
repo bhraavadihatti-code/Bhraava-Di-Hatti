@@ -13,7 +13,8 @@ import {
   RotateCcw,
   Layers,
   ArrowUpDown,
-  ArrowLeft
+  ArrowLeft,
+  Heart
 } from 'lucide-react';
 
 interface ProductDetailModalProps {
@@ -21,13 +22,17 @@ interface ProductDetailModalProps {
   onClose: () => void;
   onAddToCart: (product: Product, color: string, size: string, quantity: number) => void;
   onBuyNow: (product: Product, color: string, size: string, quantity: number) => void;
+  isWishlisted?: boolean;
+  onToggleWishlist?: (productId: string) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product,
   onClose,
   onAddToCart,
-  onBuyNow
+  onBuyNow,
+  isWishlisted = false,
+  onToggleWishlist
 }) => {
   if (!product) return null;
 
@@ -92,13 +97,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <p className="text-xs font-black font-cinzel text-amber-100 truncate">{product.name}</p>
               <p className="text-[10px] font-mono text-amber-300/80 leading-none">ID: {product.id}</p>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-full bg-black/40 text-amber-300 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {onToggleWishlist && (
+                <button
+                  type="button"
+                  onClick={() => onToggleWishlist(product.id)}
+                  className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${
+                    isWishlisted
+                      ? 'bg-red-500 text-white'
+                      : 'bg-black/40 text-amber-300 hover:text-white'
+                  }`}
+                  title={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+                >
+                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-white' : ''}`} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1 rounded-full bg-black/40 text-amber-300 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Left Side: Photo Gallery Box */}
@@ -210,12 +231,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     ID: {product.id}
                   </span>
                 </div>
-                <button
-                  onClick={onClose}
-                  className="hidden md:block text-stone-400 hover:text-stone-700 p-1 rounded-lg transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {onToggleWishlist && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleWishlist(product.id)}
+                      className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs transition-all active:scale-95 ${
+                        isWishlisted
+                          ? 'bg-red-50 text-red-600 border-red-200 shadow-2xs'
+                          : 'bg-stone-50 hover:bg-red-50 text-stone-700 hover:text-red-600 border-stone-200'
+                      }`}
+                      title={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-red-600 text-red-600' : ''}`} />
+                      <span>{isWishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="hidden md:block text-stone-400 hover:text-stone-700 p-1 rounded-lg transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
               <h2 className="text-xl sm:text-2xl font-bold font-playfair text-stone-900 mt-2 leading-snug">
@@ -387,6 +425,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <span>Buy via UPI</span>
                 </button>
               </div>
+
+              {onToggleWishlist && (
+                <button
+                  type="button"
+                  onClick={() => onToggleWishlist(product.id)}
+                  className={`w-full py-2.5 rounded-2xl border font-extrabold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 ${
+                    isWishlisted
+                      ? 'bg-red-50 text-red-700 border-red-200'
+                      : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-300'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-600 text-red-600' : 'text-stone-600'}`} />
+                  <span>{isWishlisted ? 'Saved in Your Wishlist ❤️ (Tap to remove)' : 'Bookmark / Save to Wishlist'}</span>
+                </button>
+              )}
 
               {/* Direct WhatsApp Order / Photo Request Button */}
               <a

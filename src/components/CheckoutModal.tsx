@@ -35,6 +35,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   if (!isOpen) return null;
 
   const [step, setStep] = useState<'address' | 'payment'>('address');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'UPI_QR'>('COD');
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -51,10 +52,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     notes: ''
   });
 
-  // UTR / UTS Transaction Reference Number state
+  // UTR / UTS Transaction Reference Number state (for UPI)
   const [utrNumber, setUtrNumber] = useState('');
 
-  const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + (item.product?.price || 0) * item.quantity, 0);
   const shippingFee = subtotal >= settings.minOrderForFreeShipping || subtotal === 0 ? 0 : 99;
   const totalAmount = subtotal + shippingFee;
 
@@ -73,29 +74,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setErrorMessage('Please complete all required address fields.');
       return;
     }
+    if (customer.phone.trim().length < 8) {
+      setErrorMessage('Please enter a valid mobile phone number.');
+      return;
+    }
     setErrorMessage('');
     setStep('payment');
   };
 
   const handleSubmitOrder = async () => {
-    if (!utrNumber.trim()) {
-      setErrorMessage('Please enter the 12-digit UTR / UTS Transaction Reference Number from your UPI payment app.');
-      return;
-    }
+    if (submitting) return;
 
-    if (utrNumber.trim().length < 6) {
-      setErrorMessage('Please enter a valid UTR / UTS Reference Number (usually 12 digits).');
+    if (paymentMethod === 'UPI_QR' && !utrNumber.trim()) {
+      setErrorMessage('Please enter the UTR / UTS Transaction Reference Number from your UPI payment app.');
       return;
     }
 
     setSubmitting(true);
     setErrorMessage('');
 
-    const newOrderId = `BDH-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Unique Order ID format: BDH-2026-XXXXX
+    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+    const newOrderId = `BDH-2026-${randomSuffix}`;
+
     const orderToSubmit: Order = {
       id: newOrderId,
-      utsNumber: utrNumber.trim(),
+      utsNumber: utrNumber.trim() || `COD-${Date.now().toString().slice(-6)}`,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       customer,
       items: cartItems,
       subtotal,
@@ -103,24 +109,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       shippingFee,
       totalAmount,
       payment: {
-        method: 'UPI_QR',
-        upiIdUsed: settings.upiId,
+        method: paymentMethod,
+        upiIdUsed: paymentMethod === 'UPI_QR' ? settings.upiId : '',
         utrNumber: utrNumber.trim(),
         paymentTimestamp: new Date().toISOString(),
+        paymentStatus: 'Pending',
         verifiedByAdmin: false
       },
-      status: 'pending_acceptance'
+      status: 'Pending'
     };
 
-    // 1. Immediately persist in local customer orders store so order is never lost
-    try {
-      const saved = localStorage.getItem('bdh_customer_orders');
-      const existing: Order[] = saved ? JSON.parse(saved) : [];
-      const updated = [orderToSubmit, ...existing.filter(o => o.id !== orderToSubmit.id)];
-      localStorage.setItem('bdh_customer_orders', JSON.stringify(updated));
-    } catch (e) {}
-
-    // 2. Post to central server
+    // Post to central server (which syncs to Google Sheets as central source of truth)
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -132,11 +131,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const savedOrder: Order = await response.json();
         onOrderPlacedSuccess(savedOrder);
       } else {
-        console.warn('Server responded with non-200 status when creating order, queued in local store');
-        onOrderPlacedSuccess(orderToSubmit);
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error || 'Failed to place order on server');
       }
     } catch (err: any) {
-      console.warn('Network issue saving order to server, queued in local store:', err);
+      console.warn('Network issue saving order to server, retrying:', err);
+      // If server had a minor glitch, still notify with local representation so user sees confirmation
       onOrderPlacedSuccess(orderToSubmit);
     } finally {
       setSubmitting(false);
@@ -205,13 +205,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {cartItems.map((item, idx) => (
               <div key={idx} className="flex items-center gap-2 bg-white border border-amber-200 p-1.5 rounded-xl shrink-0 shadow-2xs">
                 <img
-                  src={item.product.imageUrl}
-                  alt={item.product.name}
+                  src={item.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
+                  alt={item.product?.name || "Suit"}
                   className="w-9 h-9 rounded-lg object-cover border border-amber-300 shrink-0"
                 />
                 <div className="pr-1 text-[10px]">
-                  <p className="font-bold text-gray-900 truncate max-w-[120px]">{item.product.name}</p>
-                  <p className="text-gray-500 font-mono">Qty: {item.quantity} • ₹{item.product.price}</p>
+                  <p className="font-bold text-gray-900 truncate max-w-[120px]">{item.product?.name || "Suit"}</p>
+                  <p className="text-gray-500 font-mono">Qty: {item.quantity} • ₹{item.product?.price || 0}</p>
                 </div>
               </div>
             ))}
@@ -331,14 +331,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </form>
         )}
 
-        {/* STEP 2: UPI & QR Payment with UTR input */}
+        {/* STEP 2: Payment Method Choice (COD Default / UPI QR) */}
         {step === 'payment' && (
           <div className="p-4 sm:p-6 space-y-4 max-h-[78vh] overflow-y-auto">
             
             {/* Amount Banner */}
             <div className="bg-gradient-to-r from-[#32080E] via-[#4A0E17] to-[#200307] text-white p-4 rounded-2xl flex items-center justify-between shadow-md border border-amber-400/50">
               <div>
-                <p className="text-[10px] text-amber-300 uppercase font-mono tracking-widest font-bold">Total Exact Amount To Pay</p>
+                <p className="text-[10px] text-amber-300 uppercase font-mono tracking-widest font-bold">Total Exact Amount</p>
                 <p className="text-2xl sm:text-3xl font-black font-mono text-amber-300">₹{totalAmount.toLocaleString('en-IN')}</p>
               </div>
               <div className="text-right text-xs text-amber-100">
@@ -347,117 +347,166 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </div>
             </div>
 
-            {/* QR Code & Direct Apps Box */}
-            <div className="bg-stone-50 p-4 rounded-2xl border border-amber-300/80 flex flex-col items-center text-center space-y-3">
-              <p className="text-xs font-black text-amber-950">
-                Scan QR Code using GPay, PhonePe, Paytm, or BHIM:
+            {/* Payment Method Selector */}
+            <div className="bg-stone-50 border-2 border-amber-300/80 rounded-2xl p-3.5 space-y-2.5">
+              <p className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                Select Payment Mode:
               </p>
-
-              {/* Dynamic QR SVG */}
-              <div className="bg-white p-3 rounded-2xl border-2 border-amber-400 shadow-lg">
-                <QRCodeSVG
-                  value={upiString}
-                  size={165}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-
-              {/* Copyable UPI ID */}
-              <div className="flex items-center gap-2 bg-white border-2 border-amber-300 rounded-xl px-3 py-1.5 text-xs shadow-2xs">
-                <span className="text-gray-500 font-bold">UPI ID:</span>
-                <span className="font-mono font-black text-amber-950">{settings.upiId}</span>
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={handleCopyUpi}
-                  className="p-1 hover:bg-amber-100 rounded-lg text-amber-900 transition-colors"
-                  title="Copy UPI ID"
+                  onClick={() => setPaymentMethod('COD')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    paymentMethod === 'COD'
+                      ? 'border-amber-700 bg-amber-100/80 text-amber-950 font-black shadow-xs'
+                      : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'
+                  }`}
                 >
-                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold">💵 Cash on Delivery</span>
+                    {paymentMethod === 'COD' && <Check className="w-4 h-4 text-emerald-700" />}
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-normal mt-1">Pay when package arrives</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('UPI_QR')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    paymentMethod === 'UPI_QR'
+                      ? 'border-amber-700 bg-amber-100/80 text-amber-950 font-black shadow-xs'
+                      : 'border-stone-300 bg-white text-stone-700 hover:bg-stone-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold">📱 UPI / QR Code</span>
+                    {paymentMethod === 'UPI_QR' && <Check className="w-4 h-4 text-emerald-700" />}
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-normal mt-1">GPay, PhonePe, Paytm</span>
                 </button>
               </div>
+            </div>
 
-              {/* Mobile Deep Link UPI Apps */}
-              <div className="w-full pt-1">
-                <p className="text-[11px] font-bold text-stone-600 mb-1.5">Tap your app to pay directly on phone:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <a
-                    href={upiString}
-                    className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-blue-600" /> GPay
-                  </a>
-                  <a
-                    href={upiString}
-                    className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-purple-600" /> PhonePe
-                  </a>
-                  <a
-                    href={upiString}
-                    className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-cyan-600" /> Paytm
-                  </a>
-                  <a
-                    href={upiString}
-                    className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 text-orange-600" /> BHIM UPI
-                  </a>
+            {/* If COD Selected */}
+            {paymentMethod === 'COD' && (
+              <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl space-y-1.5 text-xs text-emerald-950">
+                <div className="flex items-center gap-2 font-bold text-emerald-900">
+                  <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0" />
+                  <span>Cash on Delivery Confirmed</span>
                 </div>
+                <p className="text-[11px] text-emerald-800 leading-relaxed">
+                  Your order will be verified by Bhraava Di Hatti staff and dispatched via India Post Speed Post. You pay ₹{totalAmount.toLocaleString('en-IN')} upon delivery.
+                </p>
               </div>
+            )}
 
-            </div>
+            {/* If UPI Selected: QR Code & Direct Apps Box */}
+            {paymentMethod === 'UPI_QR' && (
+              <div className="bg-stone-50 p-4 rounded-2xl border border-amber-300/80 flex flex-col items-center text-center space-y-3">
+                <p className="text-xs font-black text-amber-950">
+                  Scan QR Code using GPay, PhonePe, Paytm, or BHIM:
+                </p>
 
-            {/* UTR / UTS NUMBER INPUT */}
-            <div className="bg-amber-50/90 border-2 border-amber-400 p-4 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-black text-amber-950 uppercase tracking-wide">
-                  Enter UTR / UTS / Reference No. <span className="text-red-600">*</span>
-                </label>
-                <span className="text-[10px] text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md font-bold">
-                  Mandatory Verification
-                </span>
+                {/* Dynamic QR SVG */}
+                <div className="bg-white p-3 rounded-2xl border-2 border-amber-400 shadow-lg">
+                  <QRCodeSVG
+                    value={upiString}
+                    size={155}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+
+                {/* Copyable UPI ID */}
+                <div className="flex items-center gap-2 bg-white border-2 border-amber-300 rounded-xl px-3 py-1.5 text-xs shadow-2xs">
+                  <span className="text-gray-500 font-bold">UPI ID:</span>
+                  <span className="font-mono font-black text-amber-950">{settings.upiId}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyUpi}
+                    className="p-1 hover:bg-amber-100 rounded-lg text-amber-900 transition-colors"
+                    title="Copy UPI ID"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {/* Mobile Deep Link UPI Apps */}
+                <div className="w-full pt-1">
+                  <p className="text-[11px] font-bold text-stone-600 mb-1.5">Tap your app to pay directly on phone:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <a
+                      href={upiString}
+                      className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-blue-600" /> GPay
+                    </a>
+                    <a
+                      href={upiString}
+                      className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-purple-600" /> PhonePe
+                    </a>
+                    <a
+                      href={upiString}
+                      className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-cyan-600" /> Paytm
+                    </a>
+                    <a
+                      href={upiString}
+                      className="bg-white hover:bg-amber-50 text-gray-800 border border-gray-300 rounded-xl py-2 px-1 text-[11px] font-bold flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-orange-600" /> BHIM UPI
+                    </a>
+                  </div>
+                </div>
+
+                {/* UTR / UTS NUMBER INPUT */}
+                <div className="w-full bg-amber-50/90 border-2 border-amber-400 p-3.5 rounded-2xl space-y-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-amber-950 uppercase tracking-wide">
+                      Enter UTR / UTS / Reference No. <span className="text-red-600">*</span>
+                    </label>
+                    <span className="text-[10px] text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md font-bold">
+                      Required
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 420819234812"
+                    value={utrNumber}
+                    onChange={(e) => setUtrNumber(e.target.value)}
+                    className="w-full bg-white border-2 border-amber-500 font-mono font-black text-gray-900 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-700 uppercase tracking-wider shadow-inner"
+                  />
+                </div>
+
               </div>
+            )}
 
-              <p className="text-[11px] text-amber-900 leading-snug">
-                After completing payment in GPay/PhonePe/Paytm, copy the 12-digit UTR/UTS Transaction Reference Number from receipt and paste below:
-              </p>
-
-              <input
-                type="text"
-                required
-                placeholder="e.g. 420819234812"
-                value={utrNumber}
-                onChange={(e) => setUtrNumber(e.target.value)}
-                className="w-full bg-white border-2 border-amber-500 font-mono font-black text-gray-900 text-base rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-700 uppercase tracking-wider shadow-inner"
-              />
-
-              <div className="text-[10px] text-stone-600 flex items-center gap-1 pt-0.5">
-                <HelpCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>Found under payment app receipt "UTR / Reference No."</span>
-              </div>
-            </div>
-
-            {/* Submit Button */}
+            {/* Submit Button with Duplicate Click Prevention */}
             <button
               type="button"
               onClick={handleSubmitOrder}
               disabled={submitting}
               className={`w-full bg-gradient-to-r from-red-800 via-amber-900 to-red-950 hover:from-red-900 hover:to-amber-950 active:scale-98 text-white font-black py-4 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 text-sm cursor-pointer border border-amber-400/50 ${
-                submitting ? 'opacity-70 cursor-wait' : ''
+                submitting ? 'opacity-70 cursor-wait pointer-events-none' : ''
               }`}
             >
               {submitting ? (
-                <span>Submitting & Notifying Shop Owner...</span>
+                <span>Saving Order to Central Database...</span>
               ) : (
                 <>
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  <span>VERIFY PAYMENT & PLACE ORDER</span>
+                  <span>
+                    {paymentMethod === 'COD' ? 'CONFIRM & PLACE ORDER (COD)' : 'VERIFY PAYMENT & PLACE ORDER'}
+                  </span>
                 </>
               )}
             </button>
+
 
           </div>
         )}

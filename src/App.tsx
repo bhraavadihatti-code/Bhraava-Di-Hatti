@@ -18,36 +18,20 @@ import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { CategoryAndPriceFilter, PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
+import { WishlistView } from './components/WishlistView';
 import { Footer } from './components/Footer';
 import { sendOrderTelegramNotification } from './utils/telegram';
+import { Heart } from 'lucide-react';
 
 export default function App() {
   // App view mode
-  const [activeView, setActiveView] = useState<'shop' | 'admin'>('shop');
+  const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist'>('shop');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
 
-  // Core Data State
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('bdh_products');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_PRODUCTS;
-  });
-  const [orders, setOrders] = useState<Order[]>(() => {
-    try {
-      const saved = localStorage.getItem('bdh_orders');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return [];
-  });
+  // Core Data State - Google Sheets / Backend is Central Source of Truth
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<ShopSettings>(DEFAULT_SHOP_SETTINGS);
 
   // Filter & Search State
@@ -65,6 +49,22 @@ export default function App() {
       return [];
     }
   });
+
+  // Wishlist State using localStorage
+  const [wishlistIds, setWishlistIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bdh_wishlist');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.filter((id) => typeof id === 'string');
+      }
+    } catch (e) {
+      console.warn('LocalStorage error reading wishlist:', e);
+    }
+    return [];
+  });
+
+  const [wishlistToast, setWishlistToast] = useState<{ message: string; type: 'added' | 'removed'; suitName?: string } | null>(null);
 
   // Modal & Notification States
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -85,7 +85,74 @@ export default function App() {
     }
   }, [cartItems]);
 
-  // Fetch initial data from server with cache-busting & missing-item auto-sync
+  // Save wishlist to LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('bdh_wishlist', JSON.stringify(wishlistIds));
+    } catch (e) {
+      console.warn('LocalStorage error writing wishlist:', e);
+    }
+  }, [wishlistIds]);
+
+  const toggleWishlist = (productId: string) => {
+    setWishlistIds((prev) => {
+      const isAlreadySaved = prev.includes(productId);
+      const updated = isAlreadySaved
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId];
+
+      const suit = products.find((p) => p.id === productId);
+      const suitName = suit?.name || 'Suit';
+
+      if (!isAlreadySaved) {
+        setWishlistToast({
+          message: 'Saved to your Wishlist! ❤️',
+          type: 'added',
+          suitName
+        });
+      } else {
+        setWishlistToast({
+          message: 'Removed from your Wishlist',
+          type: 'removed',
+          suitName
+        });
+      }
+
+      setTimeout(() => {
+        setWishlistToast(null);
+      }, 3500);
+
+      return updated;
+    });
+  };
+
+  const isWishlisted = (productId: string) => wishlistIds.includes(productId);
+
+  const handleClearWishlist = () => {
+    setWishlistIds([]);
+    setWishlistToast({
+      message: 'Wishlist cleared',
+      type: 'removed'
+    });
+    setTimeout(() => setWishlistToast(null), 2500);
+  };
+
+  const handleAddAllWishlistToCart = (suitsToAdd: Product[]) => {
+    let addedCount = 0;
+    suitsToAdd.forEach((product) => {
+      if (product.inStock) {
+        const defaultColor = product.colors[0] || 'Standard';
+        const defaultSize = product.sizes[0] || 'Free Size (Unstitched)';
+        handleAddToCart(product, defaultColor, defaultSize, 1);
+        addedCount++;
+      }
+    });
+    if (addedCount > 0) {
+      setIsCartOpen(true);
+    }
+  };
+
+  // Fetch initial data from server (central backend connected to Google Sheets)
   const fetchProducts = async () => {
     try {
       const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
@@ -93,13 +160,10 @@ export default function App() {
         const serverData: Product[] = await res.json();
         if (Array.isArray(serverData)) {
           setProducts(serverData);
-          try {
-            localStorage.setItem('bdh_products', JSON.stringify(serverData));
-          } catch (e) {}
         }
       }
     } catch (err) {
-      console.warn('Network fetching products (using local fallback):', err);
+      console.warn('Network fetching products from central server:', err);
     }
   };
 
@@ -109,57 +173,15 @@ export default function App() {
       if (res.ok) {
         const serverData: Order[] = await res.json();
         if (Array.isArray(serverData)) {
-          // Check if local customer orders need auto-syncing to server
-          let localCustOrders: Order[] = [];
-          try {
-            const savedCust = localStorage.getItem('bdh_customer_orders');
-            if (savedCust) localCustOrders = JSON.parse(savedCust);
-          } catch (e) {}
-
-          const serverIds = new Set(serverData.map((o) => o.id));
-          const missingLocals = Array.isArray(localCustOrders)
-            ? localCustOrders.filter((o) => o && o.id && !serverIds.has(o.id))
-            : [];
-
-          if (missingLocals.length > 0) {
-            for (const o of missingLocals) {
-              try {
-                await fetch('/api/orders', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(o)
-                });
-              } catch (err) {
-                console.warn('Auto-sync missing order error:', err);
-              }
-            }
-            // Re-fetch fresh list after syncing missing orders
-            const reRes = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
-            if (reRes.ok) {
-              const freshOrders: Order[] = await reRes.json();
-              const sorted = [...freshOrders].sort(
-                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-              );
-              setOrders(sorted);
-              try {
-                localStorage.setItem('bdh_orders', JSON.stringify(sorted));
-              } catch (e) {}
-              return;
-            }
-          }
-
           // Sort orders newest first
           const sorted = [...serverData].sort(
             (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
           );
           setOrders(sorted);
-          try {
-            localStorage.setItem('bdh_orders', JSON.stringify(sorted));
-          } catch (e) {}
         }
       }
     } catch (err) {
-      console.warn('Network fetching orders (using local fallback):', err);
+      console.warn('Network fetching orders from central server:', err);
     }
   };
 
@@ -195,9 +217,6 @@ export default function App() {
             if (data.type === 'PRODUCTS_UPDATED') {
               if (Array.isArray(data.products)) {
                 setProducts(data.products);
-                try {
-                  localStorage.setItem('bdh_products', JSON.stringify(data.products));
-                } catch (e) {}
               } else {
                 fetchProducts();
               }
@@ -364,47 +383,20 @@ export default function App() {
 
     setOrders((prev) => {
       const filtered = prev.filter(o => o.id !== order.id);
-      const updated = [order, ...filtered];
-      try {
-        localStorage.setItem('bdh_orders', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
+      return [order, ...filtered];
     });
 
-    try {
-      const savedCust = localStorage.getItem('bdh_customer_orders');
-      let custOrders: Order[] = savedCust ? JSON.parse(savedCust) : [];
-      if (!Array.isArray(custOrders)) custOrders = [];
-      custOrders = [order, ...custOrders.filter(o => o.id !== order.id)];
-      localStorage.setItem('bdh_customer_orders', JSON.stringify(custOrders));
-    } catch (e) {}
-
-    fetchOrders(); // Sync with server list
+    fetchOrders(); // Sync with central server list
   };
 
   // Admin Actions
   const handleUpdateOrderStatus = async (orderId: string, payload: any) => {
-    // 1. Optimistic update state & localStorage immediately
+    // 1. Optimistic update state immediately
     setOrders((prev) => {
-      const updated = prev.map((o) => (o.id === orderId ? { ...o, ...payload } : o));
-      try {
-        localStorage.setItem('bdh_orders', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
+      return prev.map((o) => (o.id === orderId ? { ...o, ...payload, updatedAt: new Date().toISOString() } : o));
     });
 
-    try {
-      const savedCust = localStorage.getItem('bdh_customer_orders');
-      if (savedCust) {
-        let custOrders: Order[] = JSON.parse(savedCust);
-        if (Array.isArray(custOrders)) {
-          const updatedCust = custOrders.map((o) => (o.id === orderId ? { ...o, ...payload } : o));
-          localStorage.setItem('bdh_customer_orders', JSON.stringify(updatedCust));
-        }
-      }
-    } catch (e) {}
-
-    // 2. Server API call
+    // 2. Central Server & Google Sheets API call
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PUT',
@@ -414,37 +406,18 @@ export default function App() {
 
       if (res.ok) {
         fetchOrders();
-      } else if (res.status === 404) {
-        // If order missing on server, push local order to server
-        const savedBdh = localStorage.getItem('bdh_orders');
-        if (savedBdh) {
-          const list: Order[] = JSON.parse(savedBdh);
-          const target = list.find(o => o.id === orderId);
-          if (target) {
-            await fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...target, ...payload })
-            });
-            fetchOrders();
-          }
-        }
       }
     } catch (e) {
-      console.warn('Update status error (saved locally):', e);
+      console.warn('Update status error:', e);
     }
   };
 
   const handleAddProduct = async (product: Product) => {
     try {
-      // Optimistic update state and localStorage immediately
+      // Optimistic update state immediately
       setProducts((prev) => {
         const filtered = prev.filter(p => p.id !== product.id);
-        const updated = [product, ...filtered];
-        try {
-          localStorage.setItem('bdh_products', JSON.stringify(updated));
-        } catch (e) {}
-        return updated;
+        return [product, ...filtered];
       });
 
       const res = await fetch('/api/products', {
@@ -457,21 +430,13 @@ export default function App() {
         const serverSaved = await res.json();
         if (serverSaved && serverSaved.id) {
           setProducts((prev) => {
-            const list = prev.map(p => p.id === serverSaved.id ? serverSaved : p);
-            try {
-              localStorage.setItem('bdh_products', JSON.stringify(list));
-            } catch (e) {}
-            return list;
+            return prev.map(p => p.id === serverSaved.id ? serverSaved : p);
           });
         }
-        alert(`✅ Product "${product.name}" (${product.id}) added and published live!`);
-      } else {
-        alert(`✅ Product "${product.name}" (${product.id}) added to shop catalog!`);
       }
       fetchProducts();
     } catch (e: any) {
       console.error('Add product error:', e);
-      alert(`✅ Product "${product.name}" (${product.id}) added to shop catalog!`);
       fetchProducts();
     }
   };
@@ -479,21 +444,14 @@ export default function App() {
   const handleUpdateProduct = async (id: string, updated: Partial<Product>) => {
     try {
       setProducts((prev) => {
-        const list = prev.map(p => p.id === id ? { ...p, ...updated } : p);
-        try {
-          localStorage.setItem('bdh_products', JSON.stringify(list));
-        } catch (e) {}
-        return list;
+        return prev.map(p => p.id === id ? { ...p, ...updated } : p);
       });
 
-      const res = await fetch(`/api/products/${id}`, {
+      await fetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      if (res.ok) {
-        alert(`✅ Product updated successfully!`);
-      }
       fetchProducts();
     } catch (e: any) {
       console.error('Update product error:', e);
@@ -504,23 +462,13 @@ export default function App() {
   const handleDeleteProduct = async (id: string) => {
     try {
       setProducts((prev) => {
-        const list = prev.filter(p => p.id !== id);
-        try {
-          localStorage.setItem('bdh_products', JSON.stringify(list));
-        } catch (e) {}
-        return list;
+        return prev.filter(p => p.id !== id);
       });
 
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        alert(`🗑️ Product ${id} deleted successfully.`);
-      } else {
-        alert(`✅ Product ${id} removed from catalog.`);
-      }
+      await fetch(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
       fetchProducts();
     } catch (e: any) {
       console.error('Delete product error:', e);
-      alert(`✅ Product ${id} removed.`);
       fetchProducts();
     }
   };
@@ -557,6 +505,7 @@ export default function App() {
 
   const pendingOrdersCount = orders.filter(o => o.status === 'pending_acceptance').length;
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id));
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
@@ -584,6 +533,7 @@ export default function App() {
             setActiveView(v);
           }
         }}
+        wishlistCount={wishlistIds.length}
       />
 
       {/* Main Content Area */}
@@ -602,6 +552,21 @@ export default function App() {
             onLogout={handleAdminLogout}
             onSyncOrders={fetchOrders}
             onSyncProducts={fetchProducts}
+          />
+        ) : activeView === 'wishlist' ? (
+          <WishlistView
+            wishlistProducts={wishlistProducts}
+            allProducts={products}
+            onBackToShop={() => {
+              setActiveView('shop');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onToggleWishlist={toggleWishlist}
+            isWishlisted={isWishlisted}
+            onQuickAdd={handleQuickAdd}
+            onViewDetails={(p) => setSelectedProduct(p)}
+            onAddAllToCart={handleAddAllWishlistToCart}
+            onClearWishlist={handleClearWishlist}
           />
         ) : (
           <div className="space-y-6">
@@ -644,6 +609,8 @@ export default function App() {
                   product={product}
                   onQuickAdd={handleQuickAdd}
                   onViewDetails={(p) => setSelectedProduct(p)}
+                  isWishlisted={isWishlisted(product.id)}
+                  onToggleWishlist={toggleWishlist}
                 />
               ))}
             </div>
@@ -670,8 +637,8 @@ export default function App() {
       {addedToastItem && (
         <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#32080E] text-amber-100 p-3 sm:p-3.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 max-w-[94vw] sm:max-w-md w-full font-sans">
           <img
-            src={addedToastItem.product.imageUrl}
-            alt={addedToastItem.product.name}
+            src={addedToastItem.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
+            alt={addedToastItem.product?.name || "Product"}
             className="w-12 h-12 rounded-xl object-cover border border-amber-400/50 shrink-0"
           />
           <div className="flex-1 min-w-0 text-left">
@@ -679,9 +646,9 @@ export default function App() {
               <span className="w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px]">✓</span>
               <span>Added to Shopping Bag!</span>
             </div>
-            <p className="text-xs font-bold text-amber-100 truncate">{addedToastItem.product.name}</p>
+            <p className="text-xs font-bold text-amber-100 truncate">{addedToastItem.product?.name || "Suit"}</p>
             <p className="text-[10px] text-amber-300/80 font-mono">
-              ₹{addedToastItem.product.price} • {addedToastItem.selectedColor} ({addedToastItem.selectedSize})
+              ₹{addedToastItem.product?.price || 0} • {addedToastItem.selectedColor} ({addedToastItem.selectedSize})
             </p>
           </div>
           <button 
@@ -696,6 +663,41 @@ export default function App() {
           <button
             onClick={() => setAddedToastItem(null)}
             className="text-amber-400 hover:text-white p-1 text-xs shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Wishlist Action Toast Notification */}
+      {wishlistToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#2A050B] text-amber-100 px-4 py-3 rounded-2xl shadow-2xl border-2 border-amber-400/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 max-w-[92vw] sm:max-w-md w-full font-sans">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+            wishlistToast.type === 'added' ? 'bg-red-600 text-white shadow-md' : 'bg-stone-800 text-stone-300'
+          }`}>
+            <Heart className={`w-4 h-4 ${wishlistToast.type === 'added' ? 'fill-white' : ''}`} />
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-xs font-black text-amber-200">{wishlistToast.message}</p>
+            {wishlistToast.suitName && (
+              <p className="text-[11px] text-amber-100/85 truncate font-medium">{wishlistToast.suitName}</p>
+            )}
+          </div>
+          {wishlistToast.type === 'added' && activeView !== 'wishlist' && (
+            <button
+              onClick={() => {
+                setActiveView('wishlist');
+                setWishlistToast(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="text-[11px] font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 px-3 py-1.5 rounded-xl transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+            >
+              View List ❤️
+            </button>
+          )}
+          <button
+            onClick={() => setWishlistToast(null)}
+            className="text-amber-300/80 hover:text-white p-1 text-xs shrink-0 cursor-pointer"
           >
             ✕
           </button>
@@ -722,6 +724,8 @@ export default function App() {
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
         onBuyNow={handleBuyNow}
+        isWishlisted={selectedProduct ? isWishlisted(selectedProduct.id) : false}
+        onToggleWishlist={toggleWishlist}
       />
 
       {/* Cart Drawer */}

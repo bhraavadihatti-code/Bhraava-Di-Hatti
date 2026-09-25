@@ -1,17 +1,21 @@
 import React from 'react';
 import { Product } from '../types';
-import { ShoppingBag, Eye, Star, Sparkles, Tag, Check, Award } from 'lucide-react';
+import { ShoppingBag, Eye, Star, Sparkles, Tag, Check, Award, Heart } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onQuickAdd: (product: Product) => void;
   onViewDetails: (product: Product) => void;
+  isWishlisted?: boolean;
+  onToggleWishlist?: (productId: string) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onQuickAdd,
-  onViewDetails
+  onViewDetails,
+  isWishlisted = false,
+  onToggleWishlist
 }) => {
   const discountPercent = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -39,6 +43,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
         />
 
+        {/* Wishlist Heart Bookmark Button (Top Right) */}
+        {onToggleWishlist && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleWishlist(product.id);
+            }}
+            className={`absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 active:scale-90 shadow-md ${
+              isWishlisted
+                ? 'bg-white text-red-600 shadow-red-200 ring-2 ring-red-400'
+                : 'bg-white/85 text-stone-700 hover:text-red-600 hover:bg-white border border-stone-200/70'
+            }`}
+            title={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+            aria-label={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+          >
+            <Heart className={`w-4 h-4 transition-transform ${isWishlisted ? 'fill-red-600 text-red-600 scale-110' : ''}`} />
+          </button>
+        )}
+
         {/* Overlay Badges - Top Left over photo (BestSeller / New Arrival) */}
         {(product.isBestSeller || product.isNewArrival) && (
           <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1 items-start z-10">
@@ -55,9 +79,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Discount Badge over photo (Visible on Mobile & Desktop) */}
+        {/* Discount Badge over photo (Visible on Mobile & Desktop, aligned next to Heart button) */}
         {discountPercent > 0 && (
-          <span className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-green-800 text-white font-black text-[11px] sm:text-xs px-2.5 py-1 rounded-lg shadow-md border border-green-400/40 font-mono z-10">
+          <span className={`absolute z-10 bg-green-800 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg shadow-md border border-green-400/40 font-mono ${
+            onToggleWishlist ? 'top-2.5 right-12' : 'top-2.5 right-2.5'
+          }`}>
             {discountPercent}% OFF
           </span>
         )}

@@ -14,7 +14,8 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Tag,
-  Check
+  Check,
+  Heart
 } from 'lucide-react';
 import { ProductCategory, ShopSettings } from '../types';
 import { PriceFilterOption } from './CategoryAndPriceFilter';
@@ -33,8 +34,9 @@ interface NavbarProps {
   onOpenTracker: () => void;
   onOpenAdmin: () => void;
   pendingOrdersCount: number;
-  activeView: 'shop' | 'admin';
-  setActiveView: (view: 'shop' | 'admin') => void;
+  activeView: 'shop' | 'admin' | 'wishlist';
+  setActiveView: (view: 'shop' | 'admin' | 'wishlist') => void;
+  wishlistCount: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,7 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdmin,
   pendingOrdersCount,
   activeView,
-  setActiveView
+  setActiveView,
+  wishlistCount
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pricePopoverOpen, setPricePopoverOpen] = useState(false);
@@ -175,9 +178,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Header Action Buttons (Top Right: My Orders & Cart) */}
+          {/* Header Action Buttons (Top Right: Wishlist, My Orders & Cart) */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
+            {/* Wishlist Button */}
+            <button
+              onClick={() => {
+                setActiveView('wishlist');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-black rounded-xl border transition-all shadow-2xs shrink-0 cursor-pointer ${
+                activeView === 'wishlist'
+                  ? 'bg-red-950 text-amber-200 border-red-500 shadow-sm ring-1 ring-amber-400/50'
+                  : 'text-stone-800 bg-white hover:bg-red-50 hover:text-red-700 border-amber-300/90'
+              }`}
+              title="View Wishlist & Saved Suits"
+            >
+              <Heart className={`w-3.5 h-3.5 shrink-0 ${
+                activeView === 'wishlist' || wishlistCount > 0 ? 'fill-red-600 text-red-600' : 'text-amber-800'
+              }`} />
+              <span className="hidden sm:inline">Wishlist</span>
+              <span className="sm:hidden text-[10px]">Saved</span>
+              {wishlistCount > 0 && (
+                <span className="bg-red-600 text-white font-black text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
+
             {/* My Orders / Track Order Button */}
             <button
               onClick={onOpenTracker}
@@ -302,6 +330,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
         </div>
+
+        {/* Wishlist Header Breadcrumb Strip */}
+        {activeView === 'wishlist' && (
+          <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2 flex-wrap">
+            <button
+              onClick={() => setActiveView('shop')}
+              className="text-xs font-black text-amber-950 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <span>← Back to Shop Catalog</span>
+            </button>
+            <span className="text-xs font-bold text-red-950 flex items-center gap-1.5 bg-red-50 border border-red-200 px-2.5 py-1 rounded-xl">
+              <Heart className="w-3.5 h-3.5 fill-red-600 text-red-600" />
+              <span>Saved Suits Wishlist ({wishlistCount})</span>
+            </span>
+          </div>
+        )}
 
         {/* Category Horizontal Bar */}
         {activeView === 'shop' && (

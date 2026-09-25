@@ -78,11 +78,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
   const [telegramTesting, setTelegramTesting] = useState(false);
   const [sheetTesting, setSheetTesting] = useState(false);
+  const [sheetSyncing, setSheetSyncing] = useState(false);
+  const [showScriptModal, setShowScriptModal] = useState(false);
+  const [scriptCode, setScriptCode] = useState('');
+  const [scriptModalTab, setScriptModalTab] = useState<'code' | 'sheet1' | 'sheet2' | 'guide'>('code');
 
   // Ship Modal State
   const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
-  const [courierName, setCourierName] = useState('BlueDart / Delhivery');
+  const [courierName, setCourierName] = useState('India Post (Speed Post)');
   const [trackingNumber, setTrackingNumber] = useState('');
+
+  // Reject Modal State
+  const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
+  const [rejectReason, setRejectReason] = useState('Out of stock / Customer requested cancellation');
+
+  // Status helper functions
+  const isPending = (status: OrderStatus) => {
+    const s = String(status || '').toLowerCase();
+    return s === 'pending' || s === 'pending_acceptance';
+  };
+
+  const isConfirmed = (status: OrderStatus) => {
+    const s = String(status || '').toLowerCase();
+    return s === 'confirmed' || s === 'order_confirmed';
+  };
+
+  const isShipped = (status: OrderStatus) => {
+    const s = String(status || '').toLowerCase();
+    return s === 'shipped' || s === 'shipping_post_office' || s === 'out_for_delivery';
+  };
+
+  const isRejected = (status: OrderStatus) => {
+    const s = String(status || '').toLowerCase();
+    return s === 'rejected' || s === 'cancelled';
+  };
 
   // Deleted Serial Numbers log
   const [deletedSerialNumbers, setDeletedSerialNumbers] = useState<string[]>(() => {
@@ -287,28 +316,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filtered orders
   const filteredOrders = orders.filter((o) => {
-    const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === 'pending') {
+      matchesStatus = isPending(o.status);
+    } else if (statusFilter === 'confirmed') {
+      matchesStatus = isConfirmed(o.status);
+    } else if (statusFilter === 'shipped') {
+      matchesStatus = isShipped(o.status);
+    } else if (statusFilter === 'rejected') {
+      matchesStatus = isRejected(o.status);
+    } else if (statusFilter !== 'all') {
+      matchesStatus = o.status === statusFilter;
+    }
+
     const matchesQuery = 
       o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.utsNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.customer.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.customer.phone.includes(searchQuery) ||
+      (o.utsNumber && o.utsNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (o.customer?.fullName && o.customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (o.customer?.phone && o.customer.phone.includes(searchQuery)) ||
       (o.trackingNumber && o.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesStatus && matchesQuery;
   });
 
   // Metrics calculation
-  const pendingCount = orders.filter(o => o.status === 'pending_acceptance').length;
-  const confirmedCount = orders.filter(o => o.status === 'order_confirmed').length;
-  const postOfficeShippedCount = orders.filter(o => o.status === 'shipping_post_office').length;
+  const pendingCount = orders.filter(o => isPending(o.status)).length;
+  const confirmedCount = orders.filter(o => isConfirmed(o.status)).length;
+  const postOfficeShippedCount = orders.filter(o => isShipped(o.status)).length;
   const outForDeliveryCount = orders.filter(o => o.status === 'out_for_delivery').length;
-  const totalRevenue = orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.totalAmount, 0);
+  const totalRevenue = orders.filter(o => !isRejected(o.status)).reduce((acc, o) => acc + o.totalAmount, 0);
 
   const handleShipSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shippingModalOrder) return;
     await onUpdateOrderStatus(shippingModalOrder.id, {
-      status: 'shipping_post_office',
+      status: 'Shipped',
       courierName: courierName || 'India Post (Speed Post)',
       trackingNumber: trackingNumber.trim()
     });
@@ -327,8 +368,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    let finalImageUrl = productForm.imageUrl || '';
+    // If image is a local camera/base64 upload, save to server disk so clean URL goes to Google Sheets
+    if (finalImageUrl.startsWith('data:image/')) {
+      try {
+        const uploadRes = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: finalImageUrl, filename: productForm.name.slice(0, 10) })
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          if (uploadData.url) finalImageUrl = uploadData.url;
+        }
+      } catch (uploadErr) {
+        console.warn('Image upload error:', uploadErr);
+      }
+    }
+
     const rawImagesList = Array.from(new Set([
-      productForm.imageUrl,
+      finalImageUrl,
       ...(productForm.images || [])
     ].filter((img): img is string => Boolean(img && img.trim()))));
 
@@ -356,6 +415,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       imageUrl: allImagesList[0],
       images: allImagesList,
       inStock: productForm.inStock !== undefined ? productForm.inStock : true,
+      status: 'Active',
       isBestSeller: productForm.isBestSeller || false,
       isNewArrival: productForm.isNewArrival || true,
       rating: productForm.rating || 4.8
@@ -804,42 +864,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span className="text-gray-500">{new Date(order.createdAt).toLocaleString()}</span>
                       </div>
 
-                      {/* Prominent UTR Payment Badge */}
-                      <div className="bg-amber-100 border-2 border-amber-400 text-amber-950 font-mono font-extrabold px-3 py-1 rounded-xl text-xs flex items-center gap-1.5 shadow-xs">
+                      {/* Payment Method & UTR Badge */}
+                      <div className="bg-amber-100 border border-amber-400 text-amber-950 font-mono font-extrabold px-3 py-1 rounded-xl text-xs flex items-center gap-1.5 shadow-2xs">
                         <QrCode className="w-4 h-4 text-amber-800" />
-                        <span>UTR / UTS: {order.utsNumber}</span>
+                        <span>{order.payment?.method === 'COD' ? '💵 COD (Cash on Delivery)' : `📱 UPI: ${order.utsNumber || 'Verified'}`}</span>
                       </div>
 
                       {/* Ticket Status Stage Pill */}
                       <div>
-                        {order.status === 'pending_acceptance' && (
+                        {isPending(order.status) && (
                           <span className="bg-amber-500 text-amber-950 font-extrabold px-3 py-1 rounded-full uppercase text-[10px] animate-pulse">
-                            Pending Payment Verification
+                            ⏳ Status: Pending
                           </span>
                         )}
-                        {order.status === 'order_confirmed' && (
+                        {isConfirmed(order.status) && (
                           <span className="bg-blue-600 text-white font-bold px-3 py-1 rounded-full text-[10px]">
-                            Confirmed & Packing Suit
+                            ✅ Status: Confirmed
                           </span>
                         )}
-                        {order.status === 'shipping_post_office' && (
+                        {isShipped(order.status) && (
                           <span className="bg-indigo-700 text-white font-bold px-3 py-1 rounded-full text-[10px]">
-                            Dispatched (Post Office)
-                          </span>
-                        )}
-                        {order.status === 'out_for_delivery' && (
-                          <span className="bg-purple-700 text-white font-bold px-3 py-1 rounded-full text-[10px]">
-                            Out For Delivery
+                            🚚 Status: Shipped
                           </span>
                         )}
                         {order.status === 'delivered' && (
                           <span className="bg-green-700 text-white font-bold px-3 py-1 rounded-full text-[10px]">
-                            Delivered
+                            🏁 Status: Delivered
                           </span>
                         )}
-                        {order.status === 'cancelled' && (
+                        {isRejected(order.status) && (
                           <span className="bg-red-700 text-white font-bold px-3 py-1 rounded-full text-[10px]">
-                            Cancelled / Refunded
+                            ❌ Status: Rejected
                           </span>
                         )}
                       </div>
@@ -902,7 +957,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="border-t lg:border-t-0 lg:border-l border-gray-200 pt-3 lg:pt-0 lg:pl-4 flex flex-col justify-between">
                         
                         <div>
-                          <p className="text-gray-500">Total Amount Paid via UPI:</p>
+                          <p className="text-gray-500">Total Order Amount:</p>
                           <p className="text-2xl font-black font-mono text-red-900">₹{order.totalAmount.toLocaleString('en-IN')}</p>
                           
                           {order.trackingNumber ? (
@@ -910,66 +965,80 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               <strong>{order.courierName || 'India Post'}:</strong>
                               <p className="font-bold text-xs text-indigo-950 mt-0.5">Tracking No: {order.trackingNumber}</p>
                             </div>
+                          ) : isConfirmed(order.status) ? (
+                            <p className="text-[11px] text-blue-700 font-bold mt-1">
+                              Ready for dispatch — Add tracking number below
+                            </p>
                           ) : (
                             <p className="text-[11px] text-amber-700 italic mt-1">
-                              Post office tracking number pending
+                              Awaiting order confirmation
                             </p>
                           )}
                         </div>
 
-                        {/* Owner Manual Stage Actions */}
+                        {/* Owner Stage Actions */}
                         <div className="pt-3 flex flex-wrap gap-2">
                           
-                          {/* Stage 1: Pending Payment -> Confirm or Cancel */}
-                          {order.status === 'pending_acceptance' && (
+                          {/* Stage 1: Pending -> [ CONFIRM ORDER ] or [ REJECT ORDER ] */}
+                          {isPending(order.status) && (
                             <>
                               <button
                                 type="button"
-                                onClick={() => onUpdateOrderStatus(order.id, { status: 'order_confirmed', verifiedByAdmin: true })}
-                                className="bg-green-700 hover:bg-green-800 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1 cursor-pointer"
+                                onClick={() => onUpdateOrderStatus(order.id, { status: 'Confirmed', verifiedByAdmin: true })}
+                                className="bg-green-700 hover:bg-green-800 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                               >
-                                <CheckCircle2 className="w-4 h-4" /> Confirm Payment & Accept
+                                <CheckCircle2 className="w-4 h-4" /> [ CONFIRM ORDER ]
                               </button>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  let reason = 'Payment not verified / Cancelled by Admin';
-                                  try {
-                                    const userReason = window.prompt('Reason for declining / cancelling order? (Optional)');
-                                    if (userReason !== null && userReason.trim()) {
-                                      reason = userReason.trim();
-                                    }
-                                  } catch (e) {}
-                                  onUpdateOrderStatus(order.id, { status: 'cancelled', rejectionReason: reason });
+                                  setRejectingOrder(order);
+                                  setRejectReason('Out of stock / Cancellation requested');
                                 }}
-                                className="bg-red-700 hover:bg-red-800 text-white font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1"
+                                className="bg-red-700 hover:bg-red-800 text-white font-extrabold px-3 py-2 rounded-xl text-xs cursor-pointer flex items-center gap-1.5 active:scale-95 transition-all"
                               >
-                                <XCircle className="w-4 h-4" /> Cancel Order
+                                <XCircle className="w-4 h-4" /> [ REJECT ORDER ]
                               </button>
                             </>
                           )}
 
-                          {/* Stage 2: Confirmed -> Post Office Dispatch */}
-                          {order.status === 'order_confirmed' && (
+                          {/* Stage 2: Confirmed -> [ ADD TRACKING ] */}
+                          {isConfirmed(order.status) && (
                             <button
+                              type="button"
                               onClick={() => {
                                 setShippingModalOrder(order);
-                                setCourierName('India Post (Speed Post / Regd. Parcel)');
+                                setCourierName('India Post (Speed Post)');
+                                setTrackingNumber('');
                               }}
-                              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1"
+                              className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                             >
-                              <Truck className="w-4 h-4" /> Add Post Office Tracking & Ship
+                              <Truck className="w-4 h-4" /> [ ADD TRACKING ]
                             </button>
                           )}
 
-                          {/* Stage 3: Post Office Shipped -> Out for Delivery */}
-                          {order.status === 'shipping_post_office' && (
-                            <button
-                              onClick={() => onUpdateOrderStatus(order.id, { status: 'out_for_delivery' })}
-                              className="bg-purple-700 hover:bg-purple-800 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1"
-                            >
-                              <Truck className="w-4 h-4" /> Mark Out For Delivery
-                            </button>
+                          {/* Stage 3: Shipped -> Mark Delivered */}
+                          {isShipped(order.status) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateOrderStatus(order.id, { status: 'Delivered' })}
+                                className="bg-green-800 hover:bg-green-900 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-sm flex items-center gap-1 cursor-pointer"
+                              >
+                                <Package className="w-4 h-4" /> Mark Delivered
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShippingModalOrder(order);
+                                  setCourierName(order.courierName || 'India Post (Speed Post)');
+                                  setTrackingNumber(order.trackingNumber || '');
+                                }}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-2.5 py-2 rounded-xl text-xs cursor-pointer"
+                              >
+                                Edit Tracking No
+                              </button>
+                            </>
                           )}
 
                           {/* Stage 4: Out for Delivery -> Delivered */}
@@ -1559,38 +1628,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
 
                   <div className="pt-2 flex items-center justify-between gap-2 flex-wrap border-t border-emerald-200">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!settingsForm.googleSheetWebhookUrl) {
-                          alert('❌ Please enter your Google Sheet Webhook URL first!');
-                          return;
-                        }
-                        setSheetTesting(true);
-                        try {
-                          const res = await fetch('/api/googlesheet/test', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
-                          });
-                          const data = await res.json();
-                          if (res.ok) {
-                            alert('🎉 Test row successfully sent to your Google Sheet!');
-                          } else {
-                            alert(`❌ Test failed: ${data.error}`);
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!settingsForm.googleSheetWebhookUrl) {
+                            alert('❌ Please enter your Google Sheet Webhook URL first!');
+                            return;
                           }
-                        } catch (e: any) {
-                          alert(`❌ Connection error: ${e.message}`);
-                        } finally {
-                          setSheetTesting(false);
-                        }
-                      }}
-                      disabled={sheetTesting}
-                      className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-                    >
-                      <span>📊</span>
-                      {sheetTesting ? 'Sending Test Row...' : '🧪 Send Test Row to Google Sheet'}
-                    </button>
+                          setSheetTesting(true);
+                          try {
+                            const res = await fetch('/api/googlesheet/test', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              alert('🎉 Test row successfully sent to your Google Sheet!');
+                            } else {
+                              alert(`❌ Test failed: ${data.error}`);
+                            }
+                          } catch (e: any) {
+                            alert(`❌ Connection error: ${e.message}`);
+                          } finally {
+                            setSheetTesting(false);
+                          }
+                        }}
+                        disabled={sheetTesting}
+                        className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
+                      >
+                        <span>📊</span>
+                        {sheetTesting ? 'Sending Test Row...' : '🧪 Send Test Row'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setSheetSyncing(true);
+                          try {
+                            const res = await fetch('/api/googlesheet/sync', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              alert(`✅ ${data.message || 'Synchronized with Google Sheets!'} (${data.productsCount} products, ${data.ordersCount} orders)`);
+                              if (onSyncOrders) await onSyncOrders();
+                              if (onSyncProducts) await onSyncProducts();
+                            } else {
+                              alert(`❌ Sync error: ${data.error}`);
+                            }
+                          } catch (e: any) {
+                            alert(`❌ Error syncing: ${e.message}`);
+                          } finally {
+                            setSheetSyncing(false);
+                          }
+                        }}
+                        disabled={sheetSyncing}
+                        className="bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
+                      >
+                        <span>🔄</span>
+                        {sheetSyncing ? 'Syncing...' : 'Force Sync Google Sheets'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/googlesheet/script-code');
+                            const code = await res.text();
+                            setScriptCode(code);
+                            setShowScriptModal(true);
+                          } catch (e) {
+                            alert('Failed to load Google Apps Script code');
+                          }
+                        }}
+                        className="bg-stone-800 hover:bg-stone-900 text-amber-200 text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <span>📋</span>
+                        <span>View Apps Script Code</span>
+                      </button>
+                    </div>
 
                     <span className="text-[10px] text-emerald-900 font-bold bg-emerald-200/80 px-2.5 py-1 rounded-full border border-emerald-300">
                       {settingsForm.googleSheetWebhookUrl ? '✅ Webhook Configured' : '⚠️ Pending Setup'}
@@ -1664,6 +1784,61 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-1/2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-md"
                 >
                   Save & Move to Shipped
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Order Modal */}
+      {rejectingOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-5 space-y-4 border border-red-300">
+            <h3 className="font-bold text-base font-serif text-red-950 flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-700" />
+              Reject Order Ticket #{rejectingOrder.id}
+            </h3>
+            <p className="text-xs text-gray-600">
+              Customer: <strong>{rejectingOrder.customer.fullName}</strong> ({rejectingOrder.customer.phone})<br />
+              Amount: <strong>₹{rejectingOrder.totalAmount}</strong>
+            </p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await onUpdateOrderStatus(rejectingOrder.id, {
+                  status: 'Rejected',
+                  rejectionReason: rejectReason.trim() || 'Rejected by Admin'
+                });
+                setRejectingOrder(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Reason for Rejection (Optional)</label>
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g. Out of stock, duplicate order, wrong address"
+                  className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2.5 text-sm"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectingOrder(null)}
+                  className="w-1/2 bg-gray-100 text-gray-800 font-bold py-2.5 rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-red-700 hover:bg-red-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-md"
+                >
+                  Confirm Rejection
                 </button>
               </div>
             </form>
@@ -2015,6 +2190,296 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google Apps Script Code Modal with Sheet 1 & Sheet 2 Tabs */}
+      {showScriptModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto font-sans">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden border border-emerald-400 my-auto flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-950 via-green-900 to-emerald-950 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">📊</span>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
+                    Google Sheets Central Database Code (Sheet 1 & Sheet 2)
+                    <span className="text-[10px] bg-emerald-700/80 px-2 py-0.5 rounded-full border border-emerald-400 text-emerald-100 font-mono">
+                      v2.0 Dual-Sheet
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-emerald-200">
+                    Sheet 1 = Suits / Products Catalog | Sheet 2 = Customer Orders
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScriptModal(false)}
+                className="text-white/80 hover:text-white p-1 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex border-b border-stone-200 bg-stone-100 px-3 pt-2 gap-1 overflow-x-auto text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setScriptModalTab('code')}
+                className={`px-3 py-2 rounded-t-xl transition-colors flex items-center gap-1.5 ${
+                  scriptModalTab === 'code' 
+                    ? 'bg-white text-emerald-900 border-t-2 border-emerald-600 shadow-xs font-extrabold' 
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span>📜</span>
+                <span>Apps Script Code (Code.gs)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScriptModalTab('sheet1')}
+                className={`px-3 py-2 rounded-t-xl transition-colors flex items-center gap-1.5 ${
+                  scriptModalTab === 'sheet1' 
+                    ? 'bg-white text-emerald-900 border-t-2 border-emerald-600 shadow-xs font-extrabold' 
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span>👗</span>
+                <span>Sheet 1 (Products / Suits)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScriptModalTab('sheet2')}
+                className={`px-3 py-2 rounded-t-xl transition-colors flex items-center gap-1.5 ${
+                  scriptModalTab === 'sheet2' 
+                    ? 'bg-white text-emerald-900 border-t-2 border-emerald-600 shadow-xs font-extrabold' 
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span>📦</span>
+                <span>Sheet 2 (Orders / ਆਰਡਰ)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScriptModalTab('guide')}
+                className={`px-3 py-2 rounded-t-xl transition-colors flex items-center gap-1.5 ${
+                  scriptModalTab === 'guide' 
+                    ? 'bg-white text-emerald-900 border-t-2 border-emerald-600 shadow-xs font-extrabold' 
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span>💡</span>
+                <span>Setup Guide (ਕਿਵੇਂ ਲਗਾਉਣਾ ਹੈ)</span>
+              </button>
+            </div>
+
+            {/* Tab Contents */}
+            <div className="p-4 overflow-y-auto space-y-3 flex-1 text-xs">
+              
+              {/* TAB 1: CODE.GS */}
+              {scriptModalTab === 'code' && (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-300 p-3 rounded-xl text-emerald-950 flex items-center justify-between gap-2 flex-wrap">
+                    <div>
+                      <p className="font-bold text-xs">✅ Production Script for Sheet 1 & Sheet 2</p>
+                      <p className="text-[11px] text-emerald-800">
+                        Yeh script automatic Sheet 1 (Products) aur Sheet 2 (Orders) dono ko handle karti hai.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(scriptCode);
+                        alert('📋 Google Apps Script code copied to clipboard!');
+                      }}
+                      className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 shrink-0"
+                    >
+                      <span>📋 Copy Entire Code</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      readOnly
+                      rows={16}
+                      value={scriptCode}
+                      className="w-full bg-stone-900 text-emerald-300 font-mono text-[11px] p-3.5 rounded-xl border border-stone-700 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: SHEET 1 COLUMNS */}
+              {scriptModalTab === 'sheet1' && (
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl text-amber-950 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h4 className="font-bold text-xs flex items-center gap-1.5">
+                        <span>👗</span> Sheet 1: Products (ਸੂਟਾਂ ਦੀ ਲਿਸਟ)
+                      </h4>
+                      <p className="text-[11px] text-amber-900 mt-0.5">
+                        Name your first tab <b>"Sheet1"</b> or <b>"Products"</b>. Row 1 must have these 12 column headers:
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const headersText = "ProductID\tTitle\tDescription\tPrice\tOriginalPrice\tCategory\tColor\tSizes\tImageURL\tStock\tStatus\tCreatedAt";
+                        navigator.clipboard.writeText(headersText);
+                        alert('📋 Sheet 1 headers copied! You can directly paste into Row 1 of Google Sheets.');
+                      }}
+                      className="bg-amber-800 hover:bg-amber-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <span>📋 Copy 12 Headers (Row 1)</span>
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto border border-stone-200 rounded-xl">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr className="bg-amber-900 text-white font-bold">
+                          <th className="p-2 border-r border-amber-800 w-10 text-center">#</th>
+                          <th className="p-2 border-r border-amber-800">Column Name (Header)</th>
+                          <th className="p-2 border-r border-amber-800">Hindi / Punjabi Meaning</th>
+                          <th className="p-2">Sample Example</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200 bg-white">
+                        <tr><td className="p-2 text-center font-mono">A (1)</td><td className="p-2 font-mono font-bold text-amber-900">ProductID</td><td className="p-2">ਸੂਟ ਦਾ ਕੋਡ / ID</td><td className="p-2 font-mono text-gray-600">BDH-101</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">B (2)</td><td className="p-2 font-mono font-bold text-amber-900">Title</td><td className="p-2">ਸੂਟ ਦਾ ਨਾਮ / Title</td><td className="p-2 font-mono text-gray-600">Pure Jaipuri Cotton Suit</td></tr>
+                        <tr><td className="p-2 text-center font-mono">C (3)</td><td className="p-2 font-mono font-bold text-amber-900">Description</td><td className="p-2">ਕੱਪੜੇ ਦੀ ਜਾਣਕਾਰੀ</td><td className="p-2 font-mono text-gray-600">3-Piece unstitched suit with dupatta</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">D (4)</td><td className="p-2 font-mono font-bold text-amber-900">Price</td><td className="p-2">ਦੁਕਾਨ ਦੀ ਸੇਲ ਕੀਮਤ (₹)</td><td className="p-2 font-mono text-gray-600">650</td></tr>
+                        <tr><td className="p-2 text-center font-mono">E (5)</td><td className="p-2 font-mono font-bold text-amber-900">OriginalPrice</td><td className="p-2">ਅਸਲੀ MRP ਪ੍ਰਾਈਸ (₹)</td><td className="p-2 font-mono text-gray-600">1199</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">F (6)</td><td className="p-2 font-mono font-bold text-amber-900">Category</td><td className="p-2">ਕੈਟਾਗਰੀ</td><td className="p-2 font-mono text-gray-600">Punjabi Suit / Farshi Suit</td></tr>
+                        <tr><td className="p-2 text-center font-mono">G (7)</td><td className="p-2 font-mono font-bold text-amber-900">Color</td><td className="p-2">ਸੂਟ ਦਾ ਰੰਗ</td><td className="p-2 font-mono text-gray-600">Maroon, Royal Blue</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">H (8)</td><td className="p-2 font-mono font-bold text-amber-900">Sizes</td><td className="p-2">ਸਾਈਜ਼</td><td className="p-2 font-mono text-gray-600">Unstitched, Free Size</td></tr>
+                        <tr><td className="p-2 text-center font-mono">I (9)</td><td className="p-2 font-mono font-bold text-amber-900">ImageURL</td><td className="p-2">ਸੂਟ ਦੀ ਫੋਟੋ ਲਿੰਕ</td><td className="p-2 font-mono text-gray-600">https://...</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">J (10)</td><td className="p-2 font-mono font-bold text-amber-900">Stock</td><td className="p-2">ਸਟਾਕ ਵਿੱਚ ਹੈ ਜਾਂ ਮੁੱਕ ਗਿਆ</td><td className="p-2 font-mono text-gray-600">In Stock</td></tr>
+                        <tr><td className="p-2 text-center font-mono">K (11)</td><td className="p-2 font-mono font-bold text-amber-900">Status</td><td className="p-2">ਐਕਟਿਵ ਸਟੇਟਸ</td><td className="p-2 font-mono text-gray-600">Active</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">L (12)</td><td className="p-2 font-mono font-bold text-amber-900">CreatedAt</td><td className="p-2">ਤਾਰੀਖ ਅਤੇ ਸਮਾਂ</td><td className="p-2 font-mono text-gray-600">2026-09-25T12:00:00Z</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: SHEET 2 COLUMNS */}
+              {scriptModalTab === 'sheet2' && (
+                <div className="space-y-3">
+                  <div className="bg-sky-50 border border-sky-300 p-3.5 rounded-xl text-sky-950 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h4 className="font-bold text-xs flex items-center gap-1.5">
+                        <span>📦</span> Sheet 2: Orders (ਗਾਹਕਾਂ ਦੇ ਆਰਡਰ)
+                      </h4>
+                      <p className="text-[11px] text-sky-900 mt-0.5">
+                        Name your second tab <b>"Sheet2"</b> or <b>"Orders"</b>. Row 1 has these 17 column headers:
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const headersText = "OrderID\tCustomerName\tPhone\tAddress\tProductID\tProductTitle\tColor\tSize\tQuantity\tAmount\tPaymentMethod\tPaymentStatus\tOrderStatus\tCourier\tTrackingNumber\tCreatedAt\tUpdatedAt";
+                        navigator.clipboard.writeText(headersText);
+                        alert('📋 Sheet 2 headers copied! You can directly paste into Row 1 of Sheet 2 in Google Sheets.');
+                      }}
+                      className="bg-sky-800 hover:bg-sky-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <span>📋 Copy 17 Headers (Row 1)</span>
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto border border-stone-200 rounded-xl">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr className="bg-sky-900 text-white font-bold">
+                          <th className="p-2 border-r border-sky-800 w-10 text-center">#</th>
+                          <th className="p-2 border-r border-sky-800">Column Name</th>
+                          <th className="p-2 border-r border-sky-800">Hindi / Punjabi Meaning</th>
+                          <th className="p-2">Sample Example</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-200 bg-white">
+                        <tr><td className="p-2 text-center font-mono">A (1)</td><td className="p-2 font-mono font-bold text-sky-900">OrderID</td><td className="p-2">ਆਰਡਰ ਨੰਬਰ (Unique)</td><td className="p-2 font-mono text-gray-600">BDH-2026-00001</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">B (2)</td><td className="p-2 font-mono font-bold text-sky-900">CustomerName</td><td className="p-2">ਗਾਹਕ ਦਾ ਨਾਮ</td><td className="p-2 font-mono text-gray-600">Gurpreet Singh</td></tr>
+                        <tr><td className="p-2 text-center font-mono">C (3)</td><td className="p-2 font-mono font-bold text-sky-900">Phone</td><td className="p-2">ਮੋਬਾਈਲ ਫੋਨ ਨੰਬਰ</td><td className="p-2 font-mono text-gray-600">9417124082</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">D (4)</td><td className="p-2 font-mono font-bold text-sky-900">Address</td><td className="p-2">ਡਾਕ ਪਤਾ (Delivery Address)</td><td className="p-2 font-mono text-gray-600">Bus Stand Road, Maur Mandi</td></tr>
+                        <tr><td className="p-2 text-center font-mono">E (5)</td><td className="p-2 font-mono font-bold text-sky-900">ProductID</td><td className="p-2">ਸੂਟ ਦਾ ਕੋਡ</td><td className="p-2 font-mono text-gray-600">BDH-101</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">F (6)</td><td className="p-2 font-mono font-bold text-sky-900">ProductTitle</td><td className="p-2">ਸੂਟ ਦਾ ਨਾਮ</td><td className="p-2 font-mono text-gray-600">Pure Jaipuri Cotton Suit</td></tr>
+                        <tr><td className="p-2 text-center font-mono">G (7)</td><td className="p-2 font-mono font-bold text-sky-900">Color</td><td className="p-2">ਪਸੰਦ ਕੀਤਾ ਰੰਗ</td><td className="p-2 font-mono text-gray-600">Crimson Red</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">H (8)</td><td className="p-2 font-mono font-bold text-sky-900">Size</td><td className="p-2">ਸਾਈਜ਼</td><td className="p-2 font-mono text-gray-600">Unstitched</td></tr>
+                        <tr><td className="p-2 text-center font-mono">I (9)</td><td className="p-2 font-mono font-bold text-sky-900">Quantity</td><td className="p-2">ਗਿਣਤੀ (ਕਿੰਨੇ ਸੂਟ)</td><td className="p-2 font-mono text-gray-600">1</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">J (10)</td><td className="p-2 font-mono font-bold text-sky-900">Amount</td><td className="p-2">ਕੁੱਲ ਰੁਪਏ (₹)</td><td className="p-2 font-mono text-gray-600">650</td></tr>
+                        <tr><td className="p-2 text-center font-mono">K (11)</td><td className="p-2 font-mono font-bold text-sky-900">PaymentMethod</td><td className="p-2">ਭੁਗਤਾਨ (COD ਜਾਂ UPI)</td><td className="p-2 font-mono text-gray-600">COD / UPI</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">L (12)</td><td className="p-2 font-mono font-bold text-sky-900">PaymentStatus</td><td className="p-2">ਪੈਮੈਂਟ ਸਥਿਤੀ</td><td className="p-2 font-mono text-gray-600">Verified / Pending</td></tr>
+                        <tr><td className="p-2 text-center font-mono">M (13)</td><td className="p-2 font-mono font-bold text-sky-900">OrderStatus</td><td className="p-2">ਆਰਡਰ ਸਥਿਤੀ</td><td className="p-2 font-mono text-gray-600">Pending / Confirmed / Shipped</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">N (14)</td><td className="p-2 font-mono font-bold text-sky-900">Courier</td><td className="p-2">ਕੂਰੀਅਰ / ਡਾਕਖਾਨਾ</td><td className="p-2 font-mono text-gray-600">India Post (Speed Post)</td></tr>
+                        <tr><td className="p-2 text-center font-mono">O (15)</td><td className="p-2 font-mono font-bold text-sky-900">TrackingNumber</td><td className="p-2">ਕੰਸਾਈਨਮੈਂਟ / ਟ੍ਰੈਕਿੰਗ ਨੰਬਰ</td><td className="p-2 font-mono text-gray-600">EP123456789IN</td></tr>
+                        <tr className="bg-stone-50"><td className="p-2 text-center font-mono">P (16)</td><td className="p-2 font-mono font-bold text-sky-900">CreatedAt</td><td className="p-2">ਆਰਡਰ ਕਰਨ ਦੀ ਤਾਰੀਖ</td><td className="p-2 font-mono text-gray-600">2026-09-25T12:00:00Z</td></tr>
+                        <tr><td className="p-2 text-center font-mono">Q (17)</td><td className="p-2 font-mono font-bold text-sky-900">UpdatedAt</td><td className="p-2">ਆਖਰੀ ਅਪਡੇਟ</td><td className="p-2 font-mono text-gray-600">2026-09-25T12:30:00Z</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: SETUP GUIDE */}
+              {scriptModalTab === 'guide' && (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-xl text-emerald-950 space-y-3">
+                    <h4 className="font-bold text-sm text-emerald-950 flex items-center gap-2">
+                      <span>🚀</span> Google Sheet Setup Guide (ਕਦਮ-ਦਰ-ਕਦਮ ਤਰੀਕਾ)
+                    </h4>
+
+                    <ol className="list-decimal pl-5 space-y-2 text-xs text-emerald-900">
+                      <li>
+                        <b>Open Google Spreadsheet:</b> Go to <code className="bg-emerald-100 px-1 py-0.5 rounded font-bold">sheets.google.com</code> and create a new sheet (or open your existing one).
+                      </li>
+                      <li>
+                        <b>Name your tabs:</b> You can keep them as <b>"Sheet1"</b> & <b>"Sheet2"</b> OR rename them to <b>"Products"</b> & <b>"Orders"</b>. The script will automatically work with both!
+                      </li>
+                      <li>
+                        <b>Open Apps Script:</b> In the top Google Sheets menu, click on <b>Extensions</b> ➔ <b>Apps Script</b>.
+                      </li>
+                      <li>
+                        <b>Paste Code:</b> Delete anything already written in <code>Code.gs</code>, copy the full code from Tab 1 above, and paste it. Press <b>Save (Ctrl + S)</b>.
+                      </li>
+                      <li>
+                        <b>Deploy Web App:</b> Click the blue <b>Deploy</b> button (top right) ➔ <b>New deployment</b>.
+                        <ul className="list-disc pl-5 mt-1 space-y-1">
+                          <li>Click the gear icon ⚙️ ➔ Select <b>Web app</b></li>
+                          <li>Execute as: <b>Me (your email)</b></li>
+                          <li><b>Who has access: Anyone</b> (ਇਹ ਬਹੁਤ ਜ਼ਰੂਰੀ ਹੈ ਤਾਂ ਜੋ ਆਰਡਰ ਸਿੱਧੇ ਸ਼ੀਟ ਵਿੱਚ ਜਾਣ)</li>
+                          <li>Click <b>Deploy</b>, authorize permissions, and copy the Web App URL!</li>
+                        </ul>
+                      </li>
+                      <li>
+                        <b>Auto-Headers:</b> When you open your Google Sheet, you will also see a new top menu <b>"🏪 Bhraava Di Hatti" ➔ "🔄 Setup / Check Headers"</b> to automatically format Sheet 1 and Sheet 2 headers!
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 bg-stone-100 border-t flex items-center justify-between">
+              <span className="text-[11px] text-stone-600 font-medium">
+                Live URL configured: <code className="font-mono text-emerald-950 font-bold">{settingsForm.googleSheetWebhookUrl ? `${settingsForm.googleSheetWebhookUrl.slice(0, 40)}...` : 'None'}</code>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowScriptModal(false)}
+                className="bg-stone-800 hover:bg-stone-900 text-white font-bold px-4 py-2 rounded-xl text-xs"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

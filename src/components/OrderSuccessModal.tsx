@@ -15,9 +15,12 @@ export function generateMeeshoStyleBillText(order: Order, settings: ShopSettings
     ? new Date(order.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) 
     : new Date().toLocaleString('en-IN');
   
-  const itemsList = order.items.map((item, idx) => 
-    `${idx + 1}. *${item.product.name}* (Code: ${item.product.id})\n   • Color: ${item.selectedColor || 'Standard'} | Size: ${item.selectedSize || 'Unstitched'}\n   • Qty: ${item.quantity} x ₹${item.product.price} = ₹${item.product.price * item.quantity}`
-  ).join('\n\n');
+  const itemsList = (order.items || []).map((item, idx) => {
+    const pName = item.product?.name || 'Punjabi Suit';
+    const pId = item.product?.id || 'BDH';
+    const pPrice = item.product?.price || 0;
+    return `${idx + 1}. *${pName}* (Code: ${pId})\n   • Color: ${item.selectedColor || 'Standard'} | Size: ${item.selectedSize || 'Unstitched'}\n   • Qty: ${item.quantity} x ₹${pPrice} = ₹${pPrice * item.quantity}`;
+  }).join('\n\n');
 
   return `🧾 *BHRAAVA DI HATTI - TAX INVOICE & SHIPPING SLIP*
 ----------------------------------------

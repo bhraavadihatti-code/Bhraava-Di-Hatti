@@ -1,7 +1,7 @@
 {
   "shopName": "Bhraava Di Hatti",
   "firmName": "Jai Durga Cloth Emporium",
-  "upiId": "bhraavadihatti@upi",
+  "upiId": "boism-9417124082@boi",
   "payeeName": "Jai Durga Cloth Emporium",
   "phoneNumber": "94171-24082",
   "phoneNumber2": "99150-46357",
@@ -12,5 +12,18 @@
   "gstNumber": "03AABCU9603R1ZM",
   "minOrderForFreeShipping": 1999,
   "noticeText": "🎁 RAKHI SPECIAL MEGA SALE IS LIVE TILL 29 AUGUST! FLAT DISCOUNTS + INDIA POST DESPATCH",
-  "adminPin": "BDH-1986"
+  "adminPin": "BDH-1986",
+  "categories": [
+    "All",
+    "Punjabi Suit",
+    "Farshi Suit",
+    "Cotton Suit",
+    "Dupatta Suit",
+    "Trousers Salwar Suits",
+    "AK Tax",
+    "Om Creation",
+    "Shiva"
+  ],
+  "googleSheetWebhookUrl": "https://script.google.com/macros/s/AKfycbyUye6mNG_5-Xat0GJK1nLZOXrGqDlbn2a5s3VHsnpvcQwtS0FEXbNSYxTCDTjtd25d/exec",
+  "nextSheetSerialNo": 7
 }
