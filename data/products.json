@@ -1,61 +1,30 @@
 [
   {
-    "name": "Ruaab Handloom Chanderi Silk Suit",
-    "price": 1850,
-    "originalPrice": 2450,
-    "category": "Punjabi Suits",
-    "colors": [
-      "Royal Blue",
-      "Golden Yellow"
-    ],
-    "sizes": [
-      "Unstitched (2.5m Kameez + 2.5m Salwar)"
-    ],
-    "description": "Authentic handloom Chanderi silk suit material with handwork zari embroidery.",
-    "id": "BDH-202",
+    "id": "BDH-999",
+    "name": "Test Punjabi Suit",
     "firmName": "Jai Durga Cloth Emporium",
     "shopName": "Bhraava Di Hatti",
-    "imageUrl": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800",
-    "images": [
-      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"
-    ]
-  },
-  {
-    "id": "BDH-201",
-    "name": "Premium Digital Print Farshi Salwar Suit Material (Unstitched) - Ruaab Collection",
-    "firmName": "Jai Durga Cloth Emporium",
-    "shopName": "Bhraava Di Hatti",
-    "category": "Farshi Suit",
-    "price": 650,
-    "originalPrice": 899,
-    "description": "Step into elegance with our unstitched digital print Farshi Salwar fabric. Featuring classic, rich paisley and floral motifs, this versatile fabric is perfect for crafting a traditional Farshi Salwar, elegant kameez, or a custom ethnic ensemble.\n\nKey Features:\n• Intricate Digital Print: Beautifully detailed paisley patterns with a striking, heavy border design perfect for the hemline or dupatta.\n• Elegant Detailing: The main body of the fabric features a subtle tonal background with delicate, spaced-out teardrop motifs for a balanced look.\n• Versatile Styling: The coordinating dense all-over print allows for beautiful contrasting top-and-bottom combinations.\n• Multiple Colorways: Available in a stunning deep maroon/red, earthy brown, classic black, and vibrant teal.\n• Premium Quality: Sourced from the \"Ruaab\" brand collection, ensuring a high-quality finish for your custom tailoring.\n\n🚚 Free Delivery Included!",
-    "fabric": "Digital Print Farshi Fabric (Ruaab Collection)",
-    "workType": "Digital Print Paisley & Heavy Border",
-    "colors": [
-      "Deep Maroon",
-      "Deep Teal",
-      "Classic Black",
-      "Olive Brown"
-    ],
-    "sizes": [
-      "Unstitched Material (Suit Set)"
-    ],
-    "imageUrl": "/src/assets/images/ruaab_farshi_suit_1784952010247.jpg",
-    "images": [
-      "/src/assets/images/ruaab_farshi_suit_1784952010247.jpg",
-      "/src/assets/images/ruaab_suit_colors_1784952025641.jpg"
-    ],
-    "inStock": true,
-    "isBestSeller": true,
-    "isNewArrival": true,
-    "rating": 5,
+    "category": "Punjabi Suit",
     "tags": [
       "Punjabi Suit",
-      "Farshi Suit",
-      "Salwar Suit",
-      "Cotton Suit",
-      "Ruaab Collection",
-      "Free Delivery"
-    ]
+      "3-Piece Suit",
+      "Punjabi Suit"
+    ],
+    "price": 999,
+    "originalPrice": 1499,
+    "description": "",
+    "colors": [
+      "Pink"
+    ],
+    "sizes": [
+      "Unstitched"
+    ],
+    "imageUrl": "https://example.com/suit.jpg",
+    "images": [
+      "https://example.com/suit.jpg"
+    ],
+    "inStock": true,
+    "status": "Active",
+    "createdAt": "2026-09-25T09:26:50.355Z"
   }
 ]

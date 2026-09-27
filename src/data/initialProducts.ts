@@ -31,7 +31,7 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   telegramBotToken: "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0",
   telegramChatId: "",
   telegramEnabled: true,
-  googleSheetWebhookUrl: "https://script.google.com/macros/s/AKfycbxoIXICrDxONN81CJHKqzGKzQVsNjVZeQUggeaefkQx_z27vTHk20LOZ8M1lFrrTsLd/exec"
+  googleSheetWebhookUrl: "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec"
 };
 
 /**

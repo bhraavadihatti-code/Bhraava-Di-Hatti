@@ -34,6 +34,7 @@ import {
   Zap,
   Send
 } from 'lucide-react';
+import { syncOrderToGoogleSheets, syncProductToGoogleSheets, fetchGoogleSheetAll } from '../lib/googleSheetsService';
 
 interface AdminPanelProps {
   orders: Order[];
@@ -47,6 +48,7 @@ interface AdminPanelProps {
   onLogout?: () => void;
   onSyncOrders?: () => Promise<void>;
   onSyncProducts?: () => Promise<void>;
+  onSyncWithSheet?: () => Promise<any>;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -60,7 +62,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateSettings,
   onLogout,
   onSyncOrders,
-  onSyncProducts
+  onSyncProducts,
+  onSyncWithSheet
 }) => {
   // Simple PIN protection state (default PIN: 1234)
   const [pinInput, setPinInput] = useState('');
@@ -69,6 +72,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'settings'>('orders');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sheetSyncingTop, setSheetSyncingTop] = useState(false);
+
+  // Auto-sync from Google Sheets on mount and every 15s
+  useEffect(() => {
+    if (onSyncWithSheet) {
+      onSyncWithSheet();
+    }
+    const interval = setInterval(() => {
+      if (onSyncWithSheet) onSyncWithSheet();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Real-time audio chime & push alert toggles
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -678,6 +693,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <Bell className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Enable Alerts</span>
               </button>
             )}
+
+            <button
+              onClick={async () => {
+                if (onSyncWithSheet) {
+                  setSheetSyncingTop(true);
+                  const res = await onSyncWithSheet();
+                  setSheetSyncingTop(false);
+                  if (res?.success) {
+                    alert(`✅ Google Sheet Synced!\n• ${res.ordersCount} Orders loaded from Sheet 2\n• ${res.productsCount} Suits loaded from Sheet 1`);
+                  } else {
+                    alert(`❌ Sheet sync error: ${res?.error || 'Check Webhook URL in Settings'}`);
+                  }
+                }
+              }}
+              disabled={sheetSyncingTop}
+              className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md border border-emerald-400/80 transition-all cursor-pointer"
+              title="Read latest orders and products directly from Google Sheet"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${sheetSyncingTop ? 'animate-spin' : ''}`} />
+              <span>{sheetSyncingTop ? 'Reading Sheet...' : 'Sync Google Sheet'}</span>
+            </button>
 
             {onLogout && (
               <button
@@ -1632,28 +1668,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <button
                         type="button"
                         onClick={async () => {
-                          if (!settingsForm.googleSheetWebhookUrl) {
+                          const targetUrl = settingsForm.googleSheetWebhookUrl || settings.googleSheetWebhookUrl;
+                          if (!targetUrl) {
                             alert('❌ Please enter your Google Sheet Webhook URL first!');
                             return;
                           }
                           setSheetTesting(true);
+                          let sent = false;
+
+                          // 1. Try server endpoint
                           try {
                             const res = await fetch('/api/googlesheet/test', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
+                              body: JSON.stringify({ webhookUrl: targetUrl })
                             });
-                            const data = await res.json();
                             if (res.ok) {
+                              sent = true;
                               alert('🎉 Test row successfully sent to your Google Sheet!');
-                            } else {
-                              alert(`❌ Test failed: ${data.error}`);
                             }
                           } catch (e: any) {
-                            alert(`❌ Connection error: ${e.message}`);
-                          } finally {
-                            setSheetTesting(false);
+                            console.warn('Server test failed, trying direct browser sync:', e);
                           }
+
+                          // 2. Direct mobile client fallback
+                          if (!sent) {
+                            try {
+                              const testOrder: Order = {
+                                id: `BDH-TEST-${Date.now().toString().slice(-4)}`,
+                                utsNumber: 'TEST-123456',
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString(),
+                                customer: {
+                                  fullName: 'Mobile Phone Test Customer',
+                                  phone: '94171-24082',
+                                  address: 'Bus Stand Road, Maur Mandi, Punjab - 151509',
+                                  city: 'Maur Mandi',
+                                  state: 'Punjab',
+                                  pincode: '151509'
+                                },
+                                items: [],
+                                subtotal: 650,
+                                discount: 0,
+                                shippingFee: 0,
+                                totalAmount: 650,
+                                payment: { method: 'COD', paymentStatus: 'Pending', verifiedByAdmin: false },
+                                status: 'Pending'
+                              };
+                              const directRes = await syncOrderToGoogleSheets(testOrder, 'save_order', targetUrl);
+                              if (directRes.success) {
+                                alert('🎉 Direct mobile-to-Google Sheet test successful! Check Sheet 2 (Orders).');
+                              } else {
+                                alert(`❌ Test failed: ${directRes.error || 'Connection failed'}`);
+                              }
+                            } catch (err: any) {
+                              alert(`❌ Connection error: ${err?.message || 'Failed to send'}`);
+                            }
+                          }
+
+                          setSheetTesting(false);
                         }}
                         disabled={sheetTesting}
                         className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
@@ -1665,26 +1738,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <button
                         type="button"
                         onClick={async () => {
+                          const targetUrl = settingsForm.googleSheetWebhookUrl || settings.googleSheetWebhookUrl;
+                          if (!targetUrl) {
+                            alert('❌ Please enter your Google Sheet Webhook URL first!');
+                            return;
+                          }
                           setSheetSyncing(true);
+                          let synced = false;
+
+                          // 1. Try server sync
                           try {
                             const res = await fetch('/api/googlesheet/sync', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ webhookUrl: settingsForm.googleSheetWebhookUrl })
+                              body: JSON.stringify({ webhookUrl: targetUrl })
                             });
                             const data = await res.json();
                             if (res.ok) {
+                              synced = true;
                               alert(`✅ ${data.message || 'Synchronized with Google Sheets!'} (${data.productsCount} products, ${data.ordersCount} orders)`);
                               if (onSyncOrders) await onSyncOrders();
                               if (onSyncProducts) await onSyncProducts();
-                            } else {
-                              alert(`❌ Sync error: ${data.error}`);
                             }
                           } catch (e: any) {
-                            alert(`❌ Error syncing: ${e.message}`);
-                          } finally {
-                            setSheetSyncing(false);
+                            console.warn('Server sync failed, falling back to direct browser sync:', e);
                           }
+
+                          // 2. Direct mobile browser sync fallback
+                          if (!synced) {
+                            try {
+                              const result = await fetchGoogleSheetAll(targetUrl);
+                              if (result.success) {
+                                alert(`✅ Direct Mobile-to-Sheet Sync Successful! Loaded from Sheet 1 & 2.`);
+                                if (onSyncOrders) await onSyncOrders();
+                                if (onSyncProducts) await onSyncProducts();
+                              } else {
+                                alert(`❌ Sync warning: ${result.error || 'Failed to fetch from sheet'}`);
+                              }
+                            } catch (e: any) {
+                              alert(`❌ Error syncing: ${e.message}`);
+                            }
+                          }
+
+                          setSheetSyncing(false);
                         }}
                         disabled={sheetSyncing}
                         className="bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"

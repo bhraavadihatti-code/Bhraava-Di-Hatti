@@ -1,5 +1,83 @@
 [
   {
+    "id": "BDH-2026-96801",
+    "utsNumber": "cfgDS6q7wekj2",
+    "createdAt": "2026-09-25T09:15:08.167Z",
+    "updatedAt": "2026-09-25T09:26:51.654Z",
+    "customer": {
+      "fullName": "gfdyuiklm",
+      "phone": "fdsdfgkerghf4yt34246",
+      "email": "",
+      "address": "sdfghjk",
+      "city": "District Bathinda, Punjab",
+      "state": "Punjab",
+      "pincode": "151509",
+      "notes": ""
+    },
+    "items": [
+      {
+        "product": {
+          "id": "BDH-201",
+          "name": "Premium Digital Print Farshi Salwar Suit Material (Unstitched) - Ruaab Collection",
+          "firmName": "Jai Durga Cloth Emporium",
+          "shopName": "Bhraava Di Hatti",
+          "category": "Farshi Suit",
+          "price": 650,
+          "originalPrice": 899,
+          "description": "Step into elegance with our unstitched digital print Farshi Salwar fabric. Featuring classic, rich paisley and floral motifs, this versatile fabric is perfect for crafting a traditional Farshi Salwar, elegant kameez, or a custom ethnic ensemble.\n\nKey Features:\n• Intricate Digital Print: Beautifully detailed paisley patterns with a striking, heavy border design perfect for the hemline or dupatta.\n• Elegant Detailing: The main body of the fabric features a subtle tonal background with delicate, spaced-out teardrop motifs for a balanced look.\n• Versatile Styling: The coordinating dense all-over print allows for beautiful contrasting top-and-bottom combinations.\n• Multiple Colorways: Available in a stunning deep maroon/red, earthy brown, classic black, and vibrant teal.\n• Premium Quality: Sourced from the \"Ruaab\" brand collection, ensuring a high-quality finish for your custom tailoring.\n\n🚚 Free Delivery Included!",
+          "fabric": "Digital Print Farshi Fabric (Ruaab Collection)",
+          "workType": "Digital Print Paisley & Heavy Border",
+          "colors": [
+            "Deep Maroon",
+            "Deep Teal",
+            "Classic Black",
+            "Olive Brown"
+          ],
+          "sizes": [
+            "Unstitched Material (Suit Set)"
+          ],
+          "imageUrl": "/src/assets/images/ruaab_farshi_suit_1784952010247.jpg",
+          "images": [
+            "/src/assets/images/ruaab_farshi_suit_1784952010247.jpg",
+            "/src/assets/images/ruaab_suit_colors_1784952025641.jpg"
+          ],
+          "inStock": true,
+          "isBestSeller": true,
+          "isNewArrival": true,
+          "rating": 5,
+          "tags": [
+            "Punjabi Suit",
+            "Farshi Suit",
+            "Salwar Suit",
+            "Cotton Suit",
+            "Ruaab Collection",
+            "Free Delivery"
+          ]
+        },
+        "selectedColor": "Deep Maroon",
+        "selectedSize": "Unstitched Material (Suit Set)",
+        "quantity": 1
+      }
+    ],
+    "subtotal": 650,
+    "discount": 0,
+    "shippingFee": 99,
+    "totalAmount": 749,
+    "payment": {
+      "method": "UPI_QR",
+      "upiIdUsed": "boism-9417124082@boi",
+      "utrNumber": "cfgDS6q7wekj2",
+      "paymentTimestamp": "2026-09-25T09:15:08.167Z",
+      "verifiedByAdmin": true,
+      "paymentStatus": "Verified"
+    },
+    "status": "Delivered",
+    "courierName": "India Post (Speed Post)",
+    "trackingNumber": "1614151213171819",
+    "adminNotes": "",
+    "rejectionReason": ""
+  },
+  {
     "id": "BDH-2026-09687",
     "utsNumber": "",
     "createdAt": "2026-09-25T08:57:59.314Z",

@@ -21,6 +21,7 @@ import { CategoryAndPriceFilter, PriceFilterOption, SortOption } from './compone
 import { WishlistView } from './components/WishlistView';
 import { Footer } from './components/Footer';
 import { sendOrderTelegramNotification } from './utils/telegram';
+import { syncProductToGoogleSheets, syncOrderToGoogleSheets, fetchGoogleSheetAll } from './lib/googleSheetsService';
 import { Heart } from 'lucide-react';
 
 export default function App() {
@@ -152,36 +153,97 @@ export default function App() {
     }
   };
 
-  // Fetch initial data from server (central backend connected to Google Sheets)
+  // Fetch initial data from server with automatic Google Sheets direct fallback
   const fetchProducts = async () => {
+    let loadedFromServer = false;
     try {
       const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const serverData: Product[] = await res.json();
-        if (Array.isArray(serverData)) {
+        if (Array.isArray(serverData) && serverData.length > 0) {
           setProducts(serverData);
+          loadedFromServer = true;
         }
       }
     } catch (err) {
-      console.warn('Network fetching products from central server:', err);
+      console.warn('Network fetching products from server:', err);
+    }
+
+    // Direct Google Sheets fallback (for mobile phones)
+    if (!loadedFromServer) {
+      const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
+      if (webhookUrl) {
+        try {
+          const sheetResult = await fetchGoogleSheetAll(webhookUrl);
+          if (sheetResult.success && sheetResult.products && sheetResult.products.length > 0) {
+            setProducts(sheetResult.products);
+          }
+        } catch (e) {
+          console.warn('Google Sheet direct fetch fallback:', e);
+        }
+      }
     }
   };
 
   const fetchOrders = async () => {
+    let loadedFromServer = false;
     try {
       const res = await fetch(`/api/orders?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const serverData: Order[] = await res.json();
         if (Array.isArray(serverData)) {
-          // Sort orders newest first
           const sorted = [...serverData].sort(
             (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
           );
           setOrders(sorted);
+          loadedFromServer = true;
         }
       }
     } catch (err) {
-      console.warn('Network fetching orders from central server:', err);
+      console.warn('Network fetching orders from server:', err);
+    }
+
+    // Direct Google Sheets fallback (for mobile phones)
+    if (!loadedFromServer) {
+      const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
+      if (webhookUrl) {
+        try {
+          const sheetResult = await fetchGoogleSheetAll(webhookUrl);
+          if (sheetResult.success && sheetResult.orders && sheetResult.orders.length > 0) {
+            const sorted = [...sheetResult.orders].sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            setOrders(sorted);
+          }
+        } catch (e) {
+          console.warn('Google Sheet direct orders fetch fallback:', e);
+        }
+      }
+    }
+  };
+
+  // Full direct sync with Google Sheets (Sheet 1: Products, Sheet 2: Orders)
+  const syncWithGoogleSheet = async () => {
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
+    if (!webhookUrl) return { success: false, error: 'Webhook URL not set' };
+    try {
+      const res = await fetchGoogleSheetAll(webhookUrl);
+      if (res.success) {
+        if (Array.isArray(res.products) && res.products.length > 0) {
+          setProducts(res.products);
+        }
+        if (Array.isArray(res.orders) && res.orders.length > 0) {
+          const sorted = [...res.orders].sort(
+            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          );
+          setOrders(sorted);
+        }
+        return { success: true, productsCount: res.products?.length || 0, ordersCount: res.orders?.length || 0 };
+      }
+      return { success: false, error: res.error };
+    } catch (e: any) {
+      console.warn('Direct Google Sheet sync error:', e);
+      return { success: false, error: e?.message };
     }
   };
 
@@ -201,6 +263,8 @@ export default function App() {
     fetchProducts();
     fetchOrders();
     fetchSettings();
+    // Direct Google Sheet sync on app launch
+    syncWithGoogleSheet();
 
     // Auto-reconnecting Real-time EventSource listener for cross-device sync
     let eventSource: EventSource | null = null;
@@ -392,11 +456,28 @@ export default function App() {
   // Admin Actions
   const handleUpdateOrderStatus = async (orderId: string, payload: any) => {
     // 1. Optimistic update state immediately
+    const existing = orders.find((o) => o.id === orderId);
+    const updatedOrder = existing ? { ...existing, ...payload, updatedAt: new Date().toISOString() } : null;
+
     setOrders((prev) => {
       return prev.map((o) => (o.id === orderId ? { ...o, ...payload, updatedAt: new Date().toISOString() } : o));
     });
 
-    // 2. Central Server & Google Sheets API call
+    // 2. Direct mobile client-to-Google Sheets pipeline
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+    if (webhookUrl && updatedOrder) {
+      let action: any = 'update_order';
+      const s = String(payload.status || '').toLowerCase();
+      if (s.includes('confirm')) action = 'confirm_order';
+      else if (s.includes('reject') || s.includes('cancel')) action = 'reject_order';
+      else if (s.includes('ship') || payload.trackingNumber) action = 'ship_order';
+
+      syncOrderToGoogleSheets(updatedOrder, action, webhookUrl).catch((err) => {
+        console.warn('Direct client order status update to Google Sheets:', err);
+      });
+    }
+
+    // 3. Central Server API call
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PUT',
@@ -413,6 +494,14 @@ export default function App() {
   };
 
   const handleAddProduct = async (product: Product) => {
+    // 1. Direct mobile client-to-Google Sheets pipeline (guaranteed from any mobile phone)
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+    if (webhookUrl) {
+      syncProductToGoogleSheets(product, 'save_product', webhookUrl).catch((err) => {
+        console.warn('Direct client product save to Google Sheets:', err);
+      });
+    }
+
     try {
       // Optimistic update state immediately
       setProducts((prev) => {
@@ -436,12 +525,23 @@ export default function App() {
       }
       fetchProducts();
     } catch (e: any) {
-      console.error('Add product error:', e);
+      console.error('Add product error (direct Google Sheet sync already triggered):', e);
       fetchProducts();
     }
   };
 
   const handleUpdateProduct = async (id: string, updated: Partial<Product>) => {
+    const existing = products.find(p => p.id === id);
+    const mergedProduct = existing ? { ...existing, ...updated } : (updated as Product);
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+
+    // Direct mobile client-to-Google Sheets pipeline
+    if (webhookUrl && mergedProduct.id) {
+      syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl).catch((err) => {
+        console.warn('Direct client product update to Google Sheets:', err);
+      });
+    }
+
     try {
       setProducts((prev) => {
         return prev.map(p => p.id === id ? { ...p, ...updated } : p);
@@ -460,6 +560,16 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id: string) => {
+    const existing = products.find(p => p.id === id);
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+
+    // Direct mobile client-to-Google Sheets pipeline
+    if (webhookUrl && existing) {
+      syncProductToGoogleSheets(existing, 'delete_product', webhookUrl).catch((err) => {
+        console.warn('Direct client product delete to Google Sheets:', err);
+      });
+    }
+
     try {
       setProducts((prev) => {
         return prev.filter(p => p.id !== id);
@@ -552,6 +662,7 @@ export default function App() {
             onLogout={handleAdminLogout}
             onSyncOrders={fetchOrders}
             onSyncProducts={fetchProducts}
+            onSyncWithSheet={syncWithGoogleSheet}
           />
         ) : activeView === 'wishlist' ? (
           <WishlistView
@@ -768,6 +879,7 @@ export default function App() {
         isOpen={trackerModalOpen}
         onClose={() => setTrackerModalOpen(false)}
         initialQuery={trackerQuery}
+        webhookUrl={settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl}
       />
 
     </div>

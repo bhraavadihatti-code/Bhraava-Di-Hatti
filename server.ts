@@ -235,7 +235,7 @@ function loadSettings(): ShopSettings {
             parsed.upiId = DEFAULT_SHOP_SETTINGS.upiId;
           }
           if (!parsed.googleSheetWebhookUrl) {
-            parsed.googleSheetWebhookUrl = process.env.GOOGLE_SHEET_WEBHOOK_URL || "https://script.google.com/macros/s/AKfycbxoIXICrDxONN81CJHKqzGKzQVsNjVZeQUggeaefkQx_z27vTHk20LOZ8M1lFrrTsLd/exec";
+            parsed.googleSheetWebhookUrl = process.env.GOOGLE_SHEET_WEBHOOK_URL || "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec";
           }
           cachedSettings = parsed;
           return cachedSettings;

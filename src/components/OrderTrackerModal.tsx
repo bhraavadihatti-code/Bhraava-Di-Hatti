@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
 import { X, Search, Truck, ExternalLink, Copy, Check, AlertTriangle, Package, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { fetchGoogleSheetAll } from '../lib/googleSheetsService';
+import { DEFAULT_SHOP_SETTINGS } from '../data/initialProducts';
 
 interface OrderTrackerModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialQuery?: string;
+  webhookUrl?: string;
 }
 
 export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   isOpen,
   onClose,
-  initialQuery = ''
+  initialQuery = '',
+  webhookUrl = DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl
 }) => {
   if (!isOpen) return null;
 
@@ -21,37 +25,68 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   const [searched, setSearched] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Fetch orders directly from central backend (backed by Google Sheets)
+  // Fetch orders directly from Google Sheets (Sheet 2)
   const fetchOrders = async (searchStr: string) => {
     setLoading(true);
     setSearched(true);
 
-    try {
-      const endpoint = (!searchStr.trim() || searchStr.trim().toLowerCase() === 'all')
-        ? `/api/orders?t=${Date.now()}`
-        : `/api/orders/track/${encodeURIComponent(searchStr.trim())}?t=${Date.now()}`;
-      
-      const res = await fetch(endpoint, { cache: 'no-store' });
-      if (res.ok) {
-        const data: Order[] = await res.json();
-        if (Array.isArray(data)) {
-          // Sort newest first
-          const sorted = [...data].sort(
+    const term = (searchStr || '').trim().toLowerCase();
+    let loadedFromSheet = false;
+
+    // 1. Primary: Direct fetch from Google Sheet Sheet 2
+    if (webhookUrl) {
+      try {
+        const sheetResult = await fetchGoogleSheetAll(webhookUrl);
+        if (sheetResult.success && Array.isArray(sheetResult.orders)) {
+          let matched = sheetResult.orders;
+          if (term && term !== 'all') {
+            matched = matched.filter((o) => {
+              const idMatch = (o.id || '').toLowerCase().includes(term);
+              const phoneMatch = (o.customer?.phone || '').includes(term);
+              const utsMatch = (o.utsNumber || '').toLowerCase().includes(term);
+              const nameMatch = (o.customer?.fullName || '').toLowerCase().includes(term);
+              return idMatch || phoneMatch || utsMatch || nameMatch;
+            });
+          }
+          const sorted = matched.sort(
             (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
           );
           setOrders(sorted);
+          loadedFromSheet = true;
+        }
+      } catch (sheetErr) {
+        console.warn('Order tracker Google Sheet fetch error:', sheetErr);
+      }
+    }
+
+    // 2. Server fallback if sheet returned nothing
+    if (!loadedFromSheet) {
+      try {
+        const endpoint = (!term || term === 'all')
+          ? `/api/orders?t=${Date.now()}`
+          : `/api/orders/track/${encodeURIComponent(term)}?t=${Date.now()}`;
+        
+        const res = await fetch(endpoint, { cache: 'no-store' });
+        if (res.ok) {
+          const data: Order[] = await res.json();
+          if (Array.isArray(data)) {
+            const sorted = [...data].sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            setOrders(sorted);
+          } else {
+            setOrders([]);
+          }
         } else {
           setOrders([]);
         }
-      } else {
+      } catch (e) {
+        console.warn('Track API fetch error:', e);
         setOrders([]);
       }
-    } catch (e) {
-      console.warn('Track API fetch error:', e);
-      setOrders([]);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {

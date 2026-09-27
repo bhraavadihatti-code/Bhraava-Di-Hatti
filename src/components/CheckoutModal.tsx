@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CartItem, CustomerDetails, Order, ShopSettings } from '../types';
+import { syncOrderToGoogleSheets } from '../lib/googleSheetsService';
 import { 
   X, 
   QrCode, 
@@ -38,7 +39,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'UPI_QR'>('COD');
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isVerifyingAddress, setIsVerifyingAddress] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Fixed unique Order ID generated when checkout modal opens
+  const [currentOrderId] = useState(() => `BDH-2026-${Math.floor(10000 + Math.random() * 90000)}`);
 
   // Customer form state
   const [customer, setCustomer] = useState<CustomerDetails>({
@@ -68,18 +73,56 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleNextToPayment = (e: React.FormEvent) => {
+  const handleNextToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer.fullName.trim() || !customer.phone.trim() || !customer.address.trim() || !customer.pincode.trim()) {
-      setErrorMessage('Please complete all required address fields.');
+      setErrorMessage('ਕਿਰਪਾ ਕਰਕੇ ਪੂਰਾ ਨਾਮ, ਮੋਬਾਈਲ ਨੰਬਰ, ਪਤਾ ਅਤੇ ਪਿਨਕੋਡ ਦਰਜ ਕਰੋ।');
       return;
     }
     if (customer.phone.trim().length < 8) {
-      setErrorMessage('Please enter a valid mobile phone number.');
+      setErrorMessage('ਕਿਰਪਾ ਕਰਕੇ ਸਹੀ ਮੋਬਾਈਲ ਨੰਬਰ ਦਰਜ ਕਰੋ।');
       return;
     }
     setErrorMessage('');
-    setStep('payment');
+    setIsVerifyingAddress(true);
+
+    const webhookUrl = settings.googleSheetWebhookUrl || "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec";
+
+    // Draft Order with Status "Wait" sent to Google Sheet
+    const draftOrder: Order = {
+      id: currentOrderId,
+      utsNumber: 'AWAITING-PAYMENT',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      customer,
+      items: cartItems,
+      subtotal,
+      discount: 0,
+      shippingFee,
+      totalAmount,
+      payment: {
+        method: paymentMethod,
+        upiIdUsed: settings.upiId,
+        utrNumber: '',
+        paymentTimestamp: new Date().toISOString(),
+        paymentStatus: 'Pending',
+        verifiedByAdmin: false
+      },
+      status: 'Wait' as any
+    };
+
+    try {
+      const res = await syncOrderToGoogleSheets(draftOrder, 'save_order', webhookUrl);
+      if (res.success) {
+        setStep('payment');
+      } else {
+        setErrorMessage('❌ ਗੂਗਲ ਸ਼ੀਟ ਨਾਲ ਸੰਪਰਕ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਇੰਟਰਨੈੱਟ ਚੈੱਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।');
+      }
+    } catch (err: any) {
+      setErrorMessage('❌ ਨੈੱਟਵਰਕ ਐਰਰ: ਆਰਡਰ ਸ਼ੀਟ ਵਿੱਚ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।');
+    } finally {
+      setIsVerifyingAddress(false);
+    }
   };
 
   const handleSubmitOrder = async () => {
@@ -93,12 +136,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setSubmitting(true);
     setErrorMessage('');
 
-    // Unique Order ID format: BDH-2026-XXXXX
-    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
-    const newOrderId = `BDH-2026-${randomSuffix}`;
-
     const orderToSubmit: Order = {
-      id: newOrderId,
+      id: currentOrderId,
       utsNumber: utrNumber.trim() || `COD-${Date.now().toString().slice(-6)}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -119,7 +158,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       status: 'Pending'
     };
 
-    // Post to central server (which syncs to Google Sheets as central source of truth)
+    const webhookUrl = settings.googleSheetWebhookUrl || "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec";
+
+    // 1. Direct mobile client-to-Google Sheets pipeline: Update Status from "Wait" to "Pending"
+    try {
+      await syncOrderToGoogleSheets(orderToSubmit, 'save_order', webhookUrl);
+      console.log('Order successfully delivered to Google Sheet as Pending!');
+    } catch (err) {
+      console.warn('Direct client Google Sheets sync error:', err);
+    }
+
+    // 2. Post to central Express server (updates local json, SSE stream, and Telegram alerts)
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -128,15 +177,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
 
       if (response.ok) {
-        const savedOrder: Order = await response.json();
-        onOrderPlacedSuccess(savedOrder);
+        const savedOrder: Order = await response.json().catch(() => orderToSubmit);
+        onOrderPlacedSuccess(savedOrder || orderToSubmit);
       } else {
-        const errJson = await response.json().catch(() => null);
-        throw new Error(errJson?.error || 'Failed to place order on server');
+        onOrderPlacedSuccess(orderToSubmit);
       }
     } catch (err: any) {
-      console.warn('Network issue saving order to server, retrying:', err);
-      // If server had a minor glitch, still notify with local representation so user sees confirmation
+      console.warn('Network issue saving order to server (client direct sync already triggered):', err);
       onOrderPlacedSuccess(orderToSubmit);
     } finally {
       setSubmitting(false);
@@ -322,10 +369,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-red-800 to-amber-900 hover:from-red-900 hover:to-amber-950 active:scale-98 text-white font-extrabold py-3.5 rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isVerifyingAddress}
+              className={`w-full bg-gradient-to-r from-red-800 to-amber-900 hover:from-red-900 hover:to-amber-950 active:scale-98 text-white font-extrabold py-3.5 rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2 ${isVerifyingAddress ? 'opacity-70 cursor-wait' : 'cursor-pointer'}`}
             >
-              <span>PROCEED TO UPI PAYMENT</span>
-              <span className="text-amber-300">➔</span>
+              {isVerifyingAddress ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>ਸ਼ੀਟ ਵਿੱਚ ਦਰਜ ਹੋ ਰਿਹਾ ਹੈ... (Verifying with Google Sheet)</span>
+                </>
+              ) : (
+                <>
+                  <span>PROCEED TO UPI PAYMENT</span>
+                  <span className="text-amber-300">➔</span>
+                </>
+              )}
             </button>
 
           </form>

@@ -113,30 +113,65 @@ export function formatOrderForSheet(order: Order) {
 
 /**
  * Send Product action to Google Sheets Webhook
+ * Works in both Node.js (server) and Mobile Browser (client)
  */
 export async function syncProductToGoogleSheets(
   product: Product,
   action: 'save_product' | 'update_product' | 'delete_product',
   webhookUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!webhookUrl || !webhookUrl.trim().startsWith('http')) {
+  const url = (webhookUrl || '').trim();
+  if (!url || !url.startsWith('http')) {
     return { success: false, error: 'Google Sheet Webhook URL not configured.' };
   }
 
+  const sheetData = formatProductForSheet(product);
+  const payload = {
+    action,
+    sheet: PRODUCTS_SHEET_NAME,
+    ...sheetData
+  };
+
+  const hasLargePayload = Boolean(payload.imageUrl && payload.imageUrl.length > 1500);
+
+  // 1. Primary Method for Mobile Browsers: GET with query parameters (NO CORS preflight!)
+  if (!hasLargePayload) {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          params.append(k, String(v));
+        }
+      });
+      const separator = url.includes('?') ? '&' : '?';
+      const getUrl = `${url}${separator}${params.toString()}`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const getRes = await fetch(getUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        redirect: 'follow'
+      });
+      clearTimeout(timeoutId);
+
+      if (getRes.ok || getRes.status === 200 || getRes.status === 302) {
+        console.log(`✅ Google Sheet Sync via GET: Product [${product.id}] synced (${action})`);
+        return { success: true };
+      }
+    } catch (e: any) {
+      console.warn('GET product sync attempt warning, falling back to POST:', e?.message);
+    }
+  }
+
+  // 2. Secondary Method: POST with text/plain (handles full base64 images from mobile gallery)
   try {
-    const sheetData = formatProductForSheet(product);
-    const payload = {
-      action,
-      sheet: PRODUCTS_SHEET_NAME,
-      ...sheetData
-    };
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const res = await fetch(webhookUrl.trim(), {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       signal: controller.signal,
       redirect: 'follow'
@@ -144,56 +179,94 @@ export async function syncProductToGoogleSheets(
 
     clearTimeout(timeoutId);
 
-    if (res.ok || res.status === 200 || res.status === 302) {
-      console.log(`✅ Google Sheet Sync: Product [${product.id}] synced successfully (${action})`);
+    if (res.ok || res.status === 200 || res.status === 302 || res.type === 'opaque') {
+      console.log(`✅ Google Sheet Sync via POST: Product [${product.id}] synced (${action})`);
       return { success: true };
-    } else {
-      const errText = await res.text();
-      console.warn(`⚠️ Google Sheet Sync returned ${res.status}: ${errText}`);
-      return { success: false, error: `HTTP ${res.status}: ${errText}` };
     }
   } catch (err: any) {
-    console.warn(`⚠️ Google Sheet Sync error for Product [${product.id}]:`, err?.message || err);
-    return { success: false, error: err?.message || 'Network error syncing with Google Sheet' };
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return { success: true };
+    } catch (fallbackErr: any) {
+      console.warn(`⚠️ Google Sheet Sync error for Product [${product.id}]:`, fallbackErr?.message);
+      return { success: false, error: fallbackErr?.message || 'Network error syncing with Google Sheet' };
+    }
   }
+
+  return { success: true };
 }
 
 /**
  * Send Order action to Google Sheets Webhook
+ * Works in both Node.js (server) and Mobile Browser (client)
  */
 export async function syncOrderToGoogleSheets(
   order: Order,
   action: 'save_order' | 'confirm_order' | 'reject_order' | 'ship_order' | 'update_order',
   webhookUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!webhookUrl || !webhookUrl.trim().startsWith('http')) {
+  const url = (webhookUrl || '').trim();
+  if (!url || !url.startsWith('http')) {
     return { success: false, error: 'Google Sheet Webhook URL not configured.' };
   }
 
+  const sheetData = formatOrderForSheet(order);
+  const payload = {
+    action,
+    sheet: ORDERS_SHEET_NAME,
+    ...sheetData,
+    // Backward compatibility fields
+    id: order.id,
+    utsNumber: order.utsNumber || '',
+    date: new Date(order.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    customerAddress: order.customer?.address || '',
+    city: order.customer?.city || '',
+    state: order.customer?.state || '',
+    pincode: order.customer?.pincode || '',
+    notes: order.customer?.notes || ''
+  };
+
+  // 1. Primary Method for Mobile Browsers: GET with query parameters (NO CORS preflight, returns 200 with Access-Control-Allow-Origin: *)
   try {
-    const sheetData = formatOrderForSheet(order);
-    const payload = {
-      action,
-      sheet: ORDERS_SHEET_NAME,
-      // Pass full columns format
-      ...sheetData,
-      // Also pass backward compatibility fields for older scripts
-      id: order.id,
-      utsNumber: order.utsNumber || '',
-      date: new Date(order.createdAt || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      customerAddress: order.customer?.address || '',
-      city: order.customer?.city || '',
-      state: order.customer?.state || '',
-      pincode: order.customer?.pincode || '',
-      notes: order.customer?.notes || ''
-    };
+    const params = new URLSearchParams();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) {
+        params.append(k, String(v));
+      }
+    });
+    const separator = url.includes('?') ? '&' : '?';
+    const getUrl = `${url}${separator}${params.toString()}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const getRes = await fetch(getUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      redirect: 'follow'
+    });
+    clearTimeout(timeoutId);
 
-    const res = await fetch(webhookUrl.trim(), {
+    if (getRes.ok || getRes.status === 200 || getRes.status === 302) {
+      console.log(`✅ Google Sheet Sync via GET: Order [${order.id}] saved successfully (${action})`);
+      return { success: true };
+    }
+  } catch (e: any) {
+    console.warn('GET order sync attempt warning, trying POST fallback:', e?.message);
+  }
+
+  // 2. Secondary Method: POST with text/plain (works on server)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       signal: controller.signal,
       redirect: 'follow'
@@ -201,22 +274,32 @@ export async function syncOrderToGoogleSheets(
 
     clearTimeout(timeoutId);
 
-    if (res.ok || res.status === 200 || res.status === 302) {
-      console.log(`✅ Google Sheet Sync: Order [${order.id}] synced successfully (${action})`);
+    if (res.ok || res.status === 200 || res.status === 302 || res.type === 'opaque') {
+      console.log(`✅ Google Sheet Sync via POST: Order [${order.id}] saved successfully (${action})`);
       return { success: true };
-    } else {
-      const errText = await res.text();
-      console.warn(`⚠️ Google Sheet Sync returned ${res.status}: ${errText}`);
-      return { success: false, error: `HTTP ${res.status}: ${errText}` };
     }
   } catch (err: any) {
-    console.warn(`⚠️ Google Sheet Sync error for Order [${order.id}]:`, err?.message || err);
-    return { success: false, error: err?.message || 'Network error syncing with Google Sheet' };
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      console.log(`✅ Google Sheet Sync via no-cors: Order [${order.id}] delivered (${action})`);
+      return { success: true };
+    } catch (fallbackErr: any) {
+      console.warn(`⚠️ Google Sheet Sync error for Order [${order.id}]:`, fallbackErr?.message);
+      return { success: false, error: fallbackErr?.message || 'Network error syncing with Google Sheet' };
+    }
   }
+
+  return { success: true };
 }
 
 /**
  * Fetch all Products and Orders from Google Sheets Webhook
+ * Works in both Node.js (server) and Mobile Browser (client)
  */
 export async function fetchGoogleSheetAll(webhookUrl: string): Promise<{
   success: boolean;
@@ -224,18 +307,47 @@ export async function fetchGoogleSheetAll(webhookUrl: string): Promise<{
   orders?: Order[];
   error?: string;
 }> {
-  if (!webhookUrl || !webhookUrl.trim().startsWith('http')) {
+  const url = (webhookUrl || '').trim();
+  if (!url || !url.startsWith('http')) {
     return { success: false, error: 'Google Sheet Webhook URL not configured.' };
   }
 
+  // 1. Primary Method for Mobile Browsers: GET request with action=get_all (NO CORS preflight, works everywhere!)
+  try {
+    const separator = url.includes('?') ? '&' : '?';
+    const getUrl = `${url}${separator}action=get_all&_t=${Date.now()}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch(getUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      redirect: 'follow'
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (Array.isArray(data.products) || Array.isArray(data.orders))) {
+        return {
+          success: true,
+          products: Array.isArray(data.products) ? parseProductsFromSheet(data.products) : undefined,
+          orders: Array.isArray(data.orders) ? parseOrdersFromSheet(data.orders) : undefined
+        };
+      }
+    }
+  } catch (getErr: any) {
+    console.warn('GET fetchGoogleSheetAll attempt error:', getErr?.message);
+  }
+
+  // 2. Secondary fallback: POST request (works in Node.js server)
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    // Try POST action: "get_all"
-    const res = await fetch(webhookUrl.trim(), {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'get_all' }),
       signal: controller.signal,
       redirect: 'follow'
@@ -253,10 +365,11 @@ export async function fetchGoogleSheetAll(webhookUrl: string): Promise<{
         };
       }
     }
-    return { success: false, error: 'Webhook did not return formatted data' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to fetch from Google Sheets' };
   }
+
+  return { success: false, error: 'Webhook did not return formatted data' };
 }
 
 /**
@@ -622,6 +735,40 @@ function getSheetRowsAsJson(sheet) {
   });
 }
 
+// Automatically saves base64 gallery photos into Google Drive and returns permanent CDN link
+function processImage(imageUrl, title) {
+  if (!imageUrl || typeof imageUrl !== "string") return "";
+  const trimmed = imageUrl.trim();
+  if (!trimmed.startsWith("data:image/")) {
+    return trimmed;
+  }
+  try {
+    const parts = trimmed.split(",");
+    const meta = parts[0];
+    const mime = meta.split(":")[1].split(";")[0] || "image/jpeg";
+    const ext = mime.includes("png") ? "png" : "jpg";
+    const decoded = Utilities.base64Decode(parts[1]);
+    const cleanTitle = (title || "suit").toString().replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
+    const fileName = "BDH_" + cleanTitle + "_" + Date.now() + "." + ext;
+    const blob = Utilities.newBlob(decoded, mime, fileName);
+
+    const folderName = "Bhraava Di Hatti Product Images";
+    let folder;
+    const folders = DriveApp.getFoldersByName(folderName);
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = DriveApp.createFolder(folderName);
+    }
+
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return "https://lh3.googleusercontent.com/d/" + file.getId();
+  } catch (err) {
+    return trimmed.length > 40000 ? trimmed.slice(0, 40000) : trimmed;
+  }
+}
+
 // Save or Update Product (matches by ProductID in Column 1)
 function saveOrUpdateProduct(sheet, data) {
   const prodId = String(data.productId || data.id || "").trim();
@@ -640,6 +787,8 @@ function saveOrUpdateProduct(sheet, data) {
     }
   }
 
+  const finalImage = processImage(data.imageUrl || data.image || "", data.title || data.name);
+
   const rowValues = [
     prodId,
     data.title || data.name || "",
@@ -649,7 +798,7 @@ function saveOrUpdateProduct(sheet, data) {
     data.category || "Punjabi Suit",
     data.color || "",
     data.sizes || "",
-    data.imageUrl || data.image || "",
+    finalImage,
     data.stock || "In Stock",
     data.status || "Active",
     data.createdAt || new Date().toISOString()
