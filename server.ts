@@ -12,6 +12,7 @@ import {
   formatProductForSheet,
   formatOrderForSheet
 } from './src/lib/googleSheetsService.js';
+import { formatImageUrl } from './src/lib/imageUtils.js';
 
 const app = express();
 const PORT = 3000;
@@ -52,49 +53,14 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Serve uploaded images statically
+// Serve uploaded images and static assets
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/src/assets', express.static(path.join(process.cwd(), 'src', 'assets')));
 
 // Helpers for file reading/writing and image storage
 function cleanImageUrl(url: string): string {
   if (!url) return '';
-  const trimmed = url.trim();
-
-  // Repair previously truncated 40,000-char base64 strings from older Google Sheet rows
-  if (trimmed.startsWith('data:image/jpeg;base64,')) {
-    const prefix = 'data:image/jpeg;base64,';
-    const b64 = trimmed.slice(prefix.length);
-    if (trimmed.length === 40000 || b64.length % 4 === 1) {
-      const validLen = b64.length - (b64.length % 4);
-      const alignedB64 = b64.slice(0, validLen);
-      if (!alignedB64.endsWith('/9k=')) {
-        return `${prefix}${alignedB64}/9k=`;
-      }
-      return `${prefix}${alignedB64}`;
-    }
-    return trimmed;
-  }
-
-  // Convert Google Drive share URLs into direct CDN image links
-  const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (driveFileMatch && driveFileMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}`;
-  }
-  const driveIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc|thumbnail)\?.*id=([a-zA-Z0-9_-]+)/);
-  if (driveIdMatch && driveIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
-  }
-
-  const kommodoMatch = trimmed.match(/kommodo\.ai\/i\/([a-zA-Z0-9_-]+)/);
-  if (kommodoMatch) {
-    const id = kommodoMatch[1];
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    return `https://plain-apac-prod-public.komododecks.com/${yyyy}${mm}/${dd}/${id}/image.png`;
-  }
-  return trimmed;
+  return formatImageUrl(url);
 }
 
 /**
@@ -452,9 +418,31 @@ app.post('/api/upload-image', (req, res) => {
   }
 });
 
-// Products API
+// Lightweight version check so clients don't re-download large base64 payloads unnecessarily
+app.get('/api/products/version', (req, res) => {
+  const products = loadProducts();
+  const signature = products.map(p => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`).join('|');
+  res.json({
+    count: products.length,
+    signature
+  });
+});
+
+// Products API (supports optional ?limit=&offset= pagination)
 app.get('/api/products', (req, res) => {
   const products = loadProducts();
+  const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 0;
+  const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
+
+  if (limit > 0) {
+    const sliced = products.slice(offset, offset + limit);
+    return res.json({
+      products: sliced,
+      total: products.length,
+      hasMore: offset + limit < products.length
+    });
+  }
+
   res.json(products);
 });
 
@@ -1063,17 +1051,35 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Bhraava Di Hatti - Jai Durga Cloth Emporium server running on http://0.0.0.0:${PORT}`);
     
-    // Initial Google Sheets background sync check
-    const settings = loadSettings();
-    const webhook = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
-    if (webhook) {
-      fetchGoogleSheetAll(webhook).then(res => {
+    const syncSheetToServer = async () => {
+      try {
+        const settings = loadSettings();
+        const webhook = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
+        if (!webhook) return;
+
+        const res = await fetchGoogleSheetAll(webhook);
         if (res.success && res.products && res.products.length > 0) {
-          console.log(`✅ Loaded ${res.products.length} products from Google Sheets`);
-          saveProducts(res.products);
+          const current = loadProducts();
+          const currentSig = current.map(p => `${p.id}:${p.name}:${p.price}:${(p.imageUrl || '').length}`).join('|');
+          const nextProducts = res.products.map(p => ({
+            ...p,
+            imageUrl: cleanImageUrl(p.imageUrl),
+            images: [cleanImageUrl(p.imageUrl)]
+          }));
+          const nextSig = nextProducts.map(p => `${p.id}:${p.name}:${p.price}:${(p.imageUrl || '').length}`).join('|');
+
+          if (currentSig !== nextSig) {
+            console.log(`✅ Synced ${nextProducts.length} products from Google Sheets`);
+            saveProducts(nextProducts);
+            broadcastSSE({ type: 'PRODUCTS_UPDATED', products: nextProducts });
+          }
         }
-      }).catch(() => {});
-    }
+      } catch {}
+    };
+
+    // Initial Google Sheets background sync check + periodic 30s server-side sync
+    syncSheetToServer();
+    setInterval(syncSheetToServer, 30000);
   });
 }
 

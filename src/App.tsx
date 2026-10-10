@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Product, 
   CartItem, 
@@ -11,18 +11,19 @@ import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
-import { CartDrawer } from './components/CartDrawer';
-import { CheckoutModal } from './components/CheckoutModal';
-import { OrderSuccessModal } from './components/OrderSuccessModal';
-import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { AdminPanel } from './components/AdminPanel';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
-import { CategoryAndPriceFilter, PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
+import { PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
 import { WishlistView } from './components/WishlistView';
 import { Footer } from './components/Footer';
 import { sendOrderTelegramNotification } from './utils/telegram';
 import { syncProductToGoogleSheets, syncOrderToGoogleSheets, fetchGoogleSheetAll } from './lib/googleSheetsService';
-import { Heart, MapPin, Phone, MessageCircle, Clock, Store, Navigation } from 'lucide-react';
+import { formatImageUrl } from './lib/imageUtils';
+import { Heart, MapPin, Phone, MessageCircle, Clock, Store, Navigation, Loader2 } from 'lucide-react';
+
+const PRODUCTS_CACHE_KEY = 'bdh_products_cache_v2';
+const INITIAL_VISIBLE_COUNT = 2;
+const SCROLL_BATCH_SIZE = 2;
 
 export default function App() {
   // App view mode
@@ -30,8 +31,33 @@ export default function App() {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
 
-  // Core Data State - Google Sheets / Backend is Central Source of Truth
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  // Core Data State - Initialize from localStorage cache for 0ms instant open
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return INITIAL_PRODUCTS;
+  });
+
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return false;
+      }
+    } catch {}
+    return true;
+  });
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<ShopSettings>(DEFAULT_SHOP_SETTINGS);
 
@@ -40,6 +66,12 @@ export default function App() {
   const [priceFilter, setPriceFilter] = useState<PriceFilterOption>('all');
   const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Progressive / Infinite Scroll State (loads products gradually on scroll like Meesho/Flipkart)
+  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const lastProductSignatureRef = useRef<string>('');
 
   // Cart State
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
@@ -69,13 +101,17 @@ export default function App() {
 
   // Modal & Notification States
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([]);
-  const [placedOrderSuccess, setPlacedOrderSuccess] = useState<Order | null>(null);
-  const [trackerModalOpen, setTrackerModalOpen] = useState(false);
-  const [trackerQuery, setTrackerQuery] = useState('');
-  const [addedToastItem, setAddedToastItem] = useState<{ product: Product; selectedColor: string; selectedSize: string; quantity: number } | null>(null);
+
+  // Persist products cache in localStorage for instant future opens
+  useEffect(() => {
+    if (products && products.length > 0) {
+      try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(products));
+      } catch {
+        // ignore quota errors
+      }
+    }
+  }, [products]);
 
   // Save cart to LocalStorage
   useEffect(() => {
@@ -138,19 +174,19 @@ export default function App() {
     setTimeout(() => setWishlistToast(null), 2500);
   };
 
-  const handleAddAllWishlistToCart = (suitsToAdd: Product[]) => {
-    let addedCount = 0;
-    suitsToAdd.forEach((product) => {
-      if (product.inStock) {
-        const defaultColor = product.colors[0] || 'Standard';
-        const defaultSize = product.sizes[0] || 'Free Size (Unstitched)';
-        handleAddToCart(product, defaultColor, defaultSize, 1);
-        addedCount++;
-      }
+  // Normalize product list images before setting state
+  const normalizeProductList = (list: Product[]): Product[] => {
+    return list.map((p) => {
+      const cleanMain = formatImageUrl(p.imageUrl || '');
+      const cleanImgs = Array.isArray(p.images) && p.images.length > 0
+        ? p.images.map((img) => formatImageUrl(img || '')).filter(Boolean)
+        : [cleanMain].filter(Boolean);
+      return {
+        ...p,
+        imageUrl: cleanMain,
+        images: cleanImgs.length > 0 ? cleanImgs : [cleanMain]
+      };
     });
-    if (addedCount > 0) {
-      setIsCartOpen(true);
-    }
   };
 
   // Fetch initial data from server with automatic Google Sheets direct fallback
@@ -161,27 +197,50 @@ export default function App() {
       if (res.ok) {
         const serverData: Product[] = await res.json();
         if (Array.isArray(serverData) && serverData.length > 0) {
-          setProducts(serverData);
+          const normalized = normalizeProductList(serverData);
+          const sig = normalized.map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`).join('|');
+          if (sig !== lastProductSignatureRef.current) {
+            lastProductSignatureRef.current = sig;
+            setProducts(normalized);
+          }
           loadedFromServer = true;
+          setIsInitialLoading(false);
         }
       }
     } catch (err) {
       console.warn('Network fetching products from server:', err);
     }
 
-    // Direct Google Sheets fallback (for mobile phones)
+    // Direct Google Sheets fallback (only if server had no products)
     if (!loadedFromServer) {
       const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
       if (webhookUrl) {
         try {
           const sheetResult = await fetchGoogleSheetAll(webhookUrl);
           if (sheetResult.success && sheetResult.products && sheetResult.products.length > 0) {
-            setProducts(sheetResult.products);
+            const normalized = normalizeProductList(sheetResult.products);
+            setProducts(normalized);
           }
         } catch (e) {
           console.warn('Google Sheet direct fetch fallback:', e);
         }
       }
+      setIsInitialLoading(false);
+    }
+  };
+
+  // Lightweight version check so we don't re-download large base64 payloads every few seconds
+  const checkProductsVersion = async () => {
+    try {
+      const res = await fetch(`/api/products/version?t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.signature && data.signature !== lastProductSignatureRef.current) {
+          await fetchProducts();
+        }
+      }
+    } catch {
+      // ignore background poll error
     }
   };
 
@@ -203,7 +262,6 @@ export default function App() {
       console.warn('Network fetching orders from server:', err);
     }
 
-    // Direct Google Sheets fallback (for mobile phones)
     if (!loadedFromServer) {
       const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
       if (webhookUrl) {
@@ -227,20 +285,34 @@ export default function App() {
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
     if (!webhookUrl) return { success: false, error: 'Webhook URL not set' };
     try {
+      // Trigger server-side Google Sheets sync so both server and client stay aligned
+      fetch('/api/googlesheet/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl })
+      }).catch(() => {});
+
       const res = await fetchGoogleSheetAll(webhookUrl);
       if (res.success) {
         if (Array.isArray(res.products) && res.products.length > 0) {
           const fallbackUnsplash = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
           setProducts((prev) => {
             const prevMap = new Map<string, Product>(prev.map((item) => [item.id, item]));
-            return res.products!.map((sheetProd) => {
+            const merged = res.products!.map((sheetProd) => {
               const localProd = prevMap.get(sheetProd.id);
-              if (!localProd) return sheetProd;
+              const cleanedSheetImg = formatImageUrl(sheetProd.imageUrl || '');
+              if (!localProd) {
+                return {
+                  ...sheetProd,
+                  imageUrl: cleanedSheetImg,
+                  images: [cleanedSheetImg]
+                };
+              }
               const bestImageUrl =
-                sheetProd.imageUrl && sheetProd.imageUrl !== fallbackUnsplash
-                  ? sheetProd.imageUrl
-                  : localProd.imageUrl || sheetProd.imageUrl;
-              const extraImages = (localProd.images || []).slice(1);
+                cleanedSheetImg && cleanedSheetImg !== fallbackUnsplash
+                  ? cleanedSheetImg
+                  : formatImageUrl(localProd.imageUrl || cleanedSheetImg);
+              const extraImages = (localProd.images || []).slice(1).map((i) => formatImageUrl(i));
               return {
                 ...localProd,
                 ...sheetProd,
@@ -248,6 +320,10 @@ export default function App() {
                 images: [bestImageUrl, ...extraImages]
               };
             });
+            lastProductSignatureRef.current = merged
+              .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+              .join('|');
+            return merged;
           });
         }
         if (Array.isArray(res.orders) && res.orders.length > 0) {
@@ -278,11 +354,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Load products from fast local server cache immediately (< 30ms)
     fetchProducts();
-    fetchOrders();
     fetchSettings();
-    // Direct Google Sheet sync on app launch
-    syncWithGoogleSheet();
 
     // Auto-reconnecting Real-time EventSource listener for cross-device sync
     let eventSource: EventSource | null = null;
@@ -297,8 +371,12 @@ export default function App() {
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'PRODUCTS_UPDATED') {
-              if (Array.isArray(data.products)) {
-                setProducts(data.products);
+              if (Array.isArray(data.products) && data.products.length > 0) {
+                const normalized = normalizeProductList(data.products);
+                lastProductSignatureRef.current = normalized
+                  .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+                  .join('|');
+                setProducts(normalized);
               } else {
                 fetchProducts();
               }
@@ -313,7 +391,7 @@ export default function App() {
         eventSource.onerror = () => {
           if (eventSource) eventSource.close();
           clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connectSSE, 4000);
+          reconnectTimeout = setTimeout(connectSSE, 6000);
         };
       } catch (err) {
         console.warn('EventSource connect fail:', err);
@@ -322,18 +400,14 @@ export default function App() {
 
     connectSSE();
 
-    // Poll for product & order updates every 5s as reliable cross-device fallback
+    // Lightweight 50-byte version check every 12s (instead of downloading all images every 5s)
     const interval = setInterval(() => {
-      fetchProducts();
-      fetchOrders();
-    }, 5000);
+      checkProductsVersion();
+    }, 12000);
 
-    // Sync immediately when user switches back to tab or unlocks phone screen
     const handleVisibilityOrFocus = () => {
       if (!document.hidden) {
-        fetchProducts();
-        fetchOrders();
-        fetchSettings();
+        checkProductsVersion();
       }
     };
 
@@ -349,28 +423,37 @@ export default function App() {
     };
   }, []);
 
+  // Load orders only when entering Admin view
+  useEffect(() => {
+    if (activeView === 'admin') {
+      fetchOrders();
+    }
+  }, [activeView]);
+
   // Category List
   const categories: ProductCategory[] = settings.categories && settings.categories.length > 0
     ? (settings.categories.includes('All') ? settings.categories : ['All', ...settings.categories])
     : DEFAULT_CATEGORIES;
 
-  // Filtered & Sorted Products
+  // Filtered & Sorted Products (with singular/plural category normalization)
   const filteredProducts = products
     .filter((p) => {
-      // Category Match
-      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+      const normProdCat = (p.category || '').trim().toLowerCase().replace(/s$/, '');
+      const normSelectedCat = (selectedCategory || '').trim().toLowerCase().replace(/s$/, '');
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        p.category === selectedCategory ||
+        (normProdCat && normProdCat === normSelectedCat);
 
-      // Search Query Match
       const query = searchQuery.trim().toLowerCase();
       const matchesSearch = 
         !query ||
-        p.name.toLowerCase().includes(query) ||
-        p.fabric.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query) ||
-        p.id.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query);
+        (p.name || '').toLowerCase().includes(query) ||
+        (p.fabric || '').toLowerCase().includes(query) ||
+        (p.description || '').toLowerCase().includes(query) ||
+        (p.id || '').toLowerCase().includes(query) ||
+        (p.category || '').toLowerCase().includes(query);
 
-      // Price Filter Match
       let matchesPrice = true;
       if (priceFilter === 'under1500') {
         matchesPrice = p.price < 1500;
@@ -396,84 +479,56 @@ export default function App() {
         const discountB = b.originalPrice ? b.originalPrice - b.price : 0;
         return discountB - discountA;
       }
-      return 0; // 'featured' keeps original order
+      return 0;
     });
 
-  // Cart Helpers
-  const handleAddToCart = (product: Product, selectedColor: string, selectedSize: string, quantity: number) => {
-    setCartItems((prev) => {
-      const existingIdx = prev.findIndex(
-        (item) =>
-          item.product.id === product.id &&
-          item.selectedColor === selectedColor &&
-          item.selectedSize === selectedSize
-      );
+  // Reset progressive scroll batch count when filters/search change
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+    setIsLoadingMore(false);
+  }, [selectedCategory, priceFilter, sortBy, searchQuery]);
 
-      if (existingIdx > -1) {
-        const updated = [...prev];
-        updated[existingIdx].quantity += quantity;
-        return updated;
+  const hasMoreProducts = visibleCount < filteredProducts.length;
+  const visibleProducts = filteredProducts.slice(0, visibleCount);
+
+  // Progressive / Infinite Scroll Observer (loads next batch smoothly as user scrolls down)
+  useEffect(() => {
+    if (activeView !== 'shop' || !hasMoreProducts || isLoadingMore) return;
+
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return;
+
+    let timerId: any = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first && first.isIntersecting && !isLoadingMore) {
+          setIsLoadingMore(true);
+          const step = filteredProducts.length > 8 ? 4 : SCROLL_BATCH_SIZE;
+          timerId = setTimeout(() => {
+            setVisibleCount((prev) => Math.min(filteredProducts.length, prev + step));
+            setIsLoadingMore(false);
+          }, 480);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '80px',
+        threshold: 0.1
       }
+    );
 
-      return [...prev, { product, selectedColor, selectedSize, quantity }];
-    });
+    observer.observe(sentinel);
 
-    // Rich floating notification toast
-    setAddedToastItem({ product, selectedColor, selectedSize, quantity });
-    setTimeout(() => {
-      setAddedToastItem(null);
-    }, 4500);
-  };
-
-  const handleQuickAdd = (product: Product) => {
-    const defaultColor = product.colors[0] || 'Standard';
-    const defaultSize = product.sizes[0] || 'Free Size';
-    handleAddToCart(product, defaultColor, defaultSize, 1);
-  };
-
-  const handleBuyNow = (product: Product, color: string, size: string, quantity: number) => {
-    // Direct Product Buy strictly checks out ONLY this product without linking or polluting Cart Drawer
-    setCheckoutItems([{ product, selectedColor: color, selectedSize: size, quantity }]);
-    setIsCartOpen(false);
-    setIsCheckoutOpen(true);
-  };
-
-  const handleUpdateQuantity = (index: number, newQty: number) => {
-    if (newQty <= 0) {
-      handleRemoveItem(index);
-      return;
-    }
-    setCartItems((prev) => {
-      const updated = [...prev];
-      updated[index].quantity = newQty;
-      return updated;
-    });
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setCartItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Order Handlers
-  const handleOrderPlacedSuccess = (order: Order) => {
-    setCartItems([]);
-    setIsCheckoutOpen(false);
-    setPlacedOrderSuccess(order);
-    
-    // Trigger automated Telegram notification alert for admin
-    sendOrderTelegramNotification(order, "🚨 NEW ORDER RECEIVED");
-
-    setOrders((prev) => {
-      const filtered = prev.filter(o => o.id !== order.id);
-      return [order, ...filtered];
-    });
-
-    fetchOrders(); // Sync with central server list
-  };
+    return () => {
+      observer.disconnect();
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [activeView, hasMoreProducts, isLoadingMore, filteredProducts.length]);
 
   // Admin Actions
   const handleUpdateOrderStatus = async (orderId: string, payload: any) => {
-    // 1. Optimistic update state immediately
     const existing = orders.find((o) => o.id === orderId);
     const updatedOrder = existing ? { ...existing, ...payload, updatedAt: new Date().toISOString() } : null;
 
@@ -481,7 +536,6 @@ export default function App() {
       return prev.map((o) => (o.id === orderId ? { ...o, ...payload, updatedAt: new Date().toISOString() } : o));
     });
 
-    // 2. Direct mobile client-to-Google Sheets pipeline
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
     if (webhookUrl && updatedOrder) {
       let action: any = 'update_order';
@@ -495,7 +549,6 @@ export default function App() {
       });
     }
 
-    // 3. Central Server API call
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PUT',
@@ -512,10 +565,16 @@ export default function App() {
   };
 
   const handleAddProduct = async (product: Product) => {
+    const cleanProd = normalizeProductList([product])[0];
+
     // Optimistic update state immediately so new suit and its photo appear right away
     setProducts((prev) => {
-      const filtered = prev.filter(p => p.id !== product.id);
-      return [product, ...filtered];
+      const filtered = prev.filter((p) => p.id !== cleanProd.id);
+      const next = [cleanProd, ...filtered];
+      lastProductSignatureRef.current = next
+        .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+        .join('|');
+      return next;
     });
 
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
@@ -524,38 +583,43 @@ export default function App() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(product)
+        body: JSON.stringify(cleanProd)
       });
 
       if (res.ok) {
         const serverSaved = await res.json();
         if (serverSaved && serverSaved.id) {
           setProducts((prev) => {
-            return prev.map(p => p.id === serverSaved.id ? { ...serverSaved, imageUrl: product.imageUrl || serverSaved.imageUrl } : p);
+            return prev.map((p) =>
+              p.id === serverSaved.id
+                ? { ...serverSaved, imageUrl: cleanProd.imageUrl || serverSaved.imageUrl }
+                : p
+            );
           });
         }
       }
     } catch (e: any) {
       console.error('Add product error (falling back to direct Google Sheet sync):', e);
-    }
-
-    // Also sync directly to Google Sheets from client to guarantee persistence
-    if (webhookUrl) {
-      try {
-        await syncProductToGoogleSheets(product, 'save_product', webhookUrl);
-      } catch (err) {
-        console.warn('Direct client product save to Google Sheets:', err);
+      if (webhookUrl) {
+        try {
+          await syncProductToGoogleSheets(cleanProd, 'save_product', webhookUrl);
+        } catch (err) {
+          console.warn('Direct client product save to Google Sheets:', err);
+        }
       }
     }
   };
 
   const handleUpdateProduct = async (id: string, updated: Partial<Product>) => {
-    const existing = products.find(p => p.id === id);
+    const existing = products.find((p) => p.id === id);
     const mergedProduct = existing ? { ...existing, ...updated } : (updated as Product);
-    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
 
     setProducts((prev) => {
-      return prev.map(p => p.id === id ? { ...p, ...updated } : p);
+      const next = prev.map((p) => (p.id === id ? { ...p, ...updated } : p));
+      lastProductSignatureRef.current = next
+        .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+        .join('|');
+      return next;
     });
 
     try {
@@ -566,35 +630,24 @@ export default function App() {
       });
     } catch (e: any) {
       console.error('Update product error:', e);
-    }
-
-    if (webhookUrl && mergedProduct.id) {
-      try {
-        await syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl);
-      } catch (err) {
-        console.warn('Direct client product update to Google Sheets:', err);
+      const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+      if (webhookUrl && mergedProduct.id) {
+        syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl).catch(() => {});
       }
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    const existing = products.find(p => p.id === id);
-    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
-
-    // Direct mobile client-to-Google Sheets pipeline
-    if (webhookUrl && existing) {
-      syncProductToGoogleSheets(existing, 'delete_product', webhookUrl).catch((err) => {
-        console.warn('Direct client product delete to Google Sheets:', err);
-      });
-    }
-
     try {
       setProducts((prev) => {
-        return prev.filter(p => p.id !== id);
+        const next = prev.filter((p) => p.id !== id);
+        lastProductSignatureRef.current = next
+          .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+          .join('|');
+        return next;
       });
 
       await fetch(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      fetchProducts();
     } catch (e: any) {
       console.error('Delete product error:', e);
       fetchProducts();
@@ -714,7 +767,7 @@ export default function App() {
                   {selectedCategory === 'All' ? 'Latest Showroom Suit Catalog' : selectedCategory}
                 </h2>
                 <p className="text-xs text-stone-600 mt-0.5">
-                  Showing {filteredProducts.length} designs · Tap any suit to view fabric details or ask availability on WhatsApp
+                  Showing {visibleProducts.length} of {filteredProducts.length} designs · Tap any suit to view details or ask on WhatsApp
                 </p>
               </div>
 
@@ -728,21 +781,92 @@ export default function App() {
               )}
             </div>
 
-            {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onViewDetails={(p) => setSelectedProduct(p)}
-                  isWishlisted={isWishlisted(product.id)}
-                  onToggleWishlist={toggleWishlist}
-                  shopPhone={settings.phoneNumber}
-                />
-              ))}
-            </div>
+            {/* Product Grid (Progressive Batch Rendering) */}
+            {isInitialLoading && products.length === 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+                {[1, 2, 3, 4].map((n) => (
+                  <div
+                    key={n}
+                    className="bg-white rounded-2xl border border-amber-200/60 overflow-hidden flex flex-col animate-pulse"
+                  >
+                    <div className="aspect-[3/4] bg-stone-200" />
+                    <div className="p-3 space-y-2">
+                      <div className="h-3 bg-stone-200 rounded w-1/2" />
+                      <div className="h-4 bg-stone-200 rounded w-3/4" />
+                      <div className="h-8 bg-stone-200 rounded-xl w-full mt-2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+                  {visibleProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onViewDetails={(p) => setSelectedProduct(p)}
+                      isWishlisted={isWishlisted(product.id)}
+                      onToggleWishlist={toggleWishlist}
+                      shopPhone={settings.phoneNumber}
+                    />
+                  ))}
 
-            {filteredProducts.length === 0 && (
+                  {/* Shimmer Skeleton Cards while next scroll batch is loading */}
+                  {isLoadingMore &&
+                    [1, 2].map((skeletonIdx) => (
+                      <div
+                        key={`loading-skeleton-${skeletonIdx}`}
+                        className="bg-white rounded-2xl border border-amber-200/70 overflow-hidden flex flex-col animate-pulse"
+                      >
+                        <div className="aspect-[3/4] bg-gradient-to-r from-stone-200 via-amber-50/70 to-stone-200 flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 text-amber-700 animate-spin" />
+                        </div>
+                        <div className="p-3 space-y-2">
+                          <div className="h-2.5 bg-stone-200 rounded w-1/2" />
+                          <div className="h-4 bg-stone-200 rounded w-4/5" />
+                          <div className="h-7 bg-stone-200 rounded-xl w-full mt-2" />
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                {/* Infinite Scroll Sentinel & "Loading..." Indicator */}
+                {hasMoreProducts && (
+                  <div
+                    ref={loadMoreSentinelRef}
+                    className="py-6 flex flex-col items-center justify-center gap-2.5"
+                  >
+                    <div className="inline-flex items-center gap-2.5 bg-white border border-amber-300/90 px-4 py-2.5 rounded-2xl shadow-xs text-amber-950">
+                      <Loader2 className="w-4 h-4 text-amber-700 animate-spin shrink-0" />
+                      <span className="text-xs sm:text-sm font-bold tracking-wide">
+                        Loading more suits... (ਹੋਰ ਸੂਟ ਲੋਡ ਹੋ ਰਹੇ ਹਨ...)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const step = filteredProducts.length > 8 ? 4 : SCROLL_BATCH_SIZE;
+                        setVisibleCount((prev) => Math.min(filteredProducts.length, prev + step));
+                      }}
+                      className="text-[11px] font-semibold text-amber-900/80 hover:text-amber-950 underline cursor-pointer"
+                    >
+                      Showing {visibleProducts.length} of {filteredProducts.length} · Tap if not auto-scrolling
+                    </button>
+                  </div>
+                )}
+
+                {!hasMoreProducts && filteredProducts.length > 0 && (
+                  <div className="py-4 text-center">
+                    <p className="text-xs font-medium text-stone-500">
+                      ✓ All {filteredProducts.length} showroom designs loaded
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {filteredProducts.length === 0 && !isInitialLoading && (
               <div className="bg-white rounded-2xl border border-amber-200 p-12 text-center text-stone-500 my-8">
                 No suit designs found matching "{searchQuery}".
               </div>

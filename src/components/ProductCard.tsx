@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product } from '../types';
 import { Eye, Heart, MessageCircle } from 'lucide-react';
+import { formatImageUrl } from '../lib/imageUtils';
 import fallbackSuitImg from '../assets/images/punjabi_suit_red_1784686277398.jpg';
 
 interface ProductCardProps {
@@ -19,10 +20,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onToggleWishlist,
   shopPhone = '9417124082'
 }) => {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
   const cleanPhone = shopPhone.replace(/[^0-9]/g, '') || '9417124082';
   const whatsappInquiryUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal Bhraava Di Hatti! Mainu eh suit pasand aaya hai:\n• Suit: ${product.name}\n• Code: ${product.id}\n• Fabric: ${product.fabric}\n• Rate: ₹${product.price}\nKripa karke daso eh suit dukan te available hai ji?`
   )}`;
+
+  const resolvedSrc = imgError
+    ? fallbackSuitImg
+    : formatImageUrl(product.imageUrl || '') || fallbackSuitImg;
 
   return (
     <div className="bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative min-w-0">
@@ -31,14 +39,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         onClick={() => onViewDetails(product)}
         className="relative aspect-[3/4] bg-stone-100 overflow-hidden cursor-pointer"
       >
+        {/* Shimmer Skeleton while image is decoding/loading */}
+        {!imgLoaded && (
+          <div className="absolute inset-0 bg-gradient-to-r from-stone-200 via-amber-50/70 to-stone-200 animate-pulse flex items-center justify-center">
+            <span className="text-[10px] font-semibold text-stone-400 tracking-wider uppercase">
+              Loading Photo...
+            </span>
+          </div>
+        )}
+
         <img
-          src={product.imageUrl || fallbackSuitImg}
+          src={resolvedSrc}
           alt={product.name}
+          loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = fallbackSuitImg;
+          onLoad={() => setImgLoaded(true)}
+          onError={() => {
+            if (!imgError) {
+              setImgError(true);
+            }
+            setImgLoaded(true);
           }}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ease-out ${
+            imgLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
         />
 
         {/* Save Design / Wishlist Heart Button (Top Right) */}
@@ -103,7 +128,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-amber-900/80 font-semibold truncate">
             <span className="truncate">{product.category}</span>
             <span aria-hidden="true">·</span>
-            <span className="text-stone-500 truncate">{product.fabric}</span>
+            <span className="text-stone-500 truncate">{product.fabric || 'Pure Suit Material'}</span>
           </div>
 
           <h3 

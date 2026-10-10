@@ -1,4 +1,5 @@
 import { Product, Order, OrderStatus } from '../types.js';
+import { formatImageUrl } from './imageUtils.js';
 
 export const PRODUCTS_SHEET_NAME = 'Products';
 export const ORDERS_SHEET_NAME = 'Orders';
@@ -374,35 +375,7 @@ export async function fetchGoogleSheetAll(webhookUrl: string): Promise<{
 
 export function normalizeSheetImageUrl(rawUrl: string): string {
   if (!rawUrl) return '';
-  const trimmed = String(rawUrl).trim();
-  if (!trimmed) return '';
-
-  // Repair previously truncated 40,000-char base64 strings from older Google Sheet rows
-  if (trimmed.startsWith('data:image/jpeg;base64,')) {
-    const prefix = 'data:image/jpeg;base64,';
-    const b64 = trimmed.slice(prefix.length);
-    if (trimmed.length === 40000 || b64.length % 4 === 1) {
-      const validLen = b64.length - (b64.length % 4);
-      const alignedB64 = b64.slice(0, validLen);
-      if (!alignedB64.endsWith('/9k=')) {
-        return `${prefix}${alignedB64}/9k=`;
-      }
-      return `${prefix}${alignedB64}`;
-    }
-    return trimmed;
-  }
-
-  // Convert Google Drive share URLs into direct loadable image URLs
-  const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (driveFileMatch && driveFileMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}`;
-  }
-  const driveIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc|thumbnail)\?.*id=([a-zA-Z0-9_-]+)/);
-  if (driveIdMatch && driveIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
-  }
-
-  return trimmed;
+  return formatImageUrl(String(rawUrl));
 }
 
 /**
@@ -436,6 +409,8 @@ export function parseProductsFromSheet(rows: any[]): Product[] {
       price,
       originalPrice: origPrice,
       description: desc,
+      fabric: String(r.Fabric || r.fabric || 'Pure Unstitched Cotton / Silk').trim(),
+      workType: String(r.WorkType || r.workType || 'Traditional Punjabi Work').trim(),
       colors,
       sizes,
       imageUrl: imgUrl,

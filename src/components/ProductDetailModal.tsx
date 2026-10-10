@@ -18,6 +18,7 @@ import {
   Store,
   MapPin
 } from 'lucide-react';
+import { formatImageUrl } from '../lib/imageUtils';
 import fallbackSuitImg from '../assets/images/punjabi_suit_red_1784686277398.jpg';
 
 interface ProductDetailModalProps {
@@ -38,7 +39,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   if (!product) return null;
 
   const allImages = Array.from(
-    new Set([product.imageUrl, ...(product.images || [])].filter(Boolean))
+    new Set(
+      [product.imageUrl, ...(product.images || [])]
+        .map((img) => formatImageUrl(img || ''))
+        .filter(Boolean)
+    )
   );
 
   const [activeImgIdx, setActiveImgIdx] = useState(0);

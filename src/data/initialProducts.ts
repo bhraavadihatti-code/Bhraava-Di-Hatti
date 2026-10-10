@@ -35,16 +35,6 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   googleSheetWebhookUrl: "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec"
 };
 
-/**
- * ====================================================================
- *  Bhraava Di Hatti — Product Catalog Code File
- * ====================================================================
- *  HOW TO ADD PRODUCTS IN CODE:
- *  1. Simply copy the template object below.
- *  2. Change name, price, category, colors, and image URL.
- *  3. In the Admin Panel, click "🔄 Sync Products from Code"!
- */
-
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: "BDH-201",
