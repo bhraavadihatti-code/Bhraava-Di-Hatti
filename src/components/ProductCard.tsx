@@ -25,7 +25,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   )}`;
 
   return (
-    <div className="bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative">
+    <div className="bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative min-w-0">
       {/* Product Image Box */}
       <div 
         onClick={() => onViewDetails(product)}
@@ -49,7 +49,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               e.stopPropagation();
               onToggleWishlist(product.id);
             }}
-            className={`absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-150 active:scale-90 shadow-sm cursor-pointer ${
+            className={`absolute top-2 right-2 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-150 active:scale-90 shadow-sm cursor-pointer ${
               isWishlisted
                 ? 'bg-white text-red-600 ring-1 ring-red-400'
                 : 'bg-white/90 text-stone-700 hover:text-red-600 hover:bg-white border border-stone-200/70'
@@ -63,25 +63,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Sold Out Overlay if out of stock */}
         {!product.inStock && (
-          <div className="absolute top-2.5 left-2.5 z-10 bg-stone-900/90 text-amber-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
-            Sold Out at Shop
+          <div className="absolute top-2 left-2 z-10 bg-stone-900/90 text-amber-200 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">
+            Sold Out
           </div>
         )}
 
         {/* Design Code Watermark Label (Bottom Left) */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-2.5 pt-6 flex items-end justify-between">
-          <span className="text-amber-200 font-mono font-bold text-[10px] sm:text-xs tracking-wide">
-            Code: {product.id}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-2 pt-5 flex items-end justify-between gap-1">
+          <span className="text-amber-200 font-mono font-bold text-[10px] sm:text-xs tracking-wide truncate">
+            {product.id}
           </span>
           {product.isNewArrival && product.inStock && (
-            <span className="text-amber-300 text-[10px] font-bold tracking-wide">
-              New Stock
+            <span className="text-amber-300 text-[9px] sm:text-[10px] font-bold tracking-wide shrink-0">
+              New
             </span>
           )}
         </div>
 
-        {/* Hover Details Overlay */}
-        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        {/* Hover Details Overlay (Desktop) */}
+        <div className="hidden sm:flex absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center">
           <button
             type="button"
             onClick={(e) => {
@@ -97,18 +97,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Product Information */}
-      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
-        <div>
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between space-y-2 sm:space-y-3 bg-white min-w-0">
+        <div className="min-w-0">
           {/* Clean Unboxed Metadata */}
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-900/80 font-semibold truncate">
-            <span>{product.category}</span>
+          <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-amber-900/80 font-semibold truncate">
+            <span className="truncate">{product.category}</span>
             <span aria-hidden="true">·</span>
             <span className="text-stone-500 truncate">{product.fabric}</span>
           </div>
 
           <h3 
             onClick={() => onViewDetails(product)}
-            className="font-serif font-bold text-stone-900 text-sm sm:text-base line-clamp-1 hover:text-amber-900 cursor-pointer transition-colors mt-1"
+            className="font-serif font-bold text-stone-900 text-xs sm:text-base line-clamp-1 hover:text-amber-900 cursor-pointer transition-colors mt-0.5"
             title={product.name}
           >
             {product.name}
@@ -116,27 +116,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Colors as clean inline text */}
           {product.colors && product.colors.length > 0 && (
-            <p className="text-[11px] text-stone-500 truncate mt-1">
+            <p className="text-[10px] sm:text-[11px] text-stone-500 truncate mt-0.5">
               Colors: <span className="text-stone-700 font-medium">{product.colors.join(', ')}</span>
             </p>
           )}
         </div>
 
-        {/* Showroom Rate & Direct WhatsApp Inquiry CTA */}
-        <div className="pt-2.5 border-t border-stone-100 flex items-center justify-between gap-2">
-          <div>
+        {/* Showroom Rate & Direct WhatsApp Inquiry CTA (Stacked on mobile so it never overflows) */}
+        <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
+          <div className="flex items-baseline justify-between sm:block gap-1 min-w-0">
             <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-base sm:text-lg font-black text-red-950 font-mono tabular-nums">
+              <span className="text-sm sm:text-lg font-black text-red-950 font-mono tabular-nums">
                 ₹{product.price.toLocaleString('en-IN')}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-[11px] text-stone-400 line-through font-mono tabular-nums">
+                <span className="text-[10px] sm:text-[11px] text-stone-400 line-through font-mono tabular-nums">
                   ₹{product.originalPrice.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-stone-500 font-medium">
-              {product.inStock ? 'Limited 1–2 Sets' : 'Sold Out'}
+            <p className="text-[9px] sm:text-[10px] text-stone-500 font-medium shrink-0">
+              {product.inStock ? '1–2 Sets' : 'Sold Out'}
             </p>
           </div>
 
@@ -146,7 +146,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs bg-emerald-700 hover:bg-emerald-800 text-white whitespace-nowrap shrink-0"
+              className="w-full sm:w-auto px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 transition-colors shadow-2xs bg-emerald-700 hover:bg-emerald-800 text-white whitespace-nowrap shrink-0"
               title="Check availability on WhatsApp"
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
@@ -156,7 +156,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <button
               type="button"
               onClick={() => onViewDetails(product)}
-              className="px-3 py-2 rounded-xl font-bold text-xs bg-stone-100 text-stone-500 whitespace-nowrap shrink-0 cursor-pointer"
+              className="w-full sm:w-auto px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[11px] sm:text-xs bg-stone-100 text-stone-500 whitespace-nowrap shrink-0 cursor-pointer text-center"
             >
               View Info
             </button>

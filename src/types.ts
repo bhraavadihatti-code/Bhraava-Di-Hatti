@@ -95,6 +95,7 @@ export interface ShopSettings {
   address: string;
   city: string;
   pincode: string;
+  mapsUrl?: string;
   gstNumber?: string;
   minOrderForFreeShipping: number;
   noticeText: string;

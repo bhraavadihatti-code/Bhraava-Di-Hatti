@@ -23,6 +23,7 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   address: "Bus Stand Road, Maur Mandi",
   city: "District Bathinda, Punjab",
   pincode: "151509",
+  mapsUrl: "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac",
   gstNumber: "03AABCU9603R1ZM",
   minOrderForFreeShipping: 1999,
   noticeText: "🎁 RAKHI SPECIAL MEGA SALE IS LIVE TILL 29 AUGUST! FLAT DISCOUNTS + INDIA POST DESPATCH",

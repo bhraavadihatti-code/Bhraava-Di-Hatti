@@ -55,6 +55,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
   const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal ${settings.shopName}! I am browsing your online catalog and want to check suit availability.`
   )}`;
+  const mapsUrl = settings.mapsUrl || "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
   return (
     <div className="relative bg-gradient-to-br from-[#2B040B] via-[#420812] to-[#1C0207] text-amber-50 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl border border-amber-400/60 my-3 sm:my-5">
@@ -95,14 +96,24 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-left text-[11px]">
-          <div className="bg-black/45 border border-amber-500/30 px-3 py-2 rounded-xl flex items-center gap-2">
-            <Store className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="font-bold text-amber-100 truncate">Wholesale & Retail</span>
-          </div>
-          <div className="bg-black/45 border border-amber-500/30 px-3 py-2 rounded-xl flex items-center gap-2">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-black/45 hover:bg-black/60 border border-amber-500/40 px-3 py-2 rounded-xl flex items-center gap-2 transition-colors"
+          >
+            <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="font-bold text-amber-100 truncate">Shop Map Location</span>
+          </a>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-black/45 hover:bg-black/60 border border-amber-500/40 px-3 py-2 rounded-xl flex items-center gap-2 transition-colors"
+          >
             <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-bold text-amber-100 truncate">WhatsApp Check</span>
-          </div>
+            <span className="font-bold text-amber-100 truncate">WhatsApp Inquiry</span>
+          </a>
         </div>
 
         <div className="flex items-center gap-2 pt-1">
@@ -225,10 +236,15 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
           </div>
 
           <div className="bg-black/45 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-100 space-y-1.5">
-            <p className="flex items-start gap-2">
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2 hover:text-amber-300 transition-colors"
+            >
               <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>{settings.address}, {settings.city}</span>
-            </p>
+              <span className="underline decoration-amber-400/50 underline-offset-2">{settings.address}, {settings.city}</span>
+            </a>
             <p className="flex items-center gap-2 font-mono text-amber-300">
               <Phone className="w-4 h-4 text-amber-400 shrink-0" />
               <span>{settings.phoneNumber}</span>
@@ -245,13 +261,24 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
               <MessageCircle className="w-4 h-4 text-emerald-200" />
               <span>Ask on WhatsApp</span>
             </a>
-            <a
-              href={`tel:${settings.phoneNumber}`}
-              className="w-full bg-white/10 hover:bg-white/20 text-amber-100 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-2 border border-amber-400/30 transition-colors whitespace-nowrap"
-            >
-              <Phone className="w-3.5 h-3.5 text-amber-300" />
-              <span>Call Showroom</span>
-            </a>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
+              >
+                <MapPin className="w-3.5 h-3.5 text-amber-950 shrink-0" />
+                <span>Google Maps</span>
+              </a>
+              <a
+                href={`tel:${settings.phoneNumber}`}
+                className="bg-white/10 hover:bg-white/20 text-amber-100 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 border border-amber-400/30 transition-colors whitespace-nowrap"
+              >
+                <Phone className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span>Call Shop</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

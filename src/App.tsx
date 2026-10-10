@@ -618,12 +618,10 @@ export default function App() {
   const generalWhatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal ${settings.shopName}! Main aap di website vekhi hai, mainu suits bare jankari chahidi hai.`
   )}`;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${settings.shopName}, ${settings.address}, ${settings.city}`
-  )}`;
+  const mapsUrl = "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
       
       {/* Navigation Header */}
       <Navbar
@@ -648,7 +646,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 container mx-auto px-4">
+      <main className="flex-1 container mx-auto px-2.5 sm:px-4 max-w-full">
         
         {activeView === 'admin' ? (
           <AdminPanel
@@ -782,10 +780,15 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2.5 text-xs sm:text-sm">
-                        <p className="flex items-start gap-2.5 text-amber-100">
+                        <a
+                          href={mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-2.5 text-amber-100 hover:text-amber-300 transition-colors"
+                        >
                           <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-1" />
-                          <span>{settings.address}, {settings.city} ({settings.pincode})</span>
-                        </p>
+                          <span className="underline decoration-amber-400/50 underline-offset-2">{settings.address}, {settings.city} ({settings.pincode})</span>
+                        </a>
                         <p className="flex items-center gap-2.5 text-amber-100 font-mono">
                           <Phone className="w-4 h-4 text-amber-400 shrink-0" />
                           <span>{settings.phoneNumber} {settings.phoneNumber2 ? `/ ${settings.phoneNumber2}` : ''}</span>
@@ -814,7 +817,7 @@ export default function App() {
                         className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors whitespace-nowrap"
                       >
                         <Navigation className="w-3.5 h-3.5 text-amber-950 shrink-0" />
-                        <span>Open in Maps</span>
+                        <span>Open in Google Maps</span>
                       </a>
                     </div>
                   </div>

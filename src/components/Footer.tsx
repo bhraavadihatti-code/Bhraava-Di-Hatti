@@ -12,9 +12,7 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
   const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal ${settings.shopName}, I want to inquire about your wholesale and retail suit collection.`
   )}`;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    `${settings.shopName}, ${settings.address}, ${settings.city}`
-  )}`;
+  const mapsUrl = "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
   return (
     <footer className="bg-gradient-to-br from-[#1F0206] via-[#32080E] to-[#140104] text-amber-100 border-t border-amber-500/40 mt-12 pb-16 sm:pb-12 shadow-2xl relative">
@@ -63,10 +61,15 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
             <h4 className="font-bold text-amber-300 uppercase tracking-wider text-xs font-serif mb-3">
               Showroom Address
             </h4>
-            <p className="flex items-start gap-2 text-amber-100 leading-snug">
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-start gap-2 text-amber-100 hover:text-amber-300 transition-colors leading-snug"
+            >
               <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>{settings.address}, {settings.city} ({settings.pincode})</span>
-            </p>
+              <span className="underline decoration-amber-400/50 underline-offset-2">{settings.address}, {settings.city} ({settings.pincode})</span>
+            </a>
             <p className="flex items-center gap-2 text-amber-100">
               <Phone className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="font-bold text-amber-200 font-mono">
@@ -101,10 +104,18 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
             <p className="text-amber-300/90 text-[11px] leading-relaxed">
               ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ ਲਿਮਿਟਡ 1 ਜਾਂ 2 ਸੈੱਟ ਹੀ ਆਉਂਦੇ ਹਨ। ਕੋਈ ਵੀ ਡਿਜ਼ਾਈਨ ਪਸੰਦ ਆਉਣ 'ਤੇ WhatsApp ਰਾਹੀਂ ਸਟਾਕ ਪਤਾ ਕਰੋ ਜਾਂ ਸਿੱਧਾ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
             </p>
-            <div className="text-[11px] text-amber-200 font-mono bg-black/50 p-2 rounded-xl border border-amber-500/20 flex items-center justify-between">
-              <span>Showroom Location</span>
-              <span className="font-bold text-amber-400">{settings.city}</span>
-            </div>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-amber-200 hover:bg-black/80 transition-colors font-mono bg-black/50 p-2 rounded-xl border border-amber-500/30 flex items-center justify-between"
+            >
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-amber-400" />
+                <span>Open Map Location</span>
+              </span>
+              <span className="font-bold text-amber-400">Maur Mandi ➔</span>
+            </a>
           </div>
         </div>
 

@@ -76,32 +76,32 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
           </div>
 
           {wishlistProducts.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 pt-2 md:pt-0">
+            <div className="flex items-center gap-2 w-full md:w-auto pt-2 md:pt-0">
               <a
                 href={whatsappAllUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-colors shadow-md flex items-center gap-2 border border-emerald-400/40 whitespace-nowrap"
+                className="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3.5 py-2.5 rounded-xl transition-colors shadow-md flex items-center justify-center gap-1.5 border border-emerald-400/40 whitespace-nowrap"
               >
                 <MessageCircle className="w-4 h-4 text-emerald-100 shrink-0" />
                 <span>Inquire All ({wishlistProducts.length}) on WhatsApp</span>
               </a>
 
               {showClearConfirm ? (
-                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-red-500/50">
-                  <span className="text-[11px] text-red-200 font-bold px-2">Clear all?</span>
+                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-red-500/50 shrink-0">
+                  <span className="text-[11px] text-red-200 font-bold px-1.5">Clear?</span>
                   <button
                     onClick={() => {
                       onClearWishlist();
                       setShowClearConfirm(false);
                     }}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] px-2 py-1 rounded-lg transition-all cursor-pointer"
                   >
                     Yes
                   </button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
-                    className="bg-stone-700 hover:bg-stone-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                    className="bg-stone-700 hover:bg-stone-600 text-white font-bold text-[11px] px-2 py-1 rounded-lg transition-all cursor-pointer"
                   >
                     No
                   </button>
@@ -109,7 +109,7 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
               ) : (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="bg-white/10 hover:bg-red-900/50 text-amber-200 hover:text-red-200 font-bold text-xs px-3 py-2.5 rounded-xl transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                  className="bg-white/10 hover:bg-red-900/50 text-amber-200 hover:text-red-200 font-bold text-xs px-3 py-2.5 rounded-xl transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Clear List</span>

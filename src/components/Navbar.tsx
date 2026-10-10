@@ -3,7 +3,6 @@ import {
   Search, 
   ShieldCheck, 
   Phone, 
-  Sparkles,
   SlidersHorizontal,
   ChevronDown,
   Tag,
@@ -53,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const whatsappLink = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal ${settings.shopName}! I saw your suit catalog website and want to inquire about available designs.`
   )}`;
+  const mapsUrl = settings.mapsUrl || "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
   // 5-Click Secret Trigger on "Estd. 1986" Badge to open Admin Panel
   const handleEstdClick = (e: React.MouseEvent) => {
@@ -90,147 +90,139 @@ export const Navbar: React.FC<NavbarProps> = ({
       case '1500to3000': return '₹1.5k - ₹3k';
       case '3000to5000': return '₹3k - ₹5k';
       case 'above5000': return 'Above ₹5k';
-      default: return 'Price Range';
+      default: return 'Price';
     }
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-xs border-b border-amber-200/80">
+    <header className="sticky top-0 z-40 w-full max-w-full bg-white/95 backdrop-blur-md shadow-xs border-b border-amber-200/80">
       {/* Top Showroom Notice Bar */}
-      <div className="bg-gradient-to-r from-[#32080E] via-red-950 to-amber-950 text-amber-50 px-3 py-1.5 text-xs font-medium border-b border-amber-800/60">
-        <div className="container mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
-            <span className="text-amber-300 font-semibold text-[11px] sm:text-xs shrink-0">
-              Wholesale & Retail Showroom · {settings.city}
+      <div className="bg-gradient-to-r from-[#32080E] via-red-950 to-amber-950 text-amber-50 px-2.5 sm:px-4 py-1 text-[11px] sm:text-xs font-medium border-b border-amber-800/60">
+        <div className="container mx-auto flex items-center justify-between gap-2 min-w-0">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 min-w-0 truncate hover:text-amber-200 transition-colors"
+            title="Open Showroom Location in Google Maps"
+          >
+            <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
+            <span className="text-amber-300 font-semibold truncate underline decoration-amber-400/50 underline-offset-2">
+              {settings.address}, {settings.city}
             </span>
-            <span className="hidden md:inline text-amber-400/60">·</span>
-            <span className="hidden md:inline truncate text-[11px] text-amber-100/90">
-              Har design de limited 1–2 sets — WhatsApp te stock check karo ja dukan te visit karo
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs font-normal text-amber-200 shrink-0">
-            <a
-              href={`tel:${settings.phoneNumber}`}
-              className="flex items-center gap-1 font-mono text-[11px] hover:text-amber-300 transition-colors bg-white/10 px-2.5 py-0.5 rounded-md border border-amber-400/20 whitespace-nowrap"
-            >
-              <Phone className="w-3 h-3 text-amber-300" />
-              <span className="font-bold">{settings.phoneNumber}</span>
-            </a>
-          </div>
+          </a>
+          <a
+            href={`tel:${settings.phoneNumber}`}
+            className="flex items-center gap-1 font-mono text-[10px] sm:text-[11px] hover:text-amber-300 transition-colors bg-white/10 px-2 py-0.5 rounded border border-amber-400/20 shrink-0 whitespace-nowrap"
+          >
+            <Phone className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300 shrink-0" />
+            <span className="font-bold">{settings.phoneNumber}</span>
+          </a>
         </div>
       </div>
 
       {/* Main Brand & Showroom Navigation */}
-      <div className="container mx-auto px-3 sm:px-4 py-2.5">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
-          {/* Brand Name */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="relative group text-left">
-              <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-                <button 
-                  onClick={() => {
-                    setActiveView('shop');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-stone-900 font-serif leading-none hover:text-amber-900 transition-colors cursor-pointer text-left whitespace-nowrap"
-                >
-                  {settings.shopName}
-                </button>
-                <button
-                  onClick={handleEstdClick}
-                  className="text-[9px] sm:text-[10px] bg-gradient-to-r from-amber-800 to-red-900 active:scale-95 text-amber-100 font-black px-1.5 py-0.5 rounded-md border border-amber-400/80 shadow-2xs font-mono shrink-0 cursor-pointer select-none transition-transform whitespace-nowrap"
-                  title="Estd. 1986 (Tap 5 times rapidly to open Admin)"
-                >
-                  Estd. 1986
-                </button>
-              </div>
-              <p 
+      <div className="container mx-auto px-2 sm:px-4 py-2">
+        <div className="flex items-center justify-between gap-1 sm:gap-4 min-w-0">
+          {/* Brand Name (Left - flexible width so it never pushes right buttons off screen) */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+              <button 
                 onClick={() => {
                   setActiveView('shop');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-[10px] sm:text-xs font-extrabold text-amber-900 flex items-center gap-1 mt-0.5 whitespace-nowrap cursor-pointer hover:text-amber-950"
+                className="text-sm sm:text-xl md:text-2xl font-black tracking-tight text-stone-900 font-serif leading-tight hover:text-amber-900 transition-colors cursor-pointer text-left truncate"
               >
-                <span>{settings.firmName}</span>
-                <span className="text-stone-400">·</span>
-                <span className="text-stone-600 font-semibold">Wholesale & Retail</span>
-              </p>
+                {settings.shopName}
+              </button>
+              <button
+                onClick={handleEstdClick}
+                className="text-[8px] sm:text-[10px] bg-gradient-to-r from-amber-800 to-red-900 active:scale-95 text-amber-100 font-black px-1 sm:px-1.5 py-0.5 rounded border border-amber-400/80 font-mono shrink-0 cursor-pointer select-none whitespace-nowrap"
+                title="Estd. 1986 (Tap 5 times rapidly to open Admin)"
+              >
+                1986
+              </button>
+              {logoClickCount > 0 && (
+                <span className="text-[9px] bg-amber-500 text-amber-950 px-1.5 py-0.5 rounded-full font-black font-mono shrink-0">
+                  {logoClickCount}/5
+                </span>
+              )}
             </div>
-            {logoClickCount > 0 && (
-              <span className="text-[10px] bg-amber-500 text-amber-950 px-2 py-0.5 rounded-full font-black font-mono">
-                {logoClickCount}/5
-              </span>
-            )}
+            <p 
+              onClick={() => {
+                setActiveView('shop');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="text-[10px] sm:text-xs font-bold text-amber-900 truncate mt-0.5 cursor-pointer"
+            >
+              {settings.firmName}
+            </p>
           </div>
 
-          {/* Right Actions: Saved Designs, Showroom Location & WhatsApp Inquiry */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Saved Designs / Wishlist Button */}
+          {/* Right Actions: Saved, Location & WhatsApp (Compact on mobile so they stay 100% inside screen) */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Saved Designs Button */}
             <button
               onClick={() => {
                 setActiveView('wishlist');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-black rounded-xl border transition-all shadow-2xs shrink-0 cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-extrabold rounded-xl border transition-all shrink-0 cursor-pointer whitespace-nowrap ${
                 activeView === 'wishlist'
-                  ? 'bg-red-950 text-amber-200 border-red-500 shadow-sm'
+                  ? 'bg-red-950 text-amber-200 border-red-500'
                   : 'text-stone-800 bg-white hover:bg-red-50 hover:text-red-700 border-amber-300/90'
               }`}
-              title="View Saved Suit Designs"
+              title="Saved Suit Designs"
             >
               <Heart className={`w-3.5 h-3.5 shrink-0 ${
                 activeView === 'wishlist' || wishlistCount > 0 ? 'fill-red-600 text-red-600' : 'text-amber-800'
               }`} />
-              <span className="hidden sm:inline">Saved Designs</span>
-              <span className="sm:hidden text-[10px]">Saved</span>
+              <span className="hidden md:inline">Saved Designs</span>
+              <span className="md:hidden">Saved</span>
               {wishlistCount > 0 && (
-                <span className="bg-red-600 text-white font-black text-[10px] px-1.5 py-0.2 rounded-full font-mono tabular-nums">
+                <span className="bg-red-600 text-white font-black text-[9px] sm:text-[10px] px-1 rounded-full font-mono tabular-nums">
                   {wishlistCount}
                 </span>
               )}
             </button>
 
-            {/* Visit Showroom / Location Button */}
-            <button
-              onClick={() => {
-                setActiveView('shop');
-                setTimeout(() => {
-                  const el = document.getElementById('showroom-visit-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }, 50);
-              }}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-black text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shadow-2xs shrink-0 cursor-pointer whitespace-nowrap"
-              title="Showroom Address & Timings"
+            {/* Showroom Google Maps Location Button */}
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-extrabold text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
+              title="Open Showroom Location in Google Maps"
             >
               <MapPin className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span className="hidden sm:inline">Visit Shop</span>
-              <span className="sm:hidden text-[10px]">Shop Info</span>
-            </button>
+              <span className="sm:hidden">Map</span>
+              <span className="hidden sm:inline">Location</span>
+            </a>
 
-            {/* Direct WhatsApp Inquiry CTA */}
+            {/* Direct WhatsApp Button */}
             <a
               href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-black text-xs transition-colors shadow-sm border border-emerald-500/40 shrink-0 whitespace-nowrap"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-extrabold text-[11px] sm:text-xs transition-colors shadow-2xs border border-emerald-500/40 shrink-0 whitespace-nowrap"
               title="Inquire on WhatsApp"
             >
-              <MessageCircle className="w-4 h-4 text-emerald-200 shrink-0" />
-              <span className="hidden sm:inline">WhatsApp Inquiry</span>
-              <span className="sm:hidden text-[10px]">WhatsApp</span>
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+              <span>WhatsApp</span>
             </a>
           </div>
         </div>
 
-        {/* ROW 2: Search Bar with Price Filter Side-by-Side */}
-        <div className="mt-2.5 flex items-center gap-2">
-          <div className="relative flex-1">
+        {/* ROW 2: Search Bar + Price Filter */}
+        <div className="mt-2 flex items-center gap-1.5 sm:gap-2">
+          <div className="relative flex-1 min-w-0">
             <input
               type="text"
-              placeholder="Search Suit Design, Fabric, Cotton, Chinon Silk, Code (e.g. BDH-101)..."
+              placeholder="Search Suits, Cotton, Silk, Code..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-stone-50/90 border border-amber-300 rounded-xl pl-8 pr-7 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-700 focus:bg-white transition-all shadow-2xs"
+              className="w-full bg-stone-50/90 border border-amber-300 rounded-xl pl-7 pr-6 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-700 focus:bg-white transition-all"
             />
             <Search className="w-3.5 h-3.5 text-amber-800 absolute left-2.5 top-2" />
             {searchQuery && (
@@ -249,14 +241,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setPricePopoverOpen(!pricePopoverOpen)}
               className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-extrabold border transition-all whitespace-nowrap cursor-pointer ${
                 priceFilter !== 'all'
-                  ? 'bg-[#32080E] text-amber-200 border-amber-600 shadow-sm'
+                  ? 'bg-[#32080E] text-amber-200 border-amber-600'
                   : 'bg-amber-50/80 text-amber-950 border-amber-300 hover:bg-amber-100'
               }`}
               title="Filter by Price Range"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span>{getActivePriceLabel()}</span>
-              <ChevronDown className="w-3 h-3 opacity-70" />
+              <ChevronDown className="w-3 h-3 opacity-70 shrink-0" />
             </button>
 
             {pricePopoverOpen && (
@@ -318,12 +310,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Saved Designs Breadcrumb Strip */}
         {activeView === 'wishlist' && (
-          <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2 flex-wrap">
+          <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between gap-2 flex-wrap">
             <button
               onClick={() => setActiveView('shop')}
               className="text-xs font-black text-amber-950 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <span>← Back to Suit Catalog</span>
+              <span>← Back to Catalog</span>
             </button>
             <span className="text-xs font-bold text-red-950 flex items-center gap-1.5">
               <Heart className="w-3.5 h-3.5 fill-red-600 text-red-600" />
@@ -334,8 +326,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Category Filter Bar */}
         {activeView === 'shop' && (
-          <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
-            <span className="text-[10px] font-black text-amber-950 uppercase tracking-wider px-2 py-0.5 shrink-0 flex items-center gap-1">
+          <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
+            <span className="text-[10px] font-black text-amber-950 uppercase tracking-wider px-1.5 py-0.5 shrink-0 flex items-center gap-1">
               <Tag className="w-3 h-3 text-amber-800" /> Variety:
             </span>
             {categories.map((cat) => {
@@ -348,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     const el = document.getElementById('catalog-section');
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }}
-                  className={`snap-start px-3 py-1 rounded-xl text-[11px] font-extrabold whitespace-nowrap transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  className={`snap-start px-2.5 sm:px-3 py-1 rounded-xl text-[11px] font-extrabold whitespace-nowrap transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
                     isSelected
                       ? 'bg-[#32080E] text-amber-200 shadow-xs border border-amber-500/60'
                       : 'bg-white text-stone-800 hover:bg-amber-50 border border-amber-200/80'
@@ -364,7 +356,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Secret Admin Unlock Notification Toast */}
       {unlockToast && (
-        <div className="fixed bottom-6 right-6 bg-amber-950 text-amber-100 border-2 border-amber-400 px-4 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-2.5">
+        <div className="fixed bottom-6 right-4 left-4 sm:left-auto bg-amber-950 text-amber-100 border-2 border-amber-400 px-4 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-2.5">
           <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
           <div>
             <p className="text-xs font-black text-amber-300">Admin Panel Unlocked</p>

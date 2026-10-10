@@ -15,7 +15,8 @@ import {
   Heart,
   MessageCircle,
   Phone,
-  Store
+  Store,
+  MapPin
 } from 'lucide-react';
 import fallbackSuitImg from '../assets/images/punjabi_suit_red_1784686277398.jpg';
 
@@ -365,27 +366,37 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <span>Check Stock on WhatsApp ({shopPhone})</span>
               </a>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <a
                   href={`tel:${shopPhone}`}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold py-2.5 px-3 rounded-xl border border-amber-300 transition-colors flex items-center justify-center gap-1.5 text-xs"
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold py-2.5 px-2 rounded-xl border border-amber-300 transition-colors flex items-center justify-center gap-1 text-xs whitespace-nowrap"
                 >
-                  <Phone className="w-3.5 h-3.5 text-amber-900" />
-                  <span>Call Showroom</span>
+                  <Phone className="w-3.5 h-3.5 text-amber-900 shrink-0" />
+                  <span>Call Shop</span>
+                </a>
+
+                <a
+                  href="https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold py-2.5 px-2 rounded-xl border border-amber-300 transition-colors flex items-center justify-center gap-1 text-xs whitespace-nowrap"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                  <span>Map Location</span>
                 </a>
 
                 {onToggleWishlist && (
                   <button
                     type="button"
                     onClick={() => onToggleWishlist(product.id)}
-                    className={`py-2.5 px-3 rounded-xl border font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                    className={`py-2.5 px-2 rounded-xl border font-bold text-xs transition-colors flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
                       isWishlisted
                         ? 'bg-red-50 text-red-700 border-red-200'
                         : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-300'
                     }`}
                   >
-                    <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-red-600 text-red-600' : 'text-stone-600'}`} />
-                    <span>{isWishlisted ? 'Saved Design' : 'Save Design'}</span>
+                    <Heart className={`w-3.5 h-3.5 shrink-0 ${isWishlisted ? 'fill-red-600 text-red-600' : 'text-stone-600'}`} />
+                    <span>{isWishlisted ? 'Saved' : 'Save'}</span>
                   </button>
                 )}
               </div>
