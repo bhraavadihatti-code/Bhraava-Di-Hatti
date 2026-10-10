@@ -165,6 +165,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [newColorInput, setNewColorInput] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
     id: '',
@@ -178,25 +179,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     workType: 'Heavy Embroidery & Zari Work',
     colors: ['Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
     sizes: ['Unstitched', 'L (40)', 'XL (42)'],
-    imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800',
+    imageUrl: '',
     inStock: true
   });
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsUploadingPhoto(true);
       try {
         const compressed = await compressImageFile(file);
-        setProductForm((prev) => ({ ...prev, imageUrl: compressed }));
+        if (compressed) {
+          setProductForm((prev) => ({
+            ...prev,
+            imageUrl: compressed,
+            images: [compressed, ...((prev.images || []).slice(1))]
+          }));
+        }
       } catch (err) {
         console.error('Image compress error:', err);
         const reader = new FileReader();
         reader.onloadend = () => {
           if (typeof reader.result === 'string') {
-            setProductForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
+            const resStr = reader.result as string;
+            setProductForm((prev) => ({
+              ...prev,
+              imageUrl: resStr,
+              images: [resStr, ...((prev.images || []).slice(1))]
+            }));
           }
         };
         reader.readAsDataURL(file);
+      } finally {
+        setIsUploadingPhoto(false);
       }
     }
   };
@@ -383,30 +398,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    let finalImageUrl = productForm.imageUrl || '';
-    // If image is a local camera/base64 upload, save to server disk so clean URL goes to Google Sheets
-    if (finalImageUrl.startsWith('data:image/')) {
-      try {
-        const uploadRes = await fetch('/api/upload-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: finalImageUrl, filename: productForm.name.slice(0, 10) })
-        });
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          if (uploadData.url) finalImageUrl = uploadData.url;
-        }
-      } catch (uploadErr) {
-        console.warn('Image upload error:', uploadErr);
-      }
+    if (isUploadingPhoto) {
+      alert('⏳ Photo is still being processed, please wait 1 second and tap Save again!');
+      return;
     }
+
+    const finalImageUrl = formatImageUrl(productForm.imageUrl || '');
 
     const rawImagesList = Array.from(new Set([
       finalImageUrl,
       ...(productForm.images || [])
     ].filter((img): img is string => Boolean(img && img.trim()))));
 
-    const allImagesList = rawImagesList.map(img => formatImageUrl(img));
+    const allImagesList = rawImagesList.map(img => formatImageUrl(img)).filter(Boolean);
     if (allImagesList.length === 0) {
       allImagesList.push('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
     }
@@ -2109,22 +2113,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 {/* Primary Cover Photo 1 */}
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-gray-800">Photo 1 (Main Cover Image):</span>
+                  <span className="text-[11px] font-bold text-gray-800">
+                    Photo 1 (Main Cover Image — Camera / Gallery or Google Drive Link):
+                  </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-amber-800 file:text-white cursor-pointer border border-gray-300 rounded-xl p-1 bg-white"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Or paste main image URL https://..."
-                      value={productForm.imageUrl || ''}
-                      onChange={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
-                      onBlur={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
-                      className="sm:col-span-2 w-full bg-white border border-amber-300 rounded-xl p-2 text-xs"
-                    />
+                    <label className="flex items-center justify-center gap-1.5 bg-amber-800 hover:bg-amber-900 text-white font-bold py-2 px-3 rounded-xl text-xs cursor-pointer shadow-xs text-center">
+                      <span>📷 {productForm.imageUrl?.startsWith('data:image/') ? 'Change Photo' : 'Choose Photo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    {isUploadingPhoto ? (
+                      <div className="sm:col-span-2 flex items-center gap-2 bg-amber-100 border border-amber-400 text-amber-950 px-3 py-2 rounded-xl text-xs font-bold animate-pulse">
+                        ⏳ Compressing & preparing photo for Google Sheet...
+                      </div>
+                    ) : productForm.imageUrl?.startsWith('data:image/') ? (
+                      <div className="sm:col-span-2 flex items-center justify-between bg-emerald-50 border border-emerald-400 text-emerald-950 px-3 py-1.5 rounded-xl text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={productForm.imageUrl}
+                            alt="Uploaded preview"
+                            className="w-8 h-9 object-cover rounded border border-emerald-500 shrink-0"
+                          />
+                          <span className="font-bold truncate">✅ Photo Ready for Google Sheet!</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProductForm((prev) => ({ ...prev, imageUrl: '' }))}
+                          className="text-[11px] text-red-700 hover:text-red-900 font-extrabold underline ml-2 shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="Or paste Google Drive / Image link https://..."
+                        value={productForm.imageUrl || ''}
+                        onChange={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
+                        onBlur={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
+                        className="sm:col-span-2 w-full bg-white border border-amber-300 rounded-xl p-2 text-xs"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -2134,43 +2167,69 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   {[1, 2, 3, 4].map((photoIdx) => {
                     const currentImgs = productForm.images || [];
                     const currentVal = currentImgs[photoIdx] || '';
+                    const isBase64Photo = currentVal.startsWith('data:image/');
                     return (
                       <div key={photoIdx} className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-bold text-amber-950 w-16 shrink-0">Photo #{photoIdx + 1}:</span>
-                        <input
-                          type="text"
-                          placeholder={`Paste URL for photo ${photoIdx + 1} (e.g., Dupatta close-up / back view)`}
-                          value={currentVal}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setProductForm((prev) => {
-                              const updatedImgs = [...(prev.images || [])];
-                              updatedImgs[photoIdx] = val;
-                              return { ...prev, images: updatedImgs };
-                            });
-                          }}
-                          className="w-full bg-white border border-gray-300 rounded-xl p-1.5 text-xs font-mono"
-                        />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (fileEv) => {
-                            const file = fileEv.target.files?.[0];
-                            if (file) {
-                              try {
-                                const base64 = await compressImageFile(file);
+                        {isBase64Photo ? (
+                          <div className="w-full flex items-center justify-between bg-emerald-50 border border-emerald-300 rounded-xl px-2.5 py-1 text-xs text-emerald-900">
+                            <span className="font-bold truncate">✅ Photo #{photoIdx + 1} Attached</span>
+                            <button
+                              type="button"
+                              onClick={() => {
                                 setProductForm((prev) => {
                                   const updatedImgs = [...(prev.images || [])];
-                                  updatedImgs[photoIdx] = base64;
+                                  updatedImgs[photoIdx] = '';
                                   return { ...prev, images: updatedImgs };
                                 });
-                              } catch (err) {
-                                console.error('Compress photo error:', err);
+                              }}
+                              className="text-[10px] text-red-600 font-bold underline ml-2"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder={`Paste Google Drive or image link for photo ${photoIdx + 1}`}
+                            value={currentVal}
+                            onChange={(e) => {
+                              const val = formatImageUrl(e.target.value);
+                              setProductForm((prev) => {
+                                const updatedImgs = [...(prev.images || [])];
+                                updatedImgs[photoIdx] = val;
+                                return { ...prev, images: updatedImgs };
+                              });
+                            }}
+                            className="w-full bg-white border border-gray-300 rounded-xl p-1.5 text-xs font-mono"
+                          />
+                        )}
+                        <label className="shrink-0 bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold py-1.5 px-2.5 rounded-lg text-[10px] cursor-pointer border border-amber-300">
+                          📷 Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (fileEv) => {
+                              const file = fileEv.target.files?.[0];
+                              if (file) {
+                                setIsUploadingPhoto(true);
+                                try {
+                                  const base64 = await compressImageFile(file);
+                                  setProductForm((prev) => {
+                                    const updatedImgs = [...(prev.images || [])];
+                                    updatedImgs[photoIdx] = base64;
+                                    return { ...prev, images: updatedImgs };
+                                  });
+                                } catch (err) {
+                                  console.error('Compress photo error:', err);
+                                } finally {
+                                  setIsUploadingPhoto(false);
+                                }
                               }
-                            }
-                          }}
-                          className="w-24 text-[10px] text-gray-500 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-amber-200 file:text-amber-950 cursor-pointer border rounded-lg"
-                        />
+                            }}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
                     );
                   })}
@@ -2279,9 +2338,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="bg-amber-800 hover:bg-amber-900 text-white font-extrabold px-6 py-2.5 rounded-xl text-xs shadow-lg transition-transform active:scale-95"
+                  disabled={isUploadingPhoto}
+                  className={`${
+                    isUploadingPhoto ? 'bg-amber-500 cursor-wait' : 'bg-amber-800 hover:bg-amber-900'
+                  } text-white font-extrabold px-6 py-2.5 rounded-xl text-xs shadow-lg transition-transform active:scale-95`}
                 >
-                  Save Product to Catalog
+                  {isUploadingPhoto ? '⏳ Processing Photo...' : 'Save Product to Catalog'}
                 </button>
               </div>
 

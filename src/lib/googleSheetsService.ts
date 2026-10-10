@@ -372,6 +372,39 @@ export async function fetchGoogleSheetAll(webhookUrl: string): Promise<{
   return { success: false, error: 'Webhook did not return formatted data' };
 }
 
+export function normalizeSheetImageUrl(rawUrl: string): string {
+  if (!rawUrl) return '';
+  const trimmed = String(rawUrl).trim();
+  if (!trimmed) return '';
+
+  // Repair previously truncated 40,000-char base64 strings from older Google Sheet rows
+  if (trimmed.startsWith('data:image/jpeg;base64,')) {
+    const prefix = 'data:image/jpeg;base64,';
+    const b64 = trimmed.slice(prefix.length);
+    if (trimmed.length === 40000 || b64.length % 4 === 1) {
+      const validLen = b64.length - (b64.length % 4);
+      const alignedB64 = b64.slice(0, validLen);
+      if (!alignedB64.endsWith('/9k=')) {
+        return `${prefix}${alignedB64}/9k=`;
+      }
+      return `${prefix}${alignedB64}`;
+    }
+    return trimmed;
+  }
+
+  // Convert Google Drive share URLs into direct loadable image URLs
+  const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch && driveFileMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}`;
+  }
+  const driveIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc|thumbnail)\?.*id=([a-zA-Z0-9_-]+)/);
+  if (driveIdMatch && driveIdMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
+  }
+
+  return trimmed;
+}
+
 /**
  * Parse products row objects from Google Sheets into Product interface
  */
@@ -387,7 +420,8 @@ export function parseProductsFromSheet(rows: any[]): Product[] {
     const colors = colorRaw.includes(',') ? colorRaw.split(',').map(s => s.trim()) : [colorRaw];
     const sizeRaw = String(r.Sizes || r.sizes || 'Unstitched');
     const sizes = sizeRaw.includes(',') ? sizeRaw.split(',').map(s => s.trim()) : [sizeRaw];
-    const imgUrl = String(r.ImageURL || r.imageUrl || r.image || '').trim() || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+    const rawImg = String(r.ImageURL || r.imageUrl || r.image || '').trim();
+    const imgUrl = normalizeSheetImageUrl(rawImg) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
     const stock = String(r.Stock || r.stock || 'In Stock').toLowerCase().includes('in');
     const status = String(r.Status || r.status || 'Active').trim();
     const createdAt = r.CreatedAt || r.createdAt || new Date().toISOString();

@@ -59,6 +59,32 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 function cleanImageUrl(url: string): string {
   if (!url) return '';
   const trimmed = url.trim();
+
+  // Repair previously truncated 40,000-char base64 strings from older Google Sheet rows
+  if (trimmed.startsWith('data:image/jpeg;base64,')) {
+    const prefix = 'data:image/jpeg;base64,';
+    const b64 = trimmed.slice(prefix.length);
+    if (trimmed.length === 40000 || b64.length % 4 === 1) {
+      const validLen = b64.length - (b64.length % 4);
+      const alignedB64 = b64.slice(0, validLen);
+      if (!alignedB64.endsWith('/9k=')) {
+        return `${prefix}${alignedB64}/9k=`;
+      }
+      return `${prefix}${alignedB64}`;
+    }
+    return trimmed;
+  }
+
+  // Convert Google Drive share URLs into direct CDN image links
+  const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch && driveFileMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}`;
+  }
+  const driveIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc|thumbnail)\?.*id=([a-zA-Z0-9_-]+)/);
+  if (driveIdMatch && driveIdMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
+  }
+
   const kommodoMatch = trimmed.match(/kommodo\.ai\/i\/([a-zA-Z0-9_-]+)/);
   if (kommodoMatch) {
     const id = kommodoMatch[1];
@@ -73,7 +99,6 @@ function cleanImageUrl(url: string): string {
 
 /**
  * Saves a base64 image string to disk in /data/uploads and returns a clean URL.
- * Prevents bloated base64 strings from polluting Google Sheets!
  */
 function saveBase64Image(dataUri: string, prefix = 'product'): string {
   try {
@@ -119,7 +144,13 @@ function loadProducts(): Product[] {
       if (data && data.trim()) {
         const savedProducts: Product[] = JSON.parse(data);
         if (Array.isArray(savedProducts) && savedProducts.length > 0) {
-          cachedProducts = savedProducts;
+          cachedProducts = savedProducts.map(p => ({
+            ...p,
+            imageUrl: cleanImageUrl(p.imageUrl),
+            images: Array.isArray(p.images) && p.images.length > 0
+              ? p.images.map(img => cleanImageUrl(img))
+              : [cleanImageUrl(p.imageUrl)]
+          }));
           return cachedProducts;
         }
       }
@@ -449,21 +480,13 @@ app.post('/api/products', async (req, res) => {
       targetId = `BDH-${maxNum + 1}`;
     }
 
-    // Clean and convert base64 image if present to clean file URL for Google Sheets
-    if (newProduct.imageUrl && newProduct.imageUrl.startsWith('data:image/')) {
-      newProduct.imageUrl = saveBase64Image(newProduct.imageUrl, targetId.toLowerCase());
-    }
+    // Normalize image URLs (keep compressed base64 intact so Google Sheets & mobile phones can render directly)
     if (newProduct.imageUrl) {
       newProduct.imageUrl = cleanImageUrl(newProduct.imageUrl);
     }
 
     if (Array.isArray(newProduct.images) && newProduct.images.length > 0) {
-      newProduct.images = newProduct.images.map(img => {
-        if (img && img.startsWith('data:image/')) {
-          return saveBase64Image(img, targetId.toLowerCase());
-        }
-        return cleanImageUrl(img);
-      });
+      newProduct.images = newProduct.images.map(img => cleanImageUrl(img)).filter(Boolean);
     } else if (newProduct.imageUrl) {
       newProduct.images = [newProduct.imageUrl];
     } else {
@@ -519,11 +542,11 @@ app.put('/api/products/:id', (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (updatedData.imageUrl && updatedData.imageUrl.startsWith('data:image/')) {
-      updatedData.imageUrl = saveBase64Image(updatedData.imageUrl, id.toLowerCase());
-    }
     if (updatedData.imageUrl) {
       updatedData.imageUrl = cleanImageUrl(updatedData.imageUrl);
+    }
+    if (Array.isArray(updatedData.images) && updatedData.images.length > 0) {
+      updatedData.images = updatedData.images.map(img => cleanImageUrl(img)).filter(Boolean);
     }
 
     products[index] = { ...products[index], ...updatedData };

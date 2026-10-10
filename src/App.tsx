@@ -230,7 +230,25 @@ export default function App() {
       const res = await fetchGoogleSheetAll(webhookUrl);
       if (res.success) {
         if (Array.isArray(res.products) && res.products.length > 0) {
-          setProducts(res.products);
+          const fallbackUnsplash = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+          setProducts((prev) => {
+            const prevMap = new Map<string, Product>(prev.map((item) => [item.id, item]));
+            return res.products!.map((sheetProd) => {
+              const localProd = prevMap.get(sheetProd.id);
+              if (!localProd) return sheetProd;
+              const bestImageUrl =
+                sheetProd.imageUrl && sheetProd.imageUrl !== fallbackUnsplash
+                  ? sheetProd.imageUrl
+                  : localProd.imageUrl || sheetProd.imageUrl;
+              const extraImages = (localProd.images || []).slice(1);
+              return {
+                ...localProd,
+                ...sheetProd,
+                imageUrl: bestImageUrl,
+                images: [bestImageUrl, ...extraImages]
+              };
+            });
+          });
         }
         if (Array.isArray(res.orders) && res.orders.length > 0) {
           const sorted = [...res.orders].sort(
@@ -494,21 +512,15 @@ export default function App() {
   };
 
   const handleAddProduct = async (product: Product) => {
-    // 1. Direct mobile client-to-Google Sheets pipeline (guaranteed from any mobile phone)
+    // Optimistic update state immediately so new suit and its photo appear right away
+    setProducts((prev) => {
+      const filtered = prev.filter(p => p.id !== product.id);
+      return [product, ...filtered];
+    });
+
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
-    if (webhookUrl) {
-      syncProductToGoogleSheets(product, 'save_product', webhookUrl).catch((err) => {
-        console.warn('Direct client product save to Google Sheets:', err);
-      });
-    }
 
     try {
-      // Optimistic update state immediately
-      setProducts((prev) => {
-        const filtered = prev.filter(p => p.id !== product.id);
-        return [product, ...filtered];
-      });
-
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -519,14 +531,21 @@ export default function App() {
         const serverSaved = await res.json();
         if (serverSaved && serverSaved.id) {
           setProducts((prev) => {
-            return prev.map(p => p.id === serverSaved.id ? serverSaved : p);
+            return prev.map(p => p.id === serverSaved.id ? { ...serverSaved, imageUrl: product.imageUrl || serverSaved.imageUrl } : p);
           });
         }
       }
-      fetchProducts();
     } catch (e: any) {
-      console.error('Add product error (direct Google Sheet sync already triggered):', e);
-      fetchProducts();
+      console.error('Add product error (falling back to direct Google Sheet sync):', e);
+    }
+
+    // Also sync directly to Google Sheets from client to guarantee persistence
+    if (webhookUrl) {
+      try {
+        await syncProductToGoogleSheets(product, 'save_product', webhookUrl);
+      } catch (err) {
+        console.warn('Direct client product save to Google Sheets:', err);
+      }
     }
   };
 
@@ -535,27 +554,26 @@ export default function App() {
     const mergedProduct = existing ? { ...existing, ...updated } : (updated as Product);
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
 
-    // Direct mobile client-to-Google Sheets pipeline
-    if (webhookUrl && mergedProduct.id) {
-      syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl).catch((err) => {
-        console.warn('Direct client product update to Google Sheets:', err);
-      });
-    }
+    setProducts((prev) => {
+      return prev.map(p => p.id === id ? { ...p, ...updated } : p);
+    });
 
     try {
-      setProducts((prev) => {
-        return prev.map(p => p.id === id ? { ...p, ...updated } : p);
-      });
-
       await fetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-      fetchProducts();
     } catch (e: any) {
       console.error('Update product error:', e);
-      fetchProducts();
+    }
+
+    if (webhookUrl && mergedProduct.id) {
+      try {
+        await syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl);
+      } catch (err) {
+        console.warn('Direct client product update to Google Sheets:', err);
+      }
     }
   };
 
