@@ -65,7 +65,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           alt={product.name}
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : 'auto'}
-          decoding="async"
+          decoding="sync"
           referrerPolicy="no-referrer"
           onLoad={() => setImgLoaded(true)}
           onError={() => {
@@ -74,8 +74,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             }
             setImgLoaded(true);
           }}
-          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ease-out ${
-            imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.01]'
+          className={`w-full h-full object-cover object-top transition-opacity duration-200 [image-rendering:-webkit-optimize-contrast] ${
+            imgLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
 

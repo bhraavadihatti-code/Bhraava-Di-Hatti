@@ -358,15 +358,26 @@ export default function App() {
                 if (Date.now() - modifiedAt < 60000) {
                   return localProd;
                 }
-                const bestImageUrl =
-                  cleanedSheetImg && cleanedSheetImg !== fallbackUnsplash
-                    ? cleanedSheetImg
-                    : formatImageUrl(localProd.imageUrl || cleanedSheetImg);
+                const cleanedLocalImg = formatImageUrl(localProd.imageUrl || '');
+                const keepLocalHd =
+                  (cleanedLocalImg.startsWith('data:image/') &&
+                    cleanedSheetImg.startsWith('data:image/') &&
+                    cleanedLocalImg.length >= cleanedSheetImg.length) ||
+                  cleanedLocalImg.startsWith('/uploads/');
+
+                const bestImageUrl = keepLocalHd
+                  ? cleanedLocalImg
+                  : cleanedSheetImg && cleanedSheetImg !== fallbackUnsplash
+                  ? cleanedSheetImg
+                  : cleanedLocalImg || cleanedSheetImg;
                 const extraImages = (localProd.images || []).slice(1).map((i) => formatImageUrl(i));
                 return {
                   ...localProd,
                   ...sheetProd,
                   imageUrl: bestImageUrl,
+                  sheetImageUrl:
+                    localProd.sheetImageUrl ||
+                    (cleanedSheetImg.startsWith('data:image/') ? cleanedSheetImg : undefined),
                   images: [bestImageUrl, ...extraImages]
                 };
               });

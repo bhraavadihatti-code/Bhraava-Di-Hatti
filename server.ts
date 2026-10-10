@@ -185,10 +185,18 @@ function mergeProductsWithSheet(
       continue;
     }
 
-    const bestPrimaryImg =
-      cleanedSheetImg && cleanedSheetImg !== DEFAULT_FALLBACK_IMG
-        ? cleanedSheetImg
-        : cleanImageUrl(localProd.imageUrl || cleanedSheetImg || DEFAULT_FALLBACK_IMG);
+    const cleanedLocalImg = cleanImageUrl(localProd.imageUrl || '');
+    const keepLocalHd =
+      (cleanedLocalImg.startsWith('data:image/') &&
+        cleanedSheetImg.startsWith('data:image/') &&
+        cleanedLocalImg.length >= cleanedSheetImg.length) ||
+      cleanedLocalImg.startsWith('/uploads/');
+
+    const bestPrimaryImg = keepLocalHd
+      ? cleanedLocalImg
+      : cleanedSheetImg && cleanedSheetImg !== DEFAULT_FALLBACK_IMG
+      ? cleanedSheetImg
+      : cleanedLocalImg || cleanedSheetImg || DEFAULT_FALLBACK_IMG;
 
     const extraLocalImgs = Array.isArray(localProd.images)
       ? localProd.images.slice(1).map(img => cleanImageUrl(img)).filter(Boolean)
@@ -198,6 +206,9 @@ function mergeProductsWithSheet(
       ...localProd,
       ...rawSheetProd,
       imageUrl: bestPrimaryImg,
+      sheetImageUrl:
+        localProd.sheetImageUrl ||
+        (cleanedSheetImg.startsWith('data:image/') ? cleanedSheetImg : undefined),
       images: [bestPrimaryImg, ...extraLocalImgs]
     });
   }

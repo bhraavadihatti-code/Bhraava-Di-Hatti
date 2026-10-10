@@ -17,10 +17,9 @@ export function repairTruncatedJpeg(dataUri: string): string {
   const validLen = rawB64.length - (rawB64.length % 4);
   const alignedB64 = rawB64.slice(0, validLen);
 
-  // Quick check: if it already ends with /9k= or 9k= and is not near 40,000 chars, return fast
+  // Quick check: if it already ends with /9k= (standard base64 for FF D9), it is a complete JPEG
   if (
     rawB64.length === validLen &&
-    rawB64.length < 38500 &&
     (alignedB64.endsWith('/9k=') || alignedB64.endsWith('ffd9'))
   ) {
     return dataUri;
@@ -44,9 +43,9 @@ export function repairTruncatedJpeg(dataUri: string): string {
       return dataUri;
     }
 
-    // If not near 40,000 chars and already ends with FF D9, it's a normal complete JPEG
+    // If it already ends with FF D9 (JPEG End-Of-Image marker), it is a 100% complete JPEG (including Full HD JPEGs!)
     const endsWithEOI = bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
-    if (endsWithEOI && dataUri.length < 39500) {
+    if (endsWithEOI) {
       return dataUri;
     }
 
@@ -260,7 +259,7 @@ export function repairTruncatedJpeg(dataUri: string): string {
 
 /**
  * Normalizes image URLs, automatically converting share links (such as Google Drive or kommodo.ai)
- * into direct loadable image URLs, and repairing truncated base64 strings if needed.
+ * into direct Full HD (=s1600) loadable image URLs, and repairing truncated base64 strings if needed.
  */
 export function formatImageUrl(url: string): string {
   if (!url) return '';
@@ -274,14 +273,20 @@ export function formatImageUrl(url: string): string {
     return trimmed;
   }
 
-  // Convert Google Drive share links (e.g. drive.google.com/file/d/ID/view or ?id=ID) into direct CDN image links
+  // Upgrade existing Google Drive lh3 CDN links to Full HD (=s1600) if no size parameter is present
+  const lh3Match = trimmed.match(/^https:\/\/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)(?:=(.*))?$/);
+  if (lh3Match && lh3Match[1]) {
+    return `https://lh3.googleusercontent.com/d/${lh3Match[1]}=s1600`;
+  }
+
+  // Convert Google Drive share links (e.g. drive.google.com/file/d/ID/view or ?id=ID) into direct Full HD CDN image links
   const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (driveFileMatch && driveFileMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}`;
+    return `https://lh3.googleusercontent.com/d/${driveFileMatch[1]}=s1600`;
   }
   const driveIdMatch = trimmed.match(/drive\.google\.com\/(?:open|uc|thumbnail)\?.*id=([a-zA-Z0-9_-]+)/);
   if (driveIdMatch && driveIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}`;
+    return `https://lh3.googleusercontent.com/d/${driveIdMatch[1]}=s1600`;
   }
 
   const kommodoMatch = trimmed.match(/kommodo\.ai\/i\/([a-zA-Z0-9_-]+)/);
@@ -296,20 +301,121 @@ export function formatImageUrl(url: string): string {
   return trimmed;
 }
 
+// In-memory cache mapping a Full HD data URI to its compact Google-Sheets-safe data URI (<= 46,500 chars)
+const hdToSheetImageCache = new Map<string, string>();
+
+export function getSheetSafeImage(imageUrl: string): string | undefined {
+  if (!imageUrl) return undefined;
+  return hdToSheetImageCache.get(imageUrl);
+}
+
 /**
- * Helper that draws an image source onto a canvas and adaptively steps down dimensions/quality
- * so the resulting base64 string is strictly <= 32,000 characters (~24KB).
- * This guarantees fast loading on mobile networks and ensures the full image fits inside
- * a single Google Sheets cell without ever being cut off at 40,000 chars.
+ * Multi-step high-quality bicubic canvas downscaler.
+ * Stepping down in halves when shrinking high-megapixel phone camera photos (e.g. 4000x3000 -> 1400px)
+ * prevents browser single-pass aliasing and keeps fine zari/embroidery threads crystal-clear in HD.
+ */
+function renderHighQualityCanvas(
+  source: CanvasImageSource,
+  origWidth: number,
+  origHeight: number,
+  targetWidth: number,
+  targetHeight: number
+): HTMLCanvasElement | null {
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = targetWidth;
+  finalCanvas.height = targetHeight;
+  const finalCtx = finalCanvas.getContext('2d');
+  if (!finalCtx) return null;
+
+  finalCtx.imageSmoothingEnabled = true;
+  finalCtx.imageSmoothingQuality = 'high';
+
+  // If the original camera photo is > 2x larger than target, step down progressively for maximum sharpness
+  let curWidth = origWidth;
+  let curHeight = origHeight;
+  let currentSource: CanvasImageSource = source;
+
+  while (curWidth * 0.5 > targetWidth * 1.15 && curHeight * 0.5 > targetHeight * 1.15) {
+    const nextW = Math.max(targetWidth, Math.round(curWidth * 0.5));
+    const nextH = Math.max(targetHeight, Math.round(curHeight * 0.5));
+    const stepCanvas = document.createElement('canvas');
+    stepCanvas.width = nextW;
+    stepCanvas.height = nextH;
+    const stepCtx = stepCanvas.getContext('2d');
+    if (!stepCtx) break;
+    stepCtx.imageSmoothingEnabled = true;
+    stepCtx.imageSmoothingQuality = 'high';
+    stepCtx.fillStyle = '#FFFFFF';
+    stepCtx.fillRect(0, 0, nextW, nextH);
+    stepCtx.drawImage(currentSource, 0, 0, nextW, nextH);
+    currentSource = stepCanvas;
+    curWidth = nextW;
+    curHeight = nextH;
+  }
+
+  finalCtx.fillStyle = '#FFFFFF';
+  finalCtx.fillRect(0, 0, targetWidth, targetHeight);
+  finalCtx.drawImage(currentSource, 0, 0, targetWidth, targetHeight);
+  return finalCanvas;
+}
+
+/**
+ * Encodes an image source into a crystal-clear Full HD JPEG data URI (up to 1400px @ 0.90 quality)
+ * for the Home Page and Suit Detail Zoom view.
+ */
+function encodeToHighDefinitionBase64(
+  source: CanvasImageSource,
+  origWidth: number,
+  origHeight: number,
+  initialMaxDim = 1400,
+  initialQuality = 0.90,
+  maxAllowedChars = 480000
+): string {
+  let maxDim = initialMaxDim;
+  let quality = initialQuality;
+  let result = '';
+
+  for (let step = 0; step < 6; step++) {
+    let width = origWidth;
+    let height = origHeight;
+
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.max(1, Math.round((height * maxDim) / width));
+        width = maxDim;
+      } else {
+        width = Math.max(1, Math.round((width * maxDim) / height));
+        height = maxDim;
+      }
+    }
+
+    const canvas = renderHighQualityCanvas(source, origWidth, origHeight, width, height);
+    if (!canvas) break;
+
+    result = canvas.toDataURL('image/jpeg', quality);
+    if (result.length <= maxAllowedChars) {
+      return result;
+    }
+
+    maxDim = Math.max(900, Math.round(maxDim * 0.88));
+    quality = Math.max(0.78, Number((quality - 0.04).toFixed(2)));
+  }
+
+  return result;
+}
+
+/**
+ * Encodes an image source into a Google-Sheets-safe JPEG (strictly <= 46,500 chars)
+ * with high-quality bicubic smoothing so the single-cell Sheet copy also stays sharp and never truncates.
  */
 function encodeToSheetSafeBase64(
   source: CanvasImageSource,
   origWidth: number,
   origHeight: number,
-  maxAllowedChars = 32000
+  maxAllowedChars = 46500
 ): string {
-  let maxDim = 500;
-  let quality = 0.62;
+  let maxDim = 820;
+  let quality = 0.80;
   let result = '';
 
   for (let step = 0; step < 8; step++) {
@@ -326,66 +432,71 @@ function encodeToSheetSafeBase64(
       }
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) break;
-
-    // Fill white background so transparent PNGs don't turn black
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(source, 0, 0, width, height);
+    const canvas = renderHighQualityCanvas(source, origWidth, origHeight, width, height);
+    if (!canvas) break;
 
     result = canvas.toDataURL('image/jpeg', quality);
     if (result.length <= maxAllowedChars) {
       return result;
     }
 
-    // Step down size and quality for next iteration if still > maxAllowedChars
-    maxDim = Math.max(220, Math.round(maxDim * 0.84));
-    quality = Math.max(0.35, Number((quality - 0.07).toFixed(2)));
+    maxDim = Math.max(420, Math.round(maxDim * 0.86));
+    quality = Math.max(0.55, Number((quality - 0.05).toFixed(2)));
   }
 
   return result;
 }
 
 /**
- * Image compression utility to convert raw camera/file uploads (which can be 5MB-15MB)
- * into a fast, Google-Sheets-safe base64 JPEG (strictly <= 32,000 characters).
+ * Image compression utility to convert raw camera/file uploads into a
+ * Crystal-Clear Full HD JPEG (1400px @ 90% quality) for the Home Page & Product Modal,
+ * while also caching a Google-Sheets-safe companion copy in memory.
  */
 export function compressImageFile(
   file: File,
-  maxWidth = 500,
-  maxHeight = 500,
-  quality = 0.62
+  maxWidth = 1400,
+  maxHeight = 1400,
+  quality = 0.90
 ): Promise<string> {
+  const targetMaxDim = Math.max(maxWidth, maxHeight, 1280);
+  const targetQuality = Math.max(quality, 0.88);
+
   return new Promise((resolve) => {
     if ('createImageBitmap' in window) {
       createImageBitmap(file)
         .then((bitmap) => {
-          const compressedBase64 = encodeToSheetSafeBase64(bitmap, bitmap.width, bitmap.height, 32000);
+          const hdBase64 = encodeToHighDefinitionBase64(
+            bitmap,
+            bitmap.width,
+            bitmap.height,
+            targetMaxDim,
+            targetQuality,
+            480000
+          );
+          const sheetBase64 = encodeToSheetSafeBase64(bitmap, bitmap.width, bitmap.height, 46500);
           bitmap.close();
-          if (compressedBase64) {
-            resolve(compressedBase64);
+          if (hdBase64) {
+            if (sheetBase64) {
+              hdToSheetImageCache.set(hdBase64, sheetBase64);
+            }
+            resolve(hdBase64);
             return;
           }
-          fallbackCompress(file, maxWidth, maxHeight, quality, resolve);
+          fallbackCompress(file, targetMaxDim, targetQuality, resolve);
         })
         .catch(() => {
-          fallbackCompress(file, maxWidth, maxHeight, quality, resolve);
+          fallbackCompress(file, targetMaxDim, targetQuality, resolve);
         });
     } else {
-      fallbackCompress(file, maxWidth, maxHeight, quality, resolve);
+      fallbackCompress(file, targetMaxDim, targetQuality, resolve);
     }
   });
 }
 
 function fallbackCompress(
   file: File,
-  _maxWidth: number,
-  _maxHeight: number,
-  _quality: number,
+  maxDim: number,
+  quality: number,
   resolve: (value: string) => void
 ) {
   const objectUrl = URL.createObjectURL(file);
@@ -398,9 +509,13 @@ function fallbackCompress(
   };
   img.onload = () => {
     URL.revokeObjectURL(objectUrl);
-    const compressedBase64 = encodeToSheetSafeBase64(img, img.width, img.height, 32000);
-    if (compressedBase64) {
-      resolve(compressedBase64);
+    const hdBase64 = encodeToHighDefinitionBase64(img, img.width, img.height, maxDim, quality, 480000);
+    const sheetBase64 = encodeToSheetSafeBase64(img, img.width, img.height, 46500);
+    if (hdBase64) {
+      if (sheetBase64) {
+        hdToSheetImageCache.set(hdBase64, sheetBase64);
+      }
+      resolve(hdBase64);
       return;
     }
     const reader = new FileReader();
@@ -409,3 +524,4 @@ function fallbackCompress(
   };
   img.src = objectUrl;
 }
+

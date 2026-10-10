@@ -1,5 +1,5 @@
 import { Product, Order, OrderStatus } from '../types.js';
-import { formatImageUrl } from './imageUtils.js';
+import { formatImageUrl, getSheetSafeImage } from './imageUtils.js';
 
 export const PRODUCTS_SHEET_NAME = 'Products';
 export const ORDERS_SHEET_NAME = 'Orders';
@@ -49,9 +49,14 @@ export function formatProductForSheet(product: Product) {
   const statusStr = product.status || 'Active';
   const createdStr = product.createdAt || new Date().toISOString();
 
-  let safeImageUrl = formatImageUrl(product.imageUrl || '');
-  if (safeImageUrl.startsWith('data:image/') && safeImageUrl.length > 39000) {
-    safeImageUrl = formatImageUrl(safeImageUrl.slice(0, 39000));
+  const rawSheetCandidate =
+    product.sheetImageUrl ||
+    getSheetSafeImage(product.imageUrl || '') ||
+    product.imageUrl ||
+    '';
+  let safeImageUrl = formatImageUrl(rawSheetCandidate);
+  if (safeImageUrl.startsWith('data:image/') && safeImageUrl.length > 47000) {
+    safeImageUrl = formatImageUrl(safeImageUrl.slice(0, 47000));
   }
 
   return {
@@ -919,9 +924,9 @@ function processImage(imageUrl, title) {
 
     const file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return "https://lh3.googleusercontent.com/d/" + file.getId();
+    return "https://lh3.googleusercontent.com/d/" + file.getId() + "=s1600";
   } catch (err) {
-    return trimmed.length > 40000 ? trimmed.slice(0, 40000) : trimmed;
+    return trimmed.length > 47000 ? trimmed.slice(0, 47000) : trimmed;
   }
 }
 

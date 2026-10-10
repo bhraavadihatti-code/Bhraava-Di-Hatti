@@ -133,11 +133,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <img
                 src={currentImageUrl}
                 alt={`${product.name} photo ${activeImgIdx + 1}`}
+                decoding="sync"
+                fetchPriority="high"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = fallbackSuitImg;
                 }}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                className="w-full h-full object-cover object-top [image-rendering:-webkit-optimize-contrast]"
               />
 
               {/* Close Modal (Desktop) */}

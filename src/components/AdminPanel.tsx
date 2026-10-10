@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Product, ShopSettings } from '../types';
 import { playOrderAlertSound } from '../utils/audioAlert';
-import { compressImageFile, formatImageUrl } from '../lib/imageUtils';
+import { compressImageFile, formatImageUrl, getSheetSafeImage } from '../lib/imageUtils';
 import { generateMeeshoStyleBillText } from './OrderSuccessModal';
 import { 
   Store, 
@@ -249,6 +249,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             return {
               ...prev,
               imageUrl: compressedList[0],
+              sheetImageUrl: getSheetSafeImage(compressedList[0]) || prev.sheetImageUrl,
               images: existingSlots
             };
           } else {
@@ -256,9 +257,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             for (let idx = 0; idx < compressedList.length && idx < 5; idx++) {
               existingSlots[idx] = compressedList[idx];
             }
+            const primaryHd = existingSlots[0] || compressedList[0];
             return {
               ...prev,
-              imageUrl: existingSlots[0] || compressedList[0],
+              imageUrl: primaryHd,
+              sheetImageUrl: getSheetSafeImage(primaryHd) || prev.sheetImageUrl,
               images: existingSlots.slice(0, 5)
             };
           }
@@ -497,6 +500,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       colors: productForm.colors && productForm.colors.length > 0 ? productForm.colors : ['Crimson Red', 'Royal Blue'],
       sizes: productForm.sizes && productForm.sizes.length > 0 ? productForm.sizes : ['Unstitched'],
       imageUrl: allImagesList[0],
+      sheetImageUrl: getSheetSafeImage(allImagesList[0]) || productForm.sheetImageUrl,
       images: allImagesList,
       inStock: productForm.inStock !== undefined ? productForm.inStock : true,
       status: 'Active',
@@ -2261,7 +2265,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </label>
                     {isUploadingPhoto ? (
                       <div className="sm:col-span-2 flex items-center gap-2 bg-amber-100 border border-amber-400 text-amber-950 px-3 py-2 rounded-xl text-xs font-bold animate-pulse">
-                        ⏳ Compressing & preparing photo(s)...
+                        ⏳ Preparing Full HD photo(s)...
                       </div>
                     ) : productForm.imageUrl?.startsWith('data:image/') ? (
                       <div className="sm:col-span-2 flex items-center justify-between bg-emerald-50 border border-emerald-400 text-emerald-950 px-3 py-1.5 rounded-xl text-xs">
@@ -2271,7 +2275,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             alt="Uploaded preview"
                             className="w-8 h-9 object-cover rounded border border-emerald-500 shrink-0"
                           />
-                          <span className="font-bold truncate">✅ Main Photo Ready!</span>
+                          <span className="font-bold truncate">✅ Full HD Photo Ready!</span>
                         </div>
                         <button
                           type="button"

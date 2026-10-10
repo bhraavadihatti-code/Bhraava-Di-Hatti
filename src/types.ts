@@ -14,8 +14,9 @@ export interface Product {
   workType?: string;
   colors: string[];
   sizes: string[];
-  imageUrl: string; // Clean ImageURL
-  images?: string[]; // Multiple photos (4-5 images per product)
+  imageUrl: string; // Clean Full HD ImageURL
+  sheetImageUrl?: string; // Compact Google-Sheets-safe ImageURL (<= 47,500 chars)
+  images?: string[]; // Multiple HD photos (4-5 images per product)
   inStock: boolean; // Stock
   status?: string; // 'Active' | 'Draft' | 'Published'
   isBestSeller?: boolean;
