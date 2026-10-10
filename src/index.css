@@ -44,6 +44,44 @@
   border-radius: 9999px;
 }
 
+/* Myntra / Flipkart Style Smooth Shimmer Wave & Progressive Card Reveal */
+@keyframes shimmerSweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-wave {
+  background: linear-gradient(
+    90deg,
+    #f1ece4 0%,
+    #faf6ee 35%,
+    #fdfbf7 50%,
+    #faf6ee 65%,
+    #f1ece4 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerSweep 1.35s ease-in-out infinite;
+}
+
+@keyframes cardRevealUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-fade-in {
+  animation: cardRevealUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Print Media Query for Meesho-Style Shipping Labels & Bills */
 @media print {
   body * {
@@ -68,4 +106,5 @@
     display: none !important;
   }
 }
+
 

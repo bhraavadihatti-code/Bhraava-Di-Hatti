@@ -22,8 +22,8 @@ import { formatImageUrl } from './lib/imageUtils';
 import { Heart, MapPin, Phone, MessageCircle, Clock, Store, Navigation, Loader2 } from 'lucide-react';
 
 const PRODUCTS_CACHE_KEY = 'bdh_products_cache_v2';
-const INITIAL_VISIBLE_COUNT = 2;
-const SCROLL_BATCH_SIZE = 2;
+const INITIAL_VISIBLE_COUNT = 6;
+const SCROLL_BATCH_SIZE = 4;
 
 export default function App() {
   // App view mode
@@ -44,7 +44,7 @@ export default function App() {
     } catch {
       // ignore storage errors
     }
-    return INITIAL_PRODUCTS;
+    return [];
   });
 
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
@@ -67,9 +67,11 @@ export default function App() {
   const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Progressive / Infinite Scroll State (loads products gradually on scroll like Meesho/Flipkart)
+  // Progressive / Infinite Scroll State (loads products smoothly on scroll like Myntra/Flipkart)
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const isLoadingMoreRef = useRef<boolean>(false);
+  const loadMoreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const lastProductSignatureRef = useRef<string>('');
   const recentlyModifiedProductIdsRef = useRef<Map<string, number>>(new Map());
@@ -227,10 +229,14 @@ export default function App() {
           if (sheetResult.success && sheetResult.products && sheetResult.products.length > 0) {
             const normalized = normalizeProductList(sheetResult.products);
             setProducts(normalized);
+            loadedFromServer = true;
           }
         } catch (e) {
           console.warn('Google Sheet direct fetch fallback:', e);
         }
+      }
+      if (!loadedFromServer) {
+        setProducts((prev) => (prev.length > 0 ? prev : INITIAL_PRODUCTS));
       }
       setIsInitialLoading(false);
     }
@@ -536,50 +542,85 @@ export default function App() {
       return 0;
     });
 
+  const initialBatchCount = filteredProducts.length > 8 ? INITIAL_VISIBLE_COUNT : 4;
+
   // Reset progressive scroll batch count when filters/search change
   useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE_COUNT);
+    if (loadMoreTimerRef.current) {
+      clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = null;
+    }
+    isLoadingMoreRef.current = false;
     setIsLoadingMore(false);
-  }, [selectedCategory, priceFilter, sortBy, searchQuery]);
+    setVisibleCount(filteredProducts.length > 8 ? INITIAL_VISIBLE_COUNT : 4);
+  }, [selectedCategory, priceFilter, sortBy, searchQuery, filteredProducts.length > 8]);
 
   const hasMoreProducts = visibleCount < filteredProducts.length;
   const visibleProducts = filteredProducts.slice(0, visibleCount);
 
-  // Progressive / Infinite Scroll Observer (loads next batch smoothly as user scrolls down)
+  // Smooth Big-App Infinite Scroll (Myntra / Flipkart style - never cancels its own timer)
   useEffect(() => {
-    if (activeView !== 'shop' || !hasMoreProducts || isLoadingMore) return;
+    if (activeView !== 'shop' || !hasMoreProducts) return;
+
+    const triggerNextBatch = () => {
+      if (isLoadingMoreRef.current) return;
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+      loadMoreTimerRef.current = setTimeout(() => {
+        setVisibleCount((prev) => Math.min(filteredProducts.length, prev + SCROLL_BATCH_SIZE));
+        isLoadingMoreRef.current = false;
+        setIsLoadingMore(false);
+        loadMoreTimerRef.current = null;
+      }, 240);
+    };
+
+    const checkScrollPosition = () => {
+      if (isLoadingMoreRef.current) return;
+      const sentinel = loadMoreSentinelRef.current;
+      if (!sentinel) return;
+      const rect = sentinel.getBoundingClientRect();
+      if (rect.top <= window.innerHeight + 240) {
+        triggerNextBatch();
+      }
+    };
 
     const sentinel = loadMoreSentinelRef.current;
-    if (!sentinel) return;
+    let observer: IntersectionObserver | null = null;
 
-    let timerId: any = null;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first && first.isIntersecting && !isLoadingMore) {
-          setIsLoadingMore(true);
-          const step = filteredProducts.length > 8 ? 4 : SCROLL_BATCH_SIZE;
-          timerId = setTimeout(() => {
-            setVisibleCount((prev) => Math.min(filteredProducts.length, prev + step));
-            setIsLoadingMore(false);
-          }, 480);
+    if (sentinel && typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const first = entries[0];
+          if (first && first.isIntersecting) {
+            triggerNextBatch();
+          }
+        },
+        {
+          root: null,
+          rootMargin: '240px',
+          threshold: 0.01
         }
-      },
-      {
-        root: null,
-        rootMargin: '80px',
-        threshold: 0.1
-      }
-    );
+      );
+      observer.observe(sentinel);
+    }
 
-    observer.observe(sentinel);
+    window.addEventListener('scroll', checkScrollPosition, { passive: true });
+    window.addEventListener('resize', checkScrollPosition, { passive: true });
 
     return () => {
-      observer.disconnect();
-      if (timerId) clearTimeout(timerId);
+      if (observer) observer.disconnect();
+      window.removeEventListener('scroll', checkScrollPosition);
+      window.removeEventListener('resize', checkScrollPosition);
     };
-  }, [activeView, hasMoreProducts, isLoadingMore, filteredProducts.length]);
+  }, [activeView, hasMoreProducts, visibleCount, filteredProducts.length]);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimerRef.current) clearTimeout(loadMoreTimerRef.current);
+    };
+  }, []);
 
   // Admin Actions
   const handleUpdateOrderStatus = async (orderId: string, payload: any) => {
@@ -899,19 +940,23 @@ export default function App() {
               )}
             </div>
 
-            {/* Product Grid (Progressive Batch Rendering) */}
+            {/* Product Grid (Myntra / Flipkart Style Shimmer + Smooth Infinite Scroll) */}
             {isInitialLoading && products.length === 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-                {[1, 2, 3, 4].map((n) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                   <div
                     key={n}
-                    className="bg-white rounded-2xl border border-amber-200/60 overflow-hidden flex flex-col animate-pulse"
+                    className="bg-white rounded-2xl border border-amber-200/60 overflow-hidden flex flex-col shadow-2xs"
                   >
-                    <div className="aspect-[3/4] bg-stone-200" />
-                    <div className="p-3 space-y-2">
-                      <div className="h-3 bg-stone-200 rounded w-1/2" />
-                      <div className="h-4 bg-stone-200 rounded w-3/4" />
-                      <div className="h-8 bg-stone-200 rounded-xl w-full mt-2" />
+                    <div className="aspect-[3/4] shimmer-wave" />
+                    <div className="p-3 sm:p-4 space-y-2.5">
+                      <div className="h-2.5 shimmer-wave rounded-md w-1/2" />
+                      <div className="h-4 shimmer-wave rounded-md w-4/5" />
+                      <div className="h-2.5 shimmer-wave rounded-md w-2/3" />
+                      <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                        <div className="h-5 shimmer-wave rounded-md w-1/3" />
+                        <div className="h-7 shimmer-wave rounded-xl w-20" />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -919,10 +964,11 @@ export default function App() {
             ) : (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
-                  {visibleProducts.map((product) => (
+                  {visibleProducts.map((product, index) => (
                     <ProductCard
                       key={product.id}
                       product={product}
+                      priority={index < 4}
                       onViewDetails={(p) => setSelectedProduct(p)}
                       isWishlisted={isWishlisted(product.id)}
                       onToggleWishlist={toggleWishlist}
@@ -930,47 +976,41 @@ export default function App() {
                     />
                   ))}
 
-                  {/* Shimmer Skeleton Cards while next scroll batch is loading */}
+                  {/* Shimmer Skeleton Cards while next scroll batch is revealing */}
                   {isLoadingMore &&
-                    [1, 2].map((skeletonIdx) => (
+                    Array.from({
+                      length: Math.min(SCROLL_BATCH_SIZE, Math.max(1, filteredProducts.length - visibleProducts.length))
+                    }).map((_, skeletonIdx) => (
                       <div
                         key={`loading-skeleton-${skeletonIdx}`}
-                        className="bg-white rounded-2xl border border-amber-200/70 overflow-hidden flex flex-col animate-pulse"
+                        className="bg-white rounded-2xl border border-amber-200/60 overflow-hidden flex flex-col shadow-2xs"
                       >
-                        <div className="aspect-[3/4] bg-gradient-to-r from-stone-200 via-amber-50/70 to-stone-200 flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 text-amber-700 animate-spin" />
-                        </div>
-                        <div className="p-3 space-y-2">
-                          <div className="h-2.5 bg-stone-200 rounded w-1/2" />
-                          <div className="h-4 bg-stone-200 rounded w-4/5" />
-                          <div className="h-7 bg-stone-200 rounded-xl w-full mt-2" />
+                        <div className="aspect-[3/4] shimmer-wave" />
+                        <div className="p-3 sm:p-4 space-y-2.5">
+                          <div className="h-2.5 shimmer-wave rounded-md w-1/2" />
+                          <div className="h-4 shimmer-wave rounded-md w-4/5" />
+                          <div className="h-2.5 shimmer-wave rounded-md w-2/3" />
+                          <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                            <div className="h-5 shimmer-wave rounded-md w-1/3" />
+                            <div className="h-7 shimmer-wave rounded-xl w-20" />
+                          </div>
                         </div>
                       </div>
                     ))}
                 </div>
 
-                {/* Infinite Scroll Sentinel & "Loading..." Indicator */}
+                {/* Minimal Big-App Infinite Scroll Sentinel */}
                 {hasMoreProducts && (
                   <div
                     ref={loadMoreSentinelRef}
-                    className="py-6 flex flex-col items-center justify-center gap-2.5"
+                    className="py-6 flex items-center justify-center"
                   >
-                    <div className="inline-flex items-center gap-2.5 bg-white border border-amber-300/90 px-4 py-2.5 rounded-2xl shadow-xs text-amber-950">
-                      <Loader2 className="w-4 h-4 text-amber-700 animate-spin shrink-0" />
-                      <span className="text-xs sm:text-sm font-bold tracking-wide">
-                        Loading more suits... (ਹੋਰ ਸੂਟ ਲੋਡ ਹੋ ਰਹੇ ਹਨ...)
+                    <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/90 border border-amber-200/80 shadow-2xs text-stone-700">
+                      <span className="w-4 h-4 rounded-full border-2 border-amber-700 border-t-transparent animate-spin shrink-0" />
+                      <span className="text-xs font-semibold tracking-wide text-stone-700">
+                        Loading more designs...
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const step = filteredProducts.length > 8 ? 4 : SCROLL_BATCH_SIZE;
-                        setVisibleCount((prev) => Math.min(filteredProducts.length, prev + step));
-                      }}
-                      className="text-[11px] font-semibold text-amber-900/80 hover:text-amber-950 underline cursor-pointer"
-                    >
-                      Showing {visibleProducts.length} of {filteredProducts.length} · Tap if not auto-scrolling
-                    </button>
                   </div>
                 )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../types';
 import { Eye, Heart, MessageCircle } from 'lucide-react';
 import { formatImageUrl } from '../lib/imageUtils';
@@ -11,6 +11,7 @@ interface ProductCardProps {
   isWishlisted?: boolean;
   onToggleWishlist?: (productId: string) => void;
   shopPhone?: string;
+  priority?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -18,40 +19,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onViewDetails,
   isWishlisted = false,
   onToggleWishlist,
-  shopPhone = '9417124082'
+  shopPhone = '9417124082',
+  priority = false
 }) => {
-  const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const resolvedSrc = imgError
+    ? fallbackSuitImg
+    : formatImageUrl(product.imageUrl || '') || fallbackSuitImg;
+
+  const [imgLoaded, setImgLoaded] = useState<boolean>(() =>
+    resolvedSrc.startsWith('data:image/')
+  );
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (resolvedSrc.startsWith('data:image/')) {
+      setImgLoaded(true);
+      return;
+    }
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setImgLoaded(true);
+    }
+  }, [resolvedSrc]);
 
   const cleanPhone = shopPhone.replace(/[^0-9]/g, '') || '9417124082';
   const whatsappInquiryUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal Bhraava Di Hatti! Mainu eh suit pasand aaya hai:\n• Suit: ${product.name}\n• Code: ${product.id}\n• Fabric: ${product.fabric}\n• Rate: ₹${product.price}\nKripa karke daso eh suit dukan te available hai ji?`
   )}`;
 
-  const resolvedSrc = imgError
-    ? fallbackSuitImg
-    : formatImageUrl(product.imageUrl || '') || fallbackSuitImg;
-
   return (
-    <div className="bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative min-w-0">
+    <div className="card-fade-in bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative min-w-0">
       {/* Product Image Box */}
       <div 
         onClick={() => onViewDetails(product)}
         className="relative aspect-[3/4] bg-stone-100 overflow-hidden cursor-pointer"
       >
-        {/* Shimmer Skeleton while image is decoding/loading */}
+        {/* Clean Shimmer Wave while image decodes (No clunky text) */}
         {!imgLoaded && (
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-200 via-amber-50/70 to-stone-200 animate-pulse flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-stone-400 tracking-wider uppercase">
-              Loading Photo...
-            </span>
-          </div>
+          <div className="absolute inset-0 shimmer-wave" aria-hidden="true" />
         )}
 
         <img
+          ref={imgRef}
           src={resolvedSrc}
           alt={product.name}
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
           referrerPolicy="no-referrer"
           onLoad={() => setImgLoaded(true)}
@@ -62,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             setImgLoaded(true);
           }}
           className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ease-out ${
-            imgLoaded ? 'opacity-100' : 'opacity-0'
+            imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.01]'
           }`}
         />
 
