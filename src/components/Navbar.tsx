@@ -8,8 +8,7 @@ import {
   Tag,
   Check,
   Heart,
-  MapPin,
-  MessageCircle
+  MapPin
 } from 'lucide-react';
 import { ProductCategory, ShopSettings } from '../types';
 import { PriceFilterOption } from './CategoryAndPriceFilter';
@@ -122,23 +121,23 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Main Brand & Showroom Navigation */}
-      <div className="container mx-auto px-2 sm:px-4 py-2">
-        <div className="flex items-center justify-between gap-1 sm:gap-4 min-w-0">
-          {/* Brand Name (Left - flexible width so it never pushes right buttons off screen) */}
+      <div className="container mx-auto px-2.5 sm:px-4 py-2">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 min-w-0">
+          {/* Brand Name (Left - plenty of room now that right actions are icon-only logos) */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <button 
                 onClick={() => {
                   setActiveView('shop');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="text-sm sm:text-xl md:text-2xl font-black tracking-tight text-stone-900 font-serif leading-tight hover:text-amber-900 transition-colors cursor-pointer text-left truncate"
+                className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-stone-900 font-serif leading-tight hover:text-amber-900 transition-colors cursor-pointer text-left truncate"
               >
                 {settings.shopName}
               </button>
               <button
                 onClick={handleEstdClick}
-                className="text-[8px] sm:text-[10px] bg-gradient-to-r from-amber-800 to-red-900 active:scale-95 text-amber-100 font-black px-1 sm:px-1.5 py-0.5 rounded border border-amber-400/80 font-mono shrink-0 cursor-pointer select-none whitespace-nowrap"
+                className="text-[9px] sm:text-[10px] bg-gradient-to-r from-amber-800 to-red-900 active:scale-95 text-amber-100 font-black px-1.5 py-0.5 rounded border border-amber-400/80 font-mono shrink-0 cursor-pointer select-none whitespace-nowrap"
                 title="Estd. 1986 (Tap 5 times rapidly to open Admin)"
               >
                 1986
@@ -160,56 +159,61 @@ export const Navbar: React.FC<NavbarProps> = ({
             </p>
           </div>
 
-          {/* Right Actions: Saved, Location & WhatsApp (Compact on mobile so they stay 100% inside screen) */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Saved Designs Button */}
+          {/* Right Actions: Icon-Only Logos for Save, WhatsApp & Location */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Save (Wishlist) Logo Button */}
             <button
               onClick={() => {
                 setActiveView('wishlist');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-extrabold rounded-xl border transition-all shrink-0 cursor-pointer whitespace-nowrap ${
-                activeView === 'wishlist'
-                  ? 'bg-red-950 text-amber-200 border-red-500'
-                  : 'text-stone-800 bg-white hover:bg-red-50 hover:text-red-700 border-amber-300/90'
-              }`}
+              aria-label="Saved Suit Designs"
               title="Saved Suit Designs"
+              className={`relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border transition-all shrink-0 cursor-pointer active:scale-95 ${
+                activeView === 'wishlist'
+                  ? 'bg-red-950 text-amber-200 border-red-500 shadow-xs'
+                  : 'text-stone-800 bg-rose-50/80 hover:bg-rose-100 border-rose-200/90'
+              }`}
             >
-              <Heart className={`w-3.5 h-3.5 shrink-0 ${
-                activeView === 'wishlist' || wishlistCount > 0 ? 'fill-red-600 text-red-600' : 'text-amber-800'
+              <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                activeView === 'wishlist' || wishlistCount > 0 ? 'fill-red-600 text-red-600' : 'text-red-700'
               }`} />
-              <span className="hidden md:inline">Saved Designs</span>
-              <span className="md:hidden">Saved</span>
               {wishlistCount > 0 && (
-                <span className="bg-red-600 text-white font-black text-[9px] sm:text-[10px] px-1 rounded-full font-mono tabular-nums">
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white font-black text-[9px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center font-mono tabular-nums shadow-xs border border-white">
                   {wishlistCount}
                 </span>
               )}
             </button>
 
-            {/* Showroom Google Maps Location Button */}
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-extrabold text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
-              title="Open Showroom Location in Google Maps"
-            >
-              <MapPin className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-              <span className="sm:hidden">Map</span>
-              <span className="hidden sm:inline">Location</span>
-            </a>
-
-            {/* Direct WhatsApp Button */}
+            {/* WhatsApp Logo Button */}
             <a
               href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-extrabold text-[11px] sm:text-xs transition-colors shadow-2xs border border-emerald-500/40 shrink-0 whitespace-nowrap"
+              aria-label="Inquire on WhatsApp"
               title="Inquire on WhatsApp"
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-[#25D366] hover:bg-[#1ebe5d] text-white rounded-xl transition-all shadow-xs border border-emerald-600/30 shrink-0 cursor-pointer active:scale-95"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
-              <span>WhatsApp</span>
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-4 h-4 sm:w-5 sm:h-5"
+                aria-hidden="true"
+              >
+                <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.474 1.332 4.988L2 22l5.168-1.356a9.927 9.927 0 0 0 4.863 1.268h.004c5.515 0 9.965-4.453 9.965-9.969 0-2.664-1.037-5.168-2.921-7.052A9.908 9.908 0 0 0 12.031 2zm5.822 14.273c-.246.693-1.425 1.326-1.979 1.409-.506.075-1.147.107-1.852-.116-.428-.135-.976-.317-1.678-.62-2.953-1.275-4.881-4.248-5.029-4.445-.148-.197-1.2-1.597-1.2-3.046 0-1.449.759-2.162 1.029-2.457.27-.295.59-.369.787-.369.197 0 .393.002.565.01.182.009.426-.069.666.508.246.59.836 2.04.909 2.187.074.148.123.32.025.516-.098.197-.148.32-.295.492-.148.172-.311.384-.443.516-.148.147-.302.307-.13.602.172.295.764 1.261 1.641 2.043 1.128 1.006 2.079 1.318 2.374 1.465.295.148.467.123.639-.074.172-.197.738-.86.934-1.155.197-.295.393-.246.664-.148.27.098 1.721.811 2.016.959.295.148.492.221.566.344.074.123.074.713-.172 1.406z" />
+              </svg>
+            </a>
+
+            {/* Showroom Google Maps Location Logo Button */}
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open Showroom Location in Google Maps"
+              title="Open Showroom Location in Google Maps"
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-amber-950 bg-amber-100/90 hover:bg-amber-200 rounded-xl border border-amber-300 transition-all shrink-0 cursor-pointer active:scale-95 shadow-2xs"
+            >
+              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-800" />
             </a>
           </div>
         </div>
