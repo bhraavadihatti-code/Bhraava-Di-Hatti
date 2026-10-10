@@ -72,6 +72,8 @@ export default function App() {
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const lastProductSignatureRef = useRef<string>('');
+  const recentlyModifiedProductIdsRef = useRef<Map<string, number>>(new Map());
+  const deletedProductIdsRef = useRef<Set<string>>(new Set());
 
   // Cart State
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
@@ -174,19 +176,24 @@ export default function App() {
     setTimeout(() => setWishlistToast(null), 2500);
   };
 
-  // Normalize product list images before setting state
+  // Normalize product list images before setting state and exclude deleted IDs
   const normalizeProductList = (list: Product[]): Product[] => {
-    return list.map((p) => {
-      const cleanMain = formatImageUrl(p.imageUrl || '');
-      const cleanImgs = Array.isArray(p.images) && p.images.length > 0
-        ? p.images.map((img) => formatImageUrl(img || '')).filter(Boolean)
-        : [cleanMain].filter(Boolean);
-      return {
-        ...p,
-        imageUrl: cleanMain,
-        images: cleanImgs.length > 0 ? cleanImgs : [cleanMain]
-      };
-    });
+    return list
+      .filter((p) => {
+        const cleanId = String(p.id || '').trim();
+        return cleanId && !deletedProductIdsRef.current.has(cleanId) && !deletedProductIdsRef.current.has(cleanId.toUpperCase());
+      })
+      .map((p) => {
+        const cleanMain = formatImageUrl(p.imageUrl || '');
+        const cleanImgs = Array.isArray(p.images) && p.images.length > 0
+          ? p.images.map((img) => formatImageUrl(img || '')).filter(Boolean)
+          : [cleanMain].filter(Boolean);
+        return {
+          ...p,
+          imageUrl: cleanMain,
+          images: cleanImgs.length > 0 ? cleanImgs : [cleanMain]
+        };
+      });
   };
 
   // Fetch initial data from server with automatic Google Sheets direct fallback
@@ -280,50 +287,98 @@ export default function App() {
     }
   };
 
-  // Full direct sync with Google Sheets (Sheet 1: Products, Sheet 2: Orders)
+  // Full sync with Google Sheets (uses server-side smart merge first, with direct fallback)
   const syncWithGoogleSheet = async () => {
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl;
     if (!webhookUrl) return { success: false, error: 'Webhook URL not set' };
     try {
-      // Trigger server-side Google Sheets sync so both server and client stay aligned
-      fetch('/api/googlesheet/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl })
-      }).catch(() => {});
+      // 1. Primary: Use server-side sync endpoint (which smartly merges local + sheet products without duplicate requests)
+      try {
+        const srvRes = await fetch('/api/googlesheet/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ webhookUrl })
+        });
+        if (srvRes.ok) {
+          const srvData = await srvRes.json();
+          if (Array.isArray(srvData.products) && srvData.products.length > 0) {
+            const normalized = normalizeProductList(srvData.products);
+            lastProductSignatureRef.current = normalized
+              .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+              .join('|');
+            setProducts(normalized);
+          }
+          if (Array.isArray(srvData.orders) && srvData.orders.length > 0) {
+            const sorted = [...srvData.orders].sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            setOrders(sorted);
+          }
+          return {
+            success: true,
+            productsCount: srvData.productsCount || srvData.products?.length || 0,
+            ordersCount: srvData.ordersCount || srvData.orders?.length || 0
+          };
+        }
+      } catch {
+        // Fall through to direct browser fallback only if server route is unreachable
+      }
 
+      // 2. Fallback: Direct browser fetch if server endpoint failed
       const res = await fetchGoogleSheetAll(webhookUrl);
       if (res.success) {
-        if (Array.isArray(res.products) && res.products.length > 0) {
+        if (Array.isArray(res.products)) {
           const fallbackUnsplash = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
           setProducts((prev) => {
             const prevMap = new Map<string, Product>(prev.map((item) => [item.id, item]));
-            const merged = res.products!.map((sheetProd) => {
-              const localProd = prevMap.get(sheetProd.id);
-              const cleanedSheetImg = formatImageUrl(sheetProd.imageUrl || '');
-              if (!localProd) {
+            const sheetIds = new Set<string>();
+            const mergedFromSheet = res.products!
+              .filter((sheetProd) => {
+                const cleanId = String(sheetProd.id || '').trim();
+                return cleanId && !deletedProductIdsRef.current.has(cleanId) && !deletedProductIdsRef.current.has(cleanId.toUpperCase());
+              })
+              .map((sheetProd) => {
+                sheetIds.add(sheetProd.id);
+                const localProd = prevMap.get(sheetProd.id);
+                const cleanedSheetImg = formatImageUrl(sheetProd.imageUrl || '');
+                if (!localProd) {
+                  return {
+                    ...sheetProd,
+                    imageUrl: cleanedSheetImg,
+                    images: [cleanedSheetImg]
+                  };
+                }
+                const modifiedAt = recentlyModifiedProductIdsRef.current.get(sheetProd.id) || 0;
+                if (Date.now() - modifiedAt < 60000) {
+                  return localProd;
+                }
+                const bestImageUrl =
+                  cleanedSheetImg && cleanedSheetImg !== fallbackUnsplash
+                    ? cleanedSheetImg
+                    : formatImageUrl(localProd.imageUrl || cleanedSheetImg);
+                const extraImages = (localProd.images || []).slice(1).map((i) => formatImageUrl(i));
                 return {
+                  ...localProd,
                   ...sheetProd,
-                  imageUrl: cleanedSheetImg,
-                  images: [cleanedSheetImg]
+                  imageUrl: bestImageUrl,
+                  images: [bestImageUrl, ...extraImages]
                 };
-              }
-              const bestImageUrl =
-                cleanedSheetImg && cleanedSheetImg !== fallbackUnsplash
-                  ? cleanedSheetImg
-                  : formatImageUrl(localProd.imageUrl || cleanedSheetImg);
-              const extraImages = (localProd.images || []).slice(1).map((i) => formatImageUrl(i));
-              return {
-                ...localProd,
-                ...sheetProd,
-                imageUrl: bestImageUrl,
-                images: [bestImageUrl, ...extraImages]
-              };
+              });
+
+            // Preserve any recently uploaded local products not yet in sheet (within 45s)
+            const localOnly = prev.filter((item) => {
+              const cleanId = String(item.id || '').trim();
+              if (!cleanId || deletedProductIdsRef.current.has(cleanId) || deletedProductIdsRef.current.has(cleanId.toUpperCase())) return false;
+              if (sheetIds.has(cleanId)) return false;
+              const modifiedAt = recentlyModifiedProductIdsRef.current.get(cleanId) || 0;
+              return Date.now() - modifiedAt < 45000;
             });
-            lastProductSignatureRef.current = merged
+
+            const finalMerged = [...localOnly, ...mergedFromSheet];
+            lastProductSignatureRef.current = finalMerged
               .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
               .join('|');
-            return merged;
+            return finalMerged;
           });
         }
         if (Array.isArray(res.orders) && res.orders.length > 0) {
@@ -336,7 +391,6 @@ export default function App() {
       }
       return { success: false, error: res.error };
     } catch (e: any) {
-      console.warn('Direct Google Sheet sync error:', e);
       return { success: false, error: e?.message };
     }
   };
@@ -565,7 +619,13 @@ export default function App() {
   };
 
   const handleAddProduct = async (product: Product) => {
-    const cleanProd = normalizeProductList([product])[0];
+    const cleanId = String(product.id || '').trim();
+    if (cleanId) {
+      deletedProductIdsRef.current.delete(cleanId);
+      deletedProductIdsRef.current.delete(cleanId.toUpperCase());
+    }
+    const cleanProd = normalizeProductList([product])[0] || product;
+    recentlyModifiedProductIdsRef.current.set(cleanProd.id, Date.now());
 
     // Optimistic update state immediately so new suit and its photo appear right away
     setProducts((prev) => {
@@ -574,10 +634,16 @@ export default function App() {
       lastProductSignatureRef.current = next
         .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
         .join('|');
+      try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(next));
+      } catch {}
       return next;
     });
 
+    setVisibleCount((prev) => Math.max(prev + 1, INITIAL_VISIBLE_COUNT + 1));
+
     const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+    let syncedByServer = false;
 
     try {
       const res = await fetch('/api/products', {
@@ -588,69 +654,121 @@ export default function App() {
 
       if (res.ok) {
         const serverSaved = await res.json();
+        syncedByServer = Boolean(serverSaved?.sheetSynced);
         if (serverSaved && serverSaved.id) {
+          recentlyModifiedProductIdsRef.current.set(serverSaved.id, Date.now());
           setProducts((prev) => {
-            return prev.map((p) =>
+            const updated = prev.map((p) =>
               p.id === serverSaved.id
-                ? { ...serverSaved, imageUrl: cleanProd.imageUrl || serverSaved.imageUrl }
+                ? {
+                    ...serverSaved,
+                    imageUrl: cleanProd.imageUrl || serverSaved.imageUrl,
+                    images: cleanProd.images?.length ? cleanProd.images : serverSaved.images
+                  }
                 : p
             );
+            lastProductSignatureRef.current = updated
+              .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+              .join('|');
+            try {
+              localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(updated));
+            } catch {}
+            return updated;
           });
         }
       }
-    } catch (e: any) {
-      console.error('Add product error (falling back to direct Google Sheet sync):', e);
-      if (webhookUrl) {
-        try {
-          await syncProductToGoogleSheets(cleanProd, 'save_product', webhookUrl);
-        } catch (err) {
-          console.warn('Direct client product save to Google Sheets:', err);
-        }
-      }
+    } catch {}
+
+    if (!syncedByServer && webhookUrl) {
+      try {
+        await syncProductToGoogleSheets(cleanProd, 'save_product', webhookUrl);
+      } catch {}
     }
   };
 
   const handleUpdateProduct = async (id: string, updated: Partial<Product>) => {
-    const existing = products.find((p) => p.id === id);
-    const mergedProduct = existing ? { ...existing, ...updated } : (updated as Product);
+    const cleanId = String(id || '').trim();
+    if (cleanId) {
+      deletedProductIdsRef.current.delete(cleanId);
+      deletedProductIdsRef.current.delete(cleanId.toUpperCase());
+    }
+    recentlyModifiedProductIdsRef.current.set(cleanId, Date.now());
+    const existing = products.find((p) => p.id === cleanId);
+    const mergedProduct = existing ? { ...existing, ...updated } : ({ id: cleanId, ...updated } as Product);
 
     setProducts((prev) => {
-      const next = prev.map((p) => (p.id === id ? { ...p, ...updated } : p));
+      const next = prev.map((p) => (p.id === cleanId ? { ...p, ...updated } : p));
       lastProductSignatureRef.current = next
         .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
         .join('|');
+      try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(next));
+      } catch {}
       return next;
     });
 
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+    let syncedByServer = false;
+
     try {
-      await fetch(`/api/products/${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/products/${encodeURIComponent(cleanId)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
-    } catch (e: any) {
-      console.error('Update product error:', e);
-      const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
-      if (webhookUrl && mergedProduct.id) {
-        syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl).catch(() => {});
+      if (res.ok) {
+        const data = await res.json();
+        syncedByServer = Boolean(data?.sheetSynced);
       }
+    } catch {}
+
+    if (!syncedByServer && webhookUrl && mergedProduct.id) {
+      try {
+        await syncProductToGoogleSheets(mergedProduct as Product, 'update_product', webhookUrl);
+      } catch {}
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    try {
-      setProducts((prev) => {
-        const next = prev.filter((p) => p.id !== id);
-        lastProductSignatureRef.current = next
-          .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
-          .join('|');
-        return next;
-      });
+    const cleanId = String(id || '').trim();
+    if (!cleanId) return;
 
-      await fetch(`/api/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } catch (e: any) {
-      console.error('Delete product error:', e);
-      fetchProducts();
+    const targetProd = products.find((p) => String(p.id).trim().toLowerCase() === cleanId.toLowerCase()) || ({
+      id: cleanId,
+      name: cleanId,
+      price: 0
+    } as Product);
+
+    deletedProductIdsRef.current.add(cleanId);
+    deletedProductIdsRef.current.add(cleanId.toUpperCase());
+    recentlyModifiedProductIdsRef.current.delete(cleanId);
+
+    setProducts((prev) => {
+      const next = prev.filter((p) => String(p.id).trim().toLowerCase() !== cleanId.toLowerCase());
+      lastProductSignatureRef.current = next
+        .map((p) => `${p.id}:${p.price}:${p.inStock}:${(p.imageUrl || '').length}`)
+        .join('|');
+      try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    const webhookUrl = settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl || '';
+    let syncedByServer = false;
+
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        const data = await res.json();
+        syncedByServer = Boolean(data?.sheetSynced);
+      }
+    } catch {}
+
+    if (!syncedByServer && webhookUrl) {
+      try {
+        await syncProductToGoogleSheets(targetProd, 'delete_product', webhookUrl);
+      } catch {}
     }
   };
 

@@ -8,6 +8,7 @@ import {
   syncProductToGoogleSheets, 
   syncOrderToGoogleSheets, 
   fetchGoogleSheetAll,
+  isSheetWriteActiveOrRecent,
   getGoogleAppsScriptTemplate,
   formatProductForSheet,
   formatOrderForSheet
@@ -44,6 +45,7 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const DELETED_PRODUCTS_FILE = path.join(DATA_DIR, 'deleted_products.json');
 
 // Ensure data and uploads directories exist
 if (!fs.existsSync(DATA_DIR)) {
@@ -92,6 +94,131 @@ let cachedProducts: Product[] | null = null;
 let cachedOrders: Order[] | null = null;
 let cachedSettings: ShopSettings | null = null;
 
+// Track locally added/updated/deleted products so background Google Sheet sync
+// never wipes out newly uploaded products or resurrects deleted products
+const recentlyModifiedProducts = new Map<string, number>();
+const deletedProductIds = new Set<string>();
+let lastLocalProductWriteAt = 0;
+const DEFAULT_FALLBACK_IMG = 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
+
+// Load persisted deleted product IDs on startup
+try {
+  if (fs.existsSync(DELETED_PRODUCTS_FILE)) {
+    const rawDel = JSON.parse(fs.readFileSync(DELETED_PRODUCTS_FILE, 'utf-8'));
+    if (Array.isArray(rawDel)) {
+      rawDel.forEach((id) => {
+        if (typeof id === 'string' && id.trim()) {
+          deletedProductIds.add(id.trim());
+        }
+      });
+    }
+  }
+} catch {}
+
+function saveDeletedProductIds(): void {
+  try {
+    fs.writeFileSync(DELETED_PRODUCTS_FILE, JSON.stringify(Array.from(deletedProductIds), null, 2), 'utf-8');
+  } catch {}
+}
+
+function isProductDeleted(id: string): boolean {
+  const clean = String(id || '').trim();
+  if (!clean) return false;
+  if (deletedProductIds.has(clean) || deletedProductIds.has(clean.toUpperCase()) || deletedProductIds.has(clean.toLowerCase())) {
+    return true;
+  }
+  return false;
+}
+
+function markProductDeleted(id: string): void {
+  const clean = String(id || '').trim();
+  if (!clean) return;
+  deletedProductIds.add(clean);
+  deletedProductIds.add(clean.toUpperCase());
+  saveDeletedProductIds();
+}
+
+function unmarkProductDeleted(id: string): void {
+  const clean = String(id || '').trim();
+  if (!clean) return;
+  deletedProductIds.delete(clean);
+  deletedProductIds.delete(clean.toUpperCase());
+  deletedProductIds.delete(clean.toLowerCase());
+  saveDeletedProductIds();
+}
+
+function mergeProductsWithSheet(
+  localProducts: Product[],
+  sheetProducts: Product[]
+): Product[] {
+  if (!Array.isArray(sheetProducts)) {
+    return localProducts;
+  }
+
+  const now = Date.now();
+  const localMap = new Map<string, Product>(localProducts.map(p => [String(p.id).trim(), p]));
+  const sheetIdSet = new Set<string>();
+  const mergedFromSheet: Product[] = [];
+
+  for (const rawSheetProd of sheetProducts) {
+    const id = String(rawSheetProd.id || '').trim();
+    if (!id || isProductDeleted(id)) continue;
+    sheetIdSet.add(id);
+
+    const cleanedSheetImg = cleanImageUrl(rawSheetProd.imageUrl || '');
+    const localProd = localMap.get(id);
+
+    if (!localProd) {
+      mergedFromSheet.push({
+        ...rawSheetProd,
+        imageUrl: cleanedSheetImg || DEFAULT_FALLBACK_IMG,
+        images: [cleanedSheetImg || DEFAULT_FALLBACK_IMG]
+      });
+      continue;
+    }
+
+    // If this product was uploaded or edited locally within the last 60 seconds,
+    // keep the local version as authoritative so stale sheet reads never overwrite it
+    const modifiedAt = recentlyModifiedProducts.get(id) || 0;
+    if (now - modifiedAt < 60000) {
+      mergedFromSheet.push(localProd);
+      continue;
+    }
+
+    const bestPrimaryImg =
+      cleanedSheetImg && cleanedSheetImg !== DEFAULT_FALLBACK_IMG
+        ? cleanedSheetImg
+        : cleanImageUrl(localProd.imageUrl || cleanedSheetImg || DEFAULT_FALLBACK_IMG);
+
+    const extraLocalImgs = Array.isArray(localProd.images)
+      ? localProd.images.slice(1).map(img => cleanImageUrl(img)).filter(Boolean)
+      : [];
+
+    mergedFromSheet.push({
+      ...localProd,
+      ...rawSheetProd,
+      imageUrl: bestPrimaryImg,
+      images: [bestPrimaryImg, ...extraLocalImgs]
+    });
+  }
+
+  // Only preserve local products not yet in Google Sheets if they were JUST created
+  // within the last 45 seconds (never re-add older deleted products back to the sheet!)
+  const localOnlyProducts: Product[] = [];
+  for (const localProd of localProducts) {
+    const id = String(localProd.id || '').trim();
+    if (!id || isProductDeleted(id)) continue;
+    if (!sheetIdSet.has(id)) {
+      const modifiedAt = recentlyModifiedProducts.get(id) || 0;
+      if (now - modifiedAt < 45000) {
+        localOnlyProducts.push(localProd);
+      }
+    }
+  }
+
+  return [...localOnlyProducts, ...mergedFromSheet];
+}
+
 // Idempotency tracking to strictly prevent duplicate orders
 interface RecentSubmission {
   id: string;
@@ -101,7 +228,7 @@ interface RecentSubmission {
 const recentOrderSubmissions: RecentSubmission[] = [];
 
 function loadProducts(): Product[] {
-  if (cachedProducts && cachedProducts.length > 0) {
+  if (cachedProducts !== null) {
     return cachedProducts;
   }
   try {
@@ -491,41 +618,54 @@ app.post('/api/products', async (req, res) => {
     newProduct.status = newProduct.status || 'Active';
     newProduct.createdAt = newProduct.createdAt || new Date().toISOString();
 
-    const existingIdx = products.findIndex(p => p.id === newProduct.id);
+    const existingIdx = products.findIndex(p => String(p.id).trim().toLowerCase() === targetId.toLowerCase());
     if (existingIdx !== -1) {
       products[existingIdx] = { ...products[existingIdx], ...newProduct };
     } else {
       products.unshift(newProduct);
     }
 
+    lastLocalProductWriteAt = Date.now();
+    recentlyModifiedProducts.set(newProduct.id, Date.now());
+    unmarkProductDeleted(newProduct.id);
+
     saveProducts(products);
 
     // Broadcast SSE to all connected phones/admin immediately
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
-    // Sync to Google Sheets Products tab in background
+    // Await Google Sheets sync so Cloud Run keeps CPU active until the row is written
+    let sheetSynced = false;
     const settings = loadSettings();
     const webhookUrl = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "";
     if (webhookUrl) {
-      syncProductToGoogleSheets(newProduct, existingIdx !== -1 ? 'update_product' : 'save_product', webhookUrl).catch(e => {
-        console.warn('Google Sheet background product sync error:', e);
-      });
+      try {
+        const syncRes = await syncProductToGoogleSheets(
+          newProduct,
+          existingIdx !== -1 ? 'update_product' : 'save_product',
+          webhookUrl
+        );
+        sheetSynced = syncRes.success;
+      } catch (e) {
+        console.warn('Google Sheet product sync error:', e);
+      }
     }
 
-    return res.status(201).json(newProduct);
+    return res.status(201).json({ ...newProduct, sheetSynced });
   } catch (err: any) {
     console.error('Error adding product:', err);
     return res.status(500).json({ error: err?.message || 'Server error adding product' });
   }
 });
 
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const cleanId = String(id || '').trim();
     const updatedData: Partial<Product> = req.body;
     const products = loadProducts();
     
-    const index = products.findIndex(p => p.id === id);
+    const index = products.findIndex(p => String(p.id).trim().toLowerCase() === cleanId.toLowerCase());
     if (index === -1) {
       return res.status(404).json({ error: 'Product not found' });
     }
@@ -538,44 +678,69 @@ app.put('/api/products/:id', (req, res) => {
     }
 
     products[index] = { ...products[index], ...updatedData };
+    const finalId = String(products[index].id || cleanId).trim();
+
+    lastLocalProductWriteAt = Date.now();
+    recentlyModifiedProducts.set(finalId, Date.now());
+    unmarkProductDeleted(finalId);
+
     saveProducts(products);
 
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
+    let sheetSynced = false;
     const settings = loadSettings();
     const webhookUrl = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "";
     if (webhookUrl) {
-      syncProductToGoogleSheets(products[index], 'update_product', webhookUrl).catch(e => {
+      try {
+        const syncRes = await syncProductToGoogleSheets(products[index], 'update_product', webhookUrl);
+        sheetSynced = syncRes.success;
+      } catch (e) {
         console.warn('Google Sheet product update error:', e);
-      });
+      }
     }
 
-    res.json(products[index]);
+    res.json({ ...products[index], sheetSynced });
   } catch (err: any) {
     console.error('Error updating product:', err);
     res.status(500).json({ error: err?.message || 'Server error updating product' });
   }
 });
 
-app.delete('/api/products/:id', (req, res) => {
+app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const cleanId = String(id || '').trim();
     let products = loadProducts();
-    const target = products.find(p => p.id === id);
-    products = products.filter(p => p.id !== id);
+    const target =
+      products.find(p => String(p.id).trim().toLowerCase() === cleanId.toLowerCase()) ||
+      ({ id: cleanId, name: cleanId, price: 0 } as Product);
+
+    products = products.filter(p => String(p.id).trim().toLowerCase() !== cleanId.toLowerCase());
+
+    lastLocalProductWriteAt = Date.now();
+    markProductDeleted(cleanId);
+    if (target.id) markProductDeleted(target.id);
+    recentlyModifiedProducts.delete(cleanId);
+    recentlyModifiedProducts.delete(target.id);
+
     saveProducts(products);
 
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
+    let sheetSynced = false;
     const settings = loadSettings();
     const webhookUrl = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "";
-    if (webhookUrl && target) {
-      syncProductToGoogleSheets(target, 'delete_product', webhookUrl).catch(e => {
+    if (webhookUrl) {
+      try {
+        const syncRes = await syncProductToGoogleSheets(target, 'delete_product', webhookUrl);
+        sheetSynced = syncRes.success;
+      } catch (e) {
         console.warn('Google Sheet product delete error:', e);
-      });
+      }
     }
 
-    res.json({ success: true, id });
+    res.json({ success: true, id: cleanId, sheetSynced });
   } catch (err: any) {
     console.error('Error deleting product:', err);
     res.status(500).json({ error: err?.message || 'Server error deleting product' });
@@ -795,13 +960,27 @@ app.post('/api/googlesheet/sync', async (req, res) => {
       return res.status(400).json({ error: 'Google Sheet Webhook URL is not configured.' });
     }
 
-    const result = await fetchGoogleSheetAll(webhookUrl);
     let updatedProducts = loadProducts();
     let updatedOrders = loadOrders();
 
+    // If a product write just happened, return current authoritative state without overwriting
+    if (isSheetWriteActiveOrRecent(10000) || Date.now() - lastLocalProductWriteAt < 15000) {
+      return res.json({
+        success: true,
+        message: 'Local product changes active and syncing to Google Sheets!',
+        products: updatedProducts,
+        orders: updatedOrders,
+        productsCount: updatedProducts.length,
+        ordersCount: updatedOrders.length,
+        lastSync: settings.googleSheetLastSync || new Date().toISOString()
+      });
+    }
+
+    const result = await fetchGoogleSheetAll(webhookUrl);
+
     if (result.success) {
-      if (Array.isArray(result.products) && result.products.length > 0) {
-        updatedProducts = result.products;
+      if (Array.isArray(result.products)) {
+        updatedProducts = mergeProductsWithSheet(updatedProducts, result.products);
         saveProducts(updatedProducts);
         broadcastSSE({ type: 'PRODUCTS_UPDATED', products: updatedProducts });
       }
@@ -818,15 +997,18 @@ app.post('/api/googlesheet/sync', async (req, res) => {
       return res.json({
         success: true,
         message: 'Successfully synchronized with Google Sheets!',
+        products: updatedProducts,
+        orders: updatedOrders,
         productsCount: updatedProducts.length,
         ordersCount: updatedOrders.length,
         lastSync: settings.googleSheetLastSync
       });
     } else {
-      // If fetching returned format warning, test posting an initial ping to verify connection
       return res.json({
         success: true,
         message: 'Connected to Google Sheet Webhook. Orders and Products will sync on every change!',
+        products: updatedProducts,
+        orders: updatedOrders,
         productsCount: updatedProducts.length,
         ordersCount: updatedOrders.length
       });
@@ -1053,19 +1235,25 @@ async function startServer() {
     
     const syncSheetToServer = async () => {
       try {
+        // Do not overwrite or race while a local product upload/edit/delete is in progress or recent
+        if (isSheetWriteActiveOrRecent(15000) || Date.now() - lastLocalProductWriteAt < 25000) {
+          return;
+        }
+
         const settings = loadSettings();
         const webhook = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL;
         if (!webhook) return;
 
         const res = await fetchGoogleSheetAll(webhook);
-        if (res.success && res.products && res.products.length > 0) {
+        // Re-check write lock after async fetch completes!
+        if (isSheetWriteActiveOrRecent(15000) || Date.now() - lastLocalProductWriteAt < 25000) {
+          return;
+        }
+
+        if (res.success && Array.isArray(res.products)) {
           const current = loadProducts();
           const currentSig = current.map(p => `${p.id}:${p.name}:${p.price}:${(p.imageUrl || '').length}`).join('|');
-          const nextProducts = res.products.map(p => ({
-            ...p,
-            imageUrl: cleanImageUrl(p.imageUrl),
-            images: [cleanImageUrl(p.imageUrl)]
-          }));
+          const nextProducts = mergeProductsWithSheet(current, res.products);
           const nextSig = nextProducts.map(p => `${p.id}:${p.name}:${p.price}:${(p.imageUrl || '').length}`).join('|');
 
           if (currentSig !== nextSig) {
@@ -1077,9 +1265,9 @@ async function startServer() {
       } catch {}
     };
 
-    // Initial Google Sheets background sync check + periodic 30s server-side sync
+    // Initial Google Sheets background sync check + periodic 45s server-side sync
     syncSheetToServer();
-    setInterval(syncSheetToServer, 30000);
+    setInterval(syncSheetToServer, 45000);
   });
 }
 

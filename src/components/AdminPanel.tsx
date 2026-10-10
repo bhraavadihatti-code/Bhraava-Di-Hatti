@@ -74,14 +74,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetSyncingTop, setSheetSyncingTop] = useState(false);
 
-  // Auto-sync from Google Sheets on mount and every 15s
+  // Add Product Form state (declared before effects to avoid TDZ errors)
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [newColorInput, setNewColorInput] = useState('');
+  const [newTagInput, setNewTagInput] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [productModalError, setProductModalError] = useState<string | null>(null);
+  const [productSuccessToast, setProductSuccessToast] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const isBusyWithProductRef = React.useRef(false);
   useEffect(() => {
-    if (onSyncWithSheet) {
+    isBusyWithProductRef.current = Boolean(showAddProductModal || isSavingProduct || deletingProductId);
+  }, [showAddProductModal, isSavingProduct, deletingProductId]);
+
+  // Auto-sync from Google Sheets on mount and every 45s (paused while adding/editing/deleting a product)
+  useEffect(() => {
+    if (onSyncWithSheet && !isBusyWithProductRef.current) {
       onSyncWithSheet();
     }
     const interval = setInterval(() => {
-      if (onSyncWithSheet) onSyncWithSheet();
-    }, 15000);
+      if (onSyncWithSheet && !isBusyWithProductRef.current) {
+        onSyncWithSheet();
+      }
+    }, 45000);
     return () => clearInterval(interval);
   }, []);
   
@@ -160,12 +179,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     return `BDH-${maxNum + 1}`;
   };
 
-  // Add Product Form state
-  const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [newColorInput, setNewColorInput] = useState('');
-  const [newTagInput, setNewTagInput] = useState('');
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const showToast = (msg: string) => {
+    setProductSuccessToast(msg);
+    setTimeout(() => {
+      setProductSuccessToast((prev) => (prev === msg ? null : prev));
+    }, 5000);
+  };
 
   const [productForm, setProductForm] = useState<Partial<Product>>({
     id: '',
@@ -180,39 +199,73 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     colors: ['Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
     sizes: ['Unstitched', 'L (40)', 'XL (42)'],
     imageUrl: '',
+    images: [],
     inStock: true
   });
 
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsUploadingPhoto(true);
-      try {
-        const compressed = await compressImageFile(file);
-        if (compressed) {
-          setProductForm((prev) => ({
-            ...prev,
-            imageUrl: compressed,
-            images: [compressed, ...((prev.images || []).slice(1))]
-          }));
-        }
-      } catch (err) {
-        console.error('Image compress error:', err);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            const resStr = reader.result as string;
-            setProductForm((prev) => ({
-              ...prev,
-              imageUrl: resStr,
-              images: [resStr, ...((prev.images || []).slice(1))]
-            }));
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    const files: File[] = Array.from(fileList).slice(0, 5);
+    e.target.value = ''; // Reset input so same file can be re-selected if needed
+
+    setIsUploadingPhoto(true);
+    setProductModalError(null);
+    try {
+      const compressedList: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const compressed = await compressImageFile(file);
+          if (compressed) {
+            compressedList.push(compressed);
+          } else {
+            const fallback = await readFileAsDataUrl(file);
+            if (fallback) compressedList.push(fallback);
           }
-        };
-        reader.readAsDataURL(file);
-      } finally {
-        setIsUploadingPhoto(false);
+        } catch (err) {
+          const fallback = await readFileAsDataUrl(file);
+          if (fallback) compressedList.push(fallback);
+        }
       }
+
+      if (compressedList.length > 0) {
+        setProductForm((prev) => {
+          const existingSlots = [...(prev.images || [])];
+          if (existingSlots.length === 0 && prev.imageUrl) {
+            existingSlots[0] = prev.imageUrl;
+          }
+          if (compressedList.length === 1) {
+            // Replace primary photo (slot 0) while preserving slots 1..4
+            existingSlots[0] = compressedList[0];
+            return {
+              ...prev,
+              imageUrl: compressedList[0],
+              images: existingSlots
+            };
+          } else {
+            // Multiple photos selected at once: populate slots 0..N
+            for (let idx = 0; idx < compressedList.length && idx < 5; idx++) {
+              existingSlots[idx] = compressedList[idx];
+            }
+            return {
+              ...prev,
+              imageUrl: existingSlots[0] || compressedList[0],
+              images: existingSlots.slice(0, 5)
+            };
+          }
+        });
+      }
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -389,33 +442,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProductModalError(null);
+
     if (!productForm.name || !productForm.name.trim()) {
-      alert('❌ Please enter Product Title / Name!');
+      setProductModalError('❌ कृपया सूट / प्रोडक्ट का नाम लिखें (Please enter Product Title / Name)!');
       return;
     }
     if (!productForm.price || Number(productForm.price) <= 0) {
-      alert('❌ Please enter a valid Price (e.g. 1999)!');
+      setProductModalError('❌ कृपया सही रेट / कीमत लिखें (Please enter a valid Sale Price, e.g. 1999)!');
       return;
     }
 
     if (isUploadingPhoto) {
-      alert('⏳ Photo is still being processed, please wait 1 second and tap Save again!');
+      setProductModalError('⏳ फोटो अभी प्रोसेस हो रही है, कृपया 1 सेकंड रुक कर दोबारा Save दबाएं!');
       return;
     }
 
-    const finalImageUrl = formatImageUrl(productForm.imageUrl || '');
+    if (isSavingProduct) return;
+    setIsSavingProduct(true);
 
-    const rawImagesList = Array.from(new Set([
-      finalImageUrl,
-      ...(productForm.images || [])
-    ].filter((img): img is string => Boolean(img && img.trim()))));
+    const primaryUrl = formatImageUrl(productForm.imageUrl || '');
+    const slotImages = (productForm.images || []).map((img) => formatImageUrl(img || ''));
 
-    const allImagesList = rawImagesList.map(img => formatImageUrl(img)).filter(Boolean);
+    // Combine primary imageUrl and slotImages without losing any uploaded slot
+    const combinedRaw = [
+      primaryUrl,
+      ...slotImages
+    ].filter((img): img is string => Boolean(img && img.trim()));
+
+    const allImagesList = Array.from(new Set(combinedRaw));
     if (allImagesList.length === 0) {
       allImagesList.push('https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800');
     }
 
-    const targetId = productForm.id && productForm.id.trim() ? productForm.id.trim() : getSuggestedSerialNo();
+    const targetId = productForm.id && productForm.id.trim() ? productForm.id.trim().toUpperCase() : getSuggestedSerialNo();
+    const numericPrice = Number(productForm.price);
+    const numericOriginalPrice =
+      productForm.originalPrice && Number(productForm.originalPrice) > numericPrice
+        ? Number(productForm.originalPrice)
+        : numericPrice + 500;
 
     const finalProduct: Product = {
       id: targetId,
@@ -424,8 +489,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       shopName: settings.shopName || "Bhraava Di Hatti",
       category: productForm.category || 'Punjabi Suits',
       tags: productForm.tags && productForm.tags.length > 0 ? productForm.tags : [productForm.category || 'Punjabi Suits'],
-      price: Number(productForm.price),
-      originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : Number(productForm.price) + 500,
+      price: numericPrice,
+      originalPrice: numericOriginalPrice,
       description: productForm.description || '',
       fabric: productForm.fabric || 'Pure Unstitched Cotton/Silk',
       workType: productForm.workType || 'Traditional Punjabi Work',
@@ -436,15 +501,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       inStock: productForm.inStock !== undefined ? productForm.inStock : true,
       status: 'Active',
       isBestSeller: productForm.isBestSeller || false,
-      isNewArrival: productForm.isNewArrival || true,
+      isNewArrival: productForm.isNewArrival !== undefined ? productForm.isNewArrival : true,
       rating: productForm.rating || 4.8
     };
 
     try {
       if (editingProductId) {
         await onUpdateProduct(editingProductId, finalProduct);
+        showToast(`✅ Product "${finalProduct.name}" (${finalProduct.id}) updated & synced!`);
       } else {
         await onAddProduct(finalProduct);
+        showToast(`✅ New Product "${finalProduct.name}" (${finalProduct.id}) added to catalog & Google Sheet!`);
       }
 
       // Remove reused ID from deletedSerialNumbers list if present
@@ -452,8 +519,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       setShowAddProductModal(false);
       setEditingProductId(null);
+      setProductModalError(null);
     } catch (err: any) {
-      alert(`❌ Error saving product: ${err?.message || 'Server error'}`);
+      setProductModalError(`❌ Error saving product: ${err?.message || 'Please try again'}`);
+    } finally {
+      setIsSavingProduct(false);
     }
   };
 
@@ -1163,16 +1233,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={async () => {
                     if (onSyncProducts) {
                       await onSyncProducts();
-                      alert(`🔄 Catalog Refreshed! (${products.length} items total)`);
+                      showToast(`🔄 Catalog Refreshed! (${products.length} items synced live)`);
                     } else {
                       try {
                         const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
                         if (res.ok) {
                           const data = await res.json();
-                          alert(`🔄 Catalog refreshed! ${data.length} products synced live.`);
+                          showToast(`🔄 Catalog refreshed! ${data.length} products synced live.`);
                         }
                       } catch (e) {}
-                      window.location.reload();
                     }
                   }}
                   className="bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold px-3 py-3 rounded-2xl text-xs flex items-center gap-1.5 border border-stone-300 shadow-xs cursor-pointer"
@@ -1184,6 +1253,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button
                   onClick={() => {
                     setEditingProductId(null);
+                    setProductModalError(null);
                     const nextSerial = getSuggestedSerialNo();
                     setProductForm({
                       id: nextSerial,
@@ -1198,7 +1268,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       colors: ['Crimson Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
                       sizes: ['Unstitched', 'L (40)', 'XL (42)'],
                       imageUrl: '',
-                      images: [],
+                      images: ['', '', '', '', ''],
                       inStock: true,
                       isBestSeller: true,
                       isNewArrival: true,
@@ -1212,6 +1282,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
               </div>
             </div>
+
+            {productSuccessToast && (
+              <div className="bg-emerald-50 border-2 border-emerald-400 text-emerald-950 px-4 py-3 rounded-2xl text-xs font-extrabold flex items-center justify-between shadow-sm">
+                <span>{productSuccessToast}</span>
+                <button
+                  type="button"
+                  onClick={() => setProductSuccessToast(null)}
+                  className="text-emerald-800 hover:text-emerald-950 font-black ml-3"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Deleted / Recycled Serial Numbers Banner */}
             {deletedSerialNumbers.length > 0 && (
@@ -1304,26 +1387,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <button
                         onClick={() => {
                           setEditingProductId(p.id);
-                          setProductForm(p);
+                          setProductModalError(null);
+                          const existingImgs = Array.from(new Set([p.imageUrl, ...(p.images || [])].filter(Boolean)));
+                          const paddedSlots = [
+                            existingImgs[0] || '',
+                            existingImgs[1] || '',
+                            existingImgs[2] || '',
+                            existingImgs[3] || '',
+                            existingImgs[4] || ''
+                          ];
+                          setProductForm({
+                            ...p,
+                            imageUrl: existingImgs[0] || '',
+                            images: paddedSlots
+                          });
                           setShowAddProductModal(true);
                         }}
-                        className="p-1.5 text-gray-600 hover:text-amber-800 rounded-lg hover:bg-amber-50"
+                        className="p-1.5 text-gray-600 hover:text-amber-800 rounded-lg hover:bg-amber-50 cursor-pointer"
                         title="Edit Product"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete product ${p.name} (${p.id})? This serial number will be logged for recycling.`)) {
-                            if (p.id) setDeletedSerialNumbers(prev => [...new Set([...prev, p.id])]);
-                            onDeleteProduct(p.id);
-                          }
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                        title="Delete Product"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {confirmDeleteId === p.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={deletingProductId === p.id}
+                            onClick={async () => {
+                              setDeletingProductId(p.id);
+                              try {
+                                if (p.id) setDeletedSerialNumbers(prev => [...new Set([...prev, p.id])]);
+                                await onDeleteProduct(p.id);
+                                setConfirmDeleteId(null);
+                                showToast(`🗑️ Product "${p.name}" (${p.id}) deleted from catalog & Google Sheet!`);
+                              } finally {
+                                setDeletingProductId(null);
+                              }
+                            }}
+                            className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-2xs cursor-pointer"
+                          >
+                            {deletingProductId === p.id ? 'Deleting...' : 'Confirm Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-bold px-1.5 py-1 rounded-lg cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(p.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 cursor-pointer"
+                          title="Delete Product"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1964,7 +2086,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-              
+              {productModalError && (
+                <div className="bg-red-50 border-2 border-red-400 text-red-900 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold flex items-center justify-between">
+                  <span>{productModalError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setProductModalError(null)}
+                    className="text-red-700 font-black ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {/* Product Serial No. */}
               <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 space-y-2">
                 <div className="flex items-center justify-between">
@@ -1972,13 +2106,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     Product Serial Number (SKU):
                   </label>
                   <span className="text-[11px] font-mono text-amber-900 font-bold">
-                    Prefix: BDH-
+                    Auto-Generated (Prefix: BDH-)
                   </span>
                 </div>
                 
                 <input
                   type="text"
-                  required
                   value={productForm.id || ''}
                   onChange={(e) => setProductForm({ ...productForm, id: e.target.value.toUpperCase() })}
                   className="w-full bg-white border border-amber-400 rounded-xl px-3 py-2 text-sm font-mono font-black text-red-950"
@@ -2005,12 +2138,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {/* Title */}
               <div>
-                <label className="block font-bold text-gray-800 mb-1">Product Title / Name</label>
+                <label className="block font-bold text-gray-800 mb-1">Product Title / Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Royal Maroon Velvet Heavy Unstitched Punjabi Suit"
-                  value={productForm.name}
+                  value={productForm.name || ''}
                   onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                   className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2.5 text-sm font-medium"
                 />
@@ -2069,26 +2202,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="bg-amber-50/90 p-3.5 rounded-2xl border border-amber-300 space-y-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-gray-700 mb-1">Original MRP Price (₹)</label>
+                    <label className="block font-bold text-amber-950 mb-1">BDH Sale Price (₹) *</label>
                     <input
                       type="number"
                       required
-                      placeholder="e.g. 3499"
-                      value={productForm.originalPrice || ''}
-                      onChange={(e) => setProductForm({ ...productForm, originalPrice: Number(e.target.value) })}
-                      className="w-full bg-white border border-gray-300 rounded-xl p-2 text-sm font-mono font-bold"
+                      placeholder="e.g. 1999"
+                      value={productForm.price || ''}
+                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-white border border-amber-400 rounded-xl p-2 text-sm font-mono font-extrabold text-red-950"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-amber-950 mb-1">BDH Sale Price (₹)</label>
+                    <label className="block font-bold text-gray-700 mb-1">Original MRP (₹) <span className="text-[10px] font-normal text-gray-500">(Optional)</span></label>
                     <input
                       type="number"
-                      required
-                      placeholder="e.g. 2499"
-                      value={productForm.price || ''}
-                      onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
-                      className="w-full bg-white border border-amber-400 rounded-xl p-2 text-sm font-mono font-extrabold text-red-950"
+                      placeholder="e.g. 2999"
+                      value={productForm.originalPrice || ''}
+                      onChange={(e) => setProductForm({ ...productForm, originalPrice: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full bg-white border border-gray-300 rounded-xl p-2 text-sm font-mono font-bold"
                     />
                   </div>
                 </div>
@@ -2107,28 +2239,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     📸 Product Photos Gallery (Up to 5 Photos)
                   </label>
                   <span className="text-[10px] text-amber-900 font-bold bg-amber-200/80 px-2 py-0.5 rounded-full font-mono">
-                    {Array.from(new Set([productForm.imageUrl, ...(productForm.images || [])].filter(Boolean))).length} / 5 Loaded
+                    {Array.from(new Set([productForm.imageUrl, ...(productForm.images || [])].filter((img): img is string => Boolean(img && img.trim())))).length} / 5 Loaded
                   </span>
                 </div>
 
-                {/* Primary Cover Photo 1 */}
+                {/* Primary Cover Photo 1 (Also supports selecting up to 5 photos at once!) */}
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-bold text-gray-800">
-                    Photo 1 (Main Cover Image — Camera / Gallery or Google Drive Link):
+                  <span className="text-[11px] font-bold text-gray-800 block">
+                    Photo 1 (Main Cover Photo — Select 1 or up to 5 photos from Gallery / Camera):
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
-                    <label className="flex items-center justify-center gap-1.5 bg-amber-800 hover:bg-amber-900 text-white font-bold py-2 px-3 rounded-xl text-xs cursor-pointer shadow-xs text-center">
-                      <span>📷 {productForm.imageUrl?.startsWith('data:image/') ? 'Change Photo' : 'Choose Photo'}</span>
+                    <label className="flex items-center justify-center gap-1.5 bg-amber-800 hover:bg-amber-900 text-white font-bold py-2.5 px-3 rounded-xl text-xs cursor-pointer shadow-xs text-center">
+                      <span>📷 {productForm.imageUrl ? 'Change / Add Photos' : 'Select Photo(s)'}</span>
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         onChange={handlePhotoUpload}
                         className="hidden"
                       />
                     </label>
                     {isUploadingPhoto ? (
                       <div className="sm:col-span-2 flex items-center gap-2 bg-amber-100 border border-amber-400 text-amber-950 px-3 py-2 rounded-xl text-xs font-bold animate-pulse">
-                        ⏳ Compressing & preparing photo for Google Sheet...
+                        ⏳ Compressing & preparing photo(s)...
                       </div>
                     ) : productForm.imageUrl?.startsWith('data:image/') ? (
                       <div className="sm:col-span-2 flex items-center justify-between bg-emerald-50 border border-emerald-400 text-emerald-950 px-3 py-1.5 rounded-xl text-xs">
@@ -2138,11 +2271,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             alt="Uploaded preview"
                             className="w-8 h-9 object-cover rounded border border-emerald-500 shrink-0"
                           />
-                          <span className="font-bold truncate">✅ Photo Ready for Google Sheet!</span>
+                          <span className="font-bold truncate">✅ Main Photo Ready!</span>
                         </div>
                         <button
                           type="button"
-                          onClick={() => setProductForm((prev) => ({ ...prev, imageUrl: '' }))}
+                          onClick={() =>
+                            setProductForm((prev) => {
+                              const updatedImgs = [...(prev.images || [])];
+                              updatedImgs[0] = '';
+                              const nextPrimary = updatedImgs.find((img) => Boolean(img && img.trim())) || '';
+                              return { ...prev, imageUrl: nextPrimary, images: updatedImgs };
+                            })
+                          }
                           className="text-[11px] text-red-700 hover:text-red-900 font-extrabold underline ml-2 shrink-0"
                         >
                           Remove
@@ -2153,8 +2293,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         type="text"
                         placeholder="Or paste Google Drive / Image link https://..."
                         value={productForm.imageUrl || ''}
-                        onChange={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
-                        onBlur={(e) => setProductForm({ ...productForm, imageUrl: formatImageUrl(e.target.value) })}
+                        onChange={(e) => {
+                          const formatted = formatImageUrl(e.target.value);
+                          setProductForm((prev) => {
+                            const updatedImgs = [...(prev.images || [])];
+                            updatedImgs[0] = formatted;
+                            return { ...prev, imageUrl: formatted, images: updatedImgs };
+                          });
+                        }}
                         className="sm:col-span-2 w-full bg-white border border-amber-300 rounded-xl p-2 text-xs"
                       />
                     )}
@@ -2173,7 +2319,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span className="text-[10px] font-mono font-bold text-amber-950 w-16 shrink-0">Photo #{photoIdx + 1}:</span>
                         {isBase64Photo ? (
                           <div className="w-full flex items-center justify-between bg-emerald-50 border border-emerald-300 rounded-xl px-2.5 py-1 text-xs text-emerald-900">
-                            <span className="font-bold truncate">✅ Photo #{photoIdx + 1} Attached</span>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={currentVal}
+                                alt={`Photo ${photoIdx + 1}`}
+                                className="w-6 h-7 object-cover rounded border border-emerald-400 shrink-0"
+                              />
+                              <span className="font-bold truncate">✅ Photo #{photoIdx + 1} Attached</span>
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
@@ -2183,7 +2336,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   return { ...prev, images: updatedImgs };
                                 });
                               }}
-                              className="text-[10px] text-red-600 font-bold underline ml-2"
+                              className="text-[10px] text-red-600 font-bold underline ml-2 shrink-0"
                             >
                               Remove
                             </button>
@@ -2191,14 +2344,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         ) : (
                           <input
                             type="text"
-                            placeholder={`Paste Google Drive or image link for photo ${photoIdx + 1}`}
+                            placeholder={`Paste link or upload Photo #${photoIdx + 1}`}
                             value={currentVal}
                             onChange={(e) => {
                               const val = formatImageUrl(e.target.value);
                               setProductForm((prev) => {
                                 const updatedImgs = [...(prev.images || [])];
+                                if (!updatedImgs[0] && prev.imageUrl) {
+                                  updatedImgs[0] = prev.imageUrl;
+                                }
                                 updatedImgs[photoIdx] = val;
-                                return { ...prev, images: updatedImgs };
+                                return {
+                                  ...prev,
+                                  imageUrl: prev.imageUrl || val,
+                                  images: updatedImgs
+                                };
                               });
                             }}
                             className="w-full bg-white border border-gray-300 rounded-xl p-1.5 text-xs font-mono"
@@ -2211,15 +2371,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             accept="image/*"
                             onChange={async (fileEv) => {
                               const file = fileEv.target.files?.[0];
+                              fileEv.target.value = '';
                               if (file) {
                                 setIsUploadingPhoto(true);
+                                setProductModalError(null);
                                 try {
-                                  const base64 = await compressImageFile(file);
-                                  setProductForm((prev) => {
-                                    const updatedImgs = [...(prev.images || [])];
-                                    updatedImgs[photoIdx] = base64;
-                                    return { ...prev, images: updatedImgs };
-                                  });
+                                  let base64 = await compressImageFile(file);
+                                  if (!base64) {
+                                    base64 = await readFileAsDataUrl(file);
+                                  }
+                                  if (base64) {
+                                    setProductForm((prev) => {
+                                      const updatedImgs = [...(prev.images || [])];
+                                      if (!updatedImgs[0] && prev.imageUrl) {
+                                        updatedImgs[0] = prev.imageUrl;
+                                      }
+                                      updatedImgs[photoIdx] = base64;
+                                      return {
+                                        ...prev,
+                                        imageUrl: prev.imageUrl || base64,
+                                        images: updatedImgs
+                                      };
+                                    });
+                                  }
                                 } catch (err) {
                                   console.error('Compress photo error:', err);
                                 } finally {
@@ -2331,19 +2505,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button
                   type="button"
-                  onClick={() => setShowAddProductModal(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-5 py-2.5 rounded-xl text-xs"
+                  onClick={() => {
+                    setShowAddProductModal(false);
+                    setProductModalError(null);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isUploadingPhoto}
+                  disabled={isUploadingPhoto || isSavingProduct}
                   className={`${
-                    isUploadingPhoto ? 'bg-amber-500 cursor-wait' : 'bg-amber-800 hover:bg-amber-900'
+                    isUploadingPhoto || isSavingProduct ? 'bg-amber-500 cursor-wait' : 'bg-amber-800 hover:bg-amber-900 cursor-pointer'
                   } text-white font-extrabold px-6 py-2.5 rounded-xl text-xs shadow-lg transition-transform active:scale-95`}
                 >
-                  {isUploadingPhoto ? '⏳ Processing Photo...' : 'Save Product to Catalog'}
+                  {isUploadingPhoto
+                    ? '⏳ Processing Photo...'
+                    : isSavingProduct
+                    ? '⏳ Saving Product...'
+                    : editingProductId
+                    ? '✅ Update Product'
+                    : '✅ Save Product to Catalog'}
                 </button>
               </div>
 
