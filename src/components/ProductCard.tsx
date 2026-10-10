@@ -1,49 +1,47 @@
 import React from 'react';
 import { Product } from '../types';
-import { ShoppingBag, Eye, Star, Sparkles, Tag, Check, Award, Heart } from 'lucide-react';
+import { Eye, Heart, MessageCircle } from 'lucide-react';
+import fallbackSuitImg from '../assets/images/punjabi_suit_red_1784686277398.jpg';
 
 interface ProductCardProps {
   product: Product;
-  onQuickAdd: (product: Product) => void;
+  onQuickAdd?: (product: Product) => void;
   onViewDetails: (product: Product) => void;
   isWishlisted?: boolean;
   onToggleWishlist?: (productId: string) => void;
+  shopPhone?: string;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
-  onQuickAdd,
   onViewDetails,
   isWishlisted = false,
-  onToggleWishlist
+  onToggleWishlist,
+  shopPhone = '9417124082'
 }) => {
-  const discountPercent = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
-
-  const savingsAmount = product.originalPrice && product.originalPrice > product.price 
-    ? product.originalPrice - product.price 
-    : 0;
+  const cleanPhone = shopPhone.replace(/[^0-9]/g, '') || '9417124082';
+  const whatsappInquiryUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
+    `Sat Sri Akal Bhraava Di Hatti! Mainu eh suit pasand aaya hai:\n• Suit: ${product.name}\n• Code: ${product.id}\n• Fabric: ${product.fabric}\n• Rate: ₹${product.price}\nKripa karke daso eh suit dukan te available hai ji?`
+  )}`;
 
   return (
-    <div className="bg-white rounded-3xl border-2 border-amber-200/70 shadow-md hover:shadow-2xl hover:border-amber-400 transition-all duration-300 overflow-hidden flex flex-col group relative">
-      
+    <div className="bg-white rounded-2xl border border-amber-200/80 shadow-xs hover:shadow-lg hover:border-amber-400 transition-all duration-200 overflow-hidden flex flex-col group relative">
       {/* Product Image Box */}
       <div 
         onClick={() => onViewDetails(product)}
         className="relative aspect-[3/4] bg-stone-100 overflow-hidden cursor-pointer"
       >
         <img
-          src={product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
+          src={product.imageUrl || fallbackSuitImg}
           alt={product.name}
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800";
+            (e.target as HTMLImageElement).src = fallbackSuitImg;
           }}
-          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
         />
 
-        {/* Wishlist Heart Bookmark Button (Top Right) */}
+        {/* Save Design / Wishlist Heart Button (Top Right) */}
         {onToggleWishlist && (
           <button
             type="button"
@@ -51,147 +49,120 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               e.stopPropagation();
               onToggleWishlist(product.id);
             }}
-            className={`absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-200 active:scale-90 shadow-md ${
+            className={`absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-150 active:scale-90 shadow-sm cursor-pointer ${
               isWishlisted
-                ? 'bg-white text-red-600 shadow-red-200 ring-2 ring-red-400'
-                : 'bg-white/85 text-stone-700 hover:text-red-600 hover:bg-white border border-stone-200/70'
+                ? 'bg-white text-red-600 ring-1 ring-red-400'
+                : 'bg-white/90 text-stone-700 hover:text-red-600 hover:bg-white border border-stone-200/70'
             }`}
-            title={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
-            aria-label={isWishlisted ? "Remove from Wishlist" : "Save to Wishlist"}
+            title={isWishlisted ? "Remove from Saved Designs" : "Save Design"}
+            aria-label={isWishlisted ? "Remove from Saved Designs" : "Save Design"}
           >
-            <Heart className={`w-4 h-4 transition-transform ${isWishlisted ? 'fill-red-600 text-red-600 scale-110' : ''}`} />
+            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-red-600 text-red-600' : ''}`} />
           </button>
         )}
 
-        {/* Overlay Badges - Top Left over photo (BestSeller / New Arrival) */}
-        {(product.isBestSeller || product.isNewArrival) && (
-          <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 flex flex-col gap-1 items-start z-10">
-            {product.isBestSeller && (
-              <span className="bg-gradient-to-r from-amber-600 to-amber-700 text-amber-50 font-extrabold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md uppercase tracking-wider flex items-center gap-1 border border-amber-300/40">
-                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-200" /> Royal Best Seller
-              </span>
-            )}
-            {product.isNewArrival && (
-              <span className="bg-red-900 text-white font-extrabold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md uppercase tracking-wider">
-                New Arrival
-              </span>
-            )}
+        {/* Sold Out Overlay if out of stock */}
+        {!product.inStock && (
+          <div className="absolute top-2.5 left-2.5 z-10 bg-stone-900/90 text-amber-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
+            Sold Out at Shop
           </div>
         )}
 
-        {/* Discount Badge over photo (Visible on Mobile & Desktop, aligned next to Heart button) */}
-        {discountPercent > 0 && (
-          <span className={`absolute z-10 bg-green-800 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg shadow-md border border-green-400/40 font-mono ${
-            onToggleWishlist ? 'top-2.5 right-12' : 'top-2.5 right-2.5'
-          }`}>
-            {discountPercent}% OFF
+        {/* Design Code Watermark Label (Bottom Left) */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent p-2.5 pt-6 flex items-end justify-between">
+          <span className="text-amber-200 font-mono font-bold text-[10px] sm:text-xs tracking-wide">
+            Code: {product.id}
           </span>
-        )}
+          {product.isNewArrival && product.inStock && (
+            <span className="text-amber-300 text-[10px] font-bold tracking-wide">
+              New Stock
+            </span>
+          )}
+        </div>
 
-        {/* Product ID Badge over Photo (Bottom Left, Small Size) */}
-        <span className="absolute bottom-2 left-2 bg-[#32080E]/90 backdrop-blur-xs text-amber-300 font-mono font-black text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-md border border-amber-500/50 tracking-wider z-10">
-          {product.id}
-        </span>
-
-        {/* Quick View Hover Overlay */}
-        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+        {/* Hover Details Overlay */}
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails(product);
             }}
-            className="bg-white/95 text-amber-950 font-bold text-xs px-4 py-2.5 rounded-2xl shadow-xl hover:bg-amber-900 hover:text-white flex items-center gap-1.5 transition-all scale-95 group-hover:scale-100 font-sans border border-amber-200"
+            className="bg-white/95 text-amber-950 font-bold text-xs px-3.5 py-2 rounded-xl shadow-md hover:bg-amber-950 hover:text-white flex items-center gap-1.5 transition-colors border border-amber-200 whitespace-nowrap cursor-pointer"
           >
-            <Eye className="w-4 h-4 text-amber-700 group-hover:text-amber-200" /> View Fabric & Details
+            <Eye className="w-3.5 h-3.5" />
+            <span>View Full Details</span>
           </button>
         </div>
       </div>
 
       {/* Product Information */}
-      <div className="p-3.5 sm:p-5 flex-1 flex flex-col justify-between space-y-2.5 sm:space-y-3 bg-gradient-to-b from-white to-amber-50/20">
+      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between space-y-3 bg-white">
         <div>
-          {/* Top row with Category tag & Rating below photo */}
-          <div className="text-[11px] font-extrabold text-amber-900 uppercase tracking-widest mb-1.5 flex items-center justify-between flex-wrap gap-1">
-            <span className="bg-amber-100/90 border border-amber-200/80 text-amber-950 px-2 py-0.5 rounded-md text-[10px]">
-              {product.category}
-            </span>
-            {product.rating && (
-              <span className="flex items-center gap-1 text-amber-800 font-black bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[10px]">
-                <Star className="w-3 h-3 fill-amber-500 text-amber-500" /> {product.rating}
-              </span>
-            )}
+          {/* Clean Unboxed Metadata */}
+          <div className="flex items-center gap-1.5 text-[11px] text-amber-900/80 font-semibold truncate">
+            <span>{product.category}</span>
+            <span aria-hidden="true">·</span>
+            <span className="text-stone-500 truncate">{product.fabric}</span>
           </div>
 
           <h3 
             onClick={() => onViewDetails(product)}
-            className="font-serif font-bold text-stone-900 text-sm sm:text-base line-clamp-1 hover:text-amber-900 cursor-pointer transition-colors"
+            className="font-serif font-bold text-stone-900 text-sm sm:text-base line-clamp-1 hover:text-amber-900 cursor-pointer transition-colors mt-1"
             title={product.name}
           >
             {product.name}
           </h3>
 
-          <p className="text-xs text-stone-500 line-clamp-1 mt-1 font-sans">
-            Fabric: <strong className="text-stone-800 font-semibold">{product.fabric}</strong>
-          </p>
-
-          {/* Color previews */}
+          {/* Colors as clean inline text */}
           {product.colors && product.colors.length > 0 && (
-            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-              <span className="text-[10px] text-amber-900 font-bold">Colors:</span>
-              {product.colors.slice(0, 3).map((c, i) => (
-                <span key={i} className="text-[9px] font-bold bg-white border border-stone-300 text-stone-700 px-1.5 py-0.2 rounded-md">
-                  {c}
-                </span>
-              ))}
-              {product.colors.length > 3 && (
-                <span className="text-[9px] text-stone-500 font-bold">+{product.colors.length - 3}</span>
-              )}
-            </div>
+            <p className="text-[11px] text-stone-500 truncate mt-1">
+              Colors: <span className="text-stone-700 font-medium">{product.colors.join(', ')}</span>
+            </p>
           )}
         </div>
 
-        {/* Pricing & Add Button Box */}
-        <div className="pt-3 border-t border-amber-200/60 flex items-center justify-between gap-2">
+        {/* Showroom Rate & Direct WhatsApp Inquiry CTA */}
+        <div className="pt-2.5 border-t border-stone-100 flex items-center justify-between gap-2">
           <div>
             <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-lg sm:text-xl font-black text-red-950 font-mono">
+              <span className="text-base sm:text-lg font-black text-red-950 font-mono tabular-nums">
                 ₹{product.price.toLocaleString('en-IN')}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-xs text-stone-400 line-through font-mono">
-                  MRP ₹{product.originalPrice.toLocaleString('en-IN')}
+                <span className="text-[11px] text-stone-400 line-through font-mono tabular-nums">
+                  ₹{product.originalPrice.toLocaleString('en-IN')}
                 </span>
               )}
             </div>
-
-            {savingsAmount > 0 ? (
-              <p className="text-[10px] bg-green-100 text-green-950 font-black px-2 py-0.5 rounded-md inline-block mt-1 border border-green-300">
-                🎉 YOU SAVE ₹{savingsAmount.toLocaleString('en-IN')}!
-              </p>
-            ) : (
-              <p className="text-[10px] text-green-800 font-extrabold flex items-center gap-0.5 mt-0.5">
-                <Check className="w-3 h-3 text-green-700" /> Fast Postal Dispatch
-              </p>
-            )}
+            <p className="text-[10px] text-stone-500 font-medium">
+              {product.inStock ? 'Limited 1–2 Sets' : 'Sold Out'}
+            </p>
           </div>
 
-          <button
-            onClick={() => onQuickAdd(product)}
-            disabled={!product.inStock}
-            className={`px-3.5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-1.5 transition-all shadow-md ${
-              product.inStock
-                ? 'bg-[#32080E] hover:bg-amber-950 text-amber-200 border border-amber-500/40 active:scale-95 hover:shadow-lg'
-                : 'bg-stone-100 text-stone-400 cursor-not-allowed'
-            }`}
-            title={product.inStock ? 'Add to Bag' : 'Out of Stock'}
-          >
-            <ShoppingBag className="w-4 h-4 text-amber-300" />
-            <span className="hidden sm:inline">Add</span>
-          </button>
+          {product.inStock ? (
+            <a
+              href={whatsappInquiryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs bg-emerald-700 hover:bg-emerald-800 text-white whitespace-nowrap shrink-0"
+              title="Check availability on WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-emerald-200 shrink-0" />
+              <span>WhatsApp</span>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onViewDetails(product)}
+              className="px-3 py-2 rounded-xl font-bold text-xs bg-stone-100 text-stone-500 whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              View Info
+            </button>
+          )}
         </div>
-
       </div>
     </div>
   );
 };
-

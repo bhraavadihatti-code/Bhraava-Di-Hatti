@@ -22,7 +22,7 @@ import { WishlistView } from './components/WishlistView';
 import { Footer } from './components/Footer';
 import { sendOrderTelegramNotification } from './utils/telegram';
 import { syncProductToGoogleSheets, syncOrderToGoogleSheets, fetchGoogleSheetAll } from './lib/googleSheetsService';
-import { Heart } from 'lucide-react';
+import { Heart, MapPin, Phone, MessageCircle, Clock, Store, Navigation } from 'lucide-react';
 
 export default function App() {
   // App view mode
@@ -613,9 +613,14 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const pendingOrdersCount = orders.filter(o => o.status === 'pending_acceptance').length;
-  const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id));
+  const cleanPhone = (settings.phoneNumber || '9417124082').replace(/[^0-9]/g, '');
+  const generalWhatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
+    `Sat Sri Akal ${settings.shopName}! Main aap di website vekhi hai, mainu suits bare jankari chahidi hai.`
+  )}`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    `${settings.shopName}, ${settings.address}, ${settings.city}`
+  )}`;
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
@@ -630,11 +635,7 @@ export default function App() {
         onSelectPriceFilter={(p) => setPriceFilter(p)}
         searchQuery={searchQuery}
         onSearchChange={(q) => setSearchQuery(q)}
-        cartCount={totalCartCount}
-        onOpenCart={() => setIsCartOpen(true)}
-        onOpenTracker={() => setTrackerModalOpen(true)}
         onOpenAdmin={handleRequestAdmin}
-        pendingOrdersCount={pendingOrdersCount}
         activeView={activeView}
         setActiveView={(v) => {
           if (v === 'admin' && !isAdminAuthenticated) {
@@ -674,13 +675,12 @@ export default function App() {
             }}
             onToggleWishlist={toggleWishlist}
             isWishlisted={isWishlisted}
-            onQuickAdd={handleQuickAdd}
             onViewDetails={(p) => setSelectedProduct(p)}
-            onAddAllToCart={handleAddAllWishlistToCart}
             onClearWishlist={handleClearWishlist}
+            shopPhone={settings.phoneNumber}
           />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             
             {/* Hero Showcase Banner */}
             <HeroBanner
@@ -692,45 +692,136 @@ export default function App() {
             />
 
             {/* Catalog Section Anchor */}
-            <div id="catalog-section" className="pt-2 flex items-center justify-between border-b border-amber-200 pb-2">
+            <div id="catalog-section" className="pt-2 flex items-center justify-between border-b border-amber-200 pb-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold font-serif text-stone-900 flex items-center gap-2">
-                  <span>{selectedCategory === 'All' ? '👗 Exclusive Suit Catalog' : selectedCategory}</span>
-                  <span className="text-xs font-sans text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md font-mono">
-                    {filteredProducts.length} items
-                  </span>
+                <h2 className="text-lg sm:text-2xl font-bold font-serif text-stone-900">
+                  {selectedCategory === 'All' ? 'Latest Showroom Suit Catalog' : selectedCategory}
                 </h2>
+                <p className="text-xs text-stone-600 mt-0.5">
+                  Showing {filteredProducts.length} designs · Tap any suit to view fabric details or ask availability on WhatsApp
+                </p>
               </div>
 
               {selectedCategory !== 'All' && (
                 <button
                   onClick={() => setSelectedCategory('All')}
-                  className="text-xs font-extrabold text-amber-900 hover:text-red-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl transition-colors"
+                  className="text-xs font-extrabold text-amber-900 hover:text-red-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-xl transition-colors cursor-pointer whitespace-nowrap"
                 >
-                  View All ➔
+                  Show All Designs ➔
                 </button>
               )}
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 pb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
               {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
-                  onQuickAdd={handleQuickAdd}
                   onViewDetails={(p) => setSelectedProduct(p)}
                   isWishlisted={isWishlisted(product.id)}
                   onToggleWishlist={toggleWishlist}
+                  shopPhone={settings.phoneNumber}
                 />
               ))}
             </div>
 
             {filteredProducts.length === 0 && (
-              <div className="bg-white rounded-2xl p-12 text-center text-gray-400 my-8">
-                No clothing items found matching your search term "{searchQuery}".
+              <div className="bg-white rounded-2xl border border-amber-200 p-12 text-center text-stone-500 my-8">
+                No suit designs found matching "{searchQuery}".
               </div>
             )}
+
+            {/* Showroom Information & How Wholesale/Retail Works Section */}
+            <section id="showroom-visit-section" className="pt-6 pb-4">
+              <div className="bg-white rounded-3xl border border-amber-200/90 p-6 sm:p-8 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                  
+                  {/* Left 7 Cols: How Our Showroom Works */}
+                  <div className="lg:col-span-7 flex flex-col justify-between space-y-5">
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                        Wholesale & Retail Showroom · Since 1986
+                      </p>
+                      <h3 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900" style={{ textWrap: 'balance' }}>
+                        Visit {settings.shopName} ({settings.firmName})
+                      </h3>
+                      <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                        ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਰੋਜ਼ ਨਵਾਂ ਮਾਲ ਆਉਂਦਾ ਹੈ ਅਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ ਸਿਰਫ਼ <strong>1 ਜਾਂ 2 ਸੈੱਟ</strong> ਹੀ ਹੁੰਦੇ ਹਨ। ਇਸ ਲਈ ਅਸੀਂ ਵੈੱਬਸਾਈਟ 'ਤੇ ਸਿੱਧੀ ਆਨਲਾਈਨ ਪੇਮੈਂਟ ਨਹੀਂ ਲੈਂਦੇ — ਪਹਿਲਾਂ ਆਪਣੀ ਪਸੰਦ ਦਾ ਸੂਟ WhatsApp 'ਤੇ ਭੇਜ ਕੇ ਪਤਾ ਕਰੋ ਜਾਂ ਸਿੱਧਾ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="bg-stone-50 border border-stone-200/80 p-3.5 rounded-2xl space-y-1">
+                        <p className="font-bold text-stone-900">01. Select Design</p>
+                        <p className="text-stone-600 leading-relaxed">
+                          Browse our latest suits on the website and save your favorite designs.
+                        </p>
+                      </div>
+                      <div className="bg-stone-50 border border-stone-200/80 p-3.5 rounded-2xl space-y-1">
+                        <p className="font-bold text-stone-900">02. Ask on WhatsApp</p>
+                        <p className="text-stone-600 leading-relaxed">
+                          Tap the WhatsApp button on any suit to confirm if that set is in stock at the shop.
+                        </p>
+                      </div>
+                      <div className="bg-stone-50 border border-stone-200/80 p-3.5 rounded-2xl space-y-1">
+                        <p className="font-bold text-stone-900">03. Visit or Book</p>
+                        <p className="text-stone-600 leading-relaxed">
+                          Visit our Maur Mandi showroom directly or reserve your suit on WhatsApp.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right 5 Cols: Store Address, Hours & Direct Contact */}
+                  <div className="lg:col-span-5 bg-[#32080E] text-amber-50 rounded-2xl p-6 flex flex-col justify-between space-y-4 border border-amber-500/40">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-amber-300 text-xs font-bold uppercase tracking-wider">
+                        <Store className="w-4 h-4" />
+                        <span>Showroom Address & Timings</span>
+                      </div>
+
+                      <div className="space-y-2.5 text-xs sm:text-sm">
+                        <p className="flex items-start gap-2.5 text-amber-100">
+                          <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-1" />
+                          <span>{settings.address}, {settings.city} ({settings.pincode})</span>
+                        </p>
+                        <p className="flex items-center gap-2.5 text-amber-100 font-mono">
+                          <Phone className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>{settings.phoneNumber} {settings.phoneNumber2 ? `/ ${settings.phoneNumber2}` : ''}</span>
+                        </p>
+                        <p className="flex items-center gap-2.5 text-amber-100">
+                          <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>Open All 7 Days: 9:00 AM – 8:30 PM</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                      <a
+                        href={generalWhatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors whitespace-nowrap"
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-100 shrink-0" />
+                        <span>Chat on WhatsApp</span>
+                      </a>
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors whitespace-nowrap"
+                      >
+                        <Navigation className="w-3.5 h-3.5 text-amber-950 shrink-0" />
+                        <span>Open in Maps</span>
+                      </a>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </section>
 
           </div>
         )}
@@ -740,49 +831,12 @@ export default function App() {
       {/* Footer */}
       <Footer
         settings={settings}
-        onOpenTracker={() => setTrackerModalOpen(true)}
         onOpenAdmin={handleRequestAdmin}
       />
 
-      {/* Product Added Success Toast Banner */}
-      {addedToastItem && (
-        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[100] bg-[#32080E] text-amber-100 p-3 sm:p-3.5 rounded-2xl shadow-2xl border-2 border-amber-400 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 max-w-[94vw] sm:max-w-md w-full font-sans">
-          <img
-            src={addedToastItem.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800"}
-            alt={addedToastItem.product?.name || "Product"}
-            className="w-12 h-12 rounded-xl object-cover border border-amber-400/50 shrink-0"
-          />
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center gap-1 text-emerald-400 text-xs font-black">
-              <span className="w-4 h-4 bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px]">✓</span>
-              <span>Added to Shopping Bag!</span>
-            </div>
-            <p className="text-xs font-bold text-amber-100 truncate">{addedToastItem.product?.name || "Suit"}</p>
-            <p className="text-[10px] text-amber-300/80 font-mono">
-              ₹{addedToastItem.product?.price || 0} • {addedToastItem.selectedColor} ({addedToastItem.selectedSize})
-            </p>
-          </div>
-          <button 
-            onClick={() => {
-              setIsCartOpen(true);
-              setAddedToastItem(null);
-            }}
-            className="bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-amber-950 font-black text-xs px-3 py-2 rounded-xl transition-all shrink-0 border border-amber-200 active:scale-95 cursor-pointer shadow-md"
-          >
-            View Bag 🛒
-          </button>
-          <button
-            onClick={() => setAddedToastItem(null)}
-            className="text-amber-400 hover:text-white p-1 text-xs shrink-0"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Wishlist Action Toast Notification */}
+      {/* Saved Design Toast Notification */}
       {wishlistToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#2A050B] text-amber-100 px-4 py-3 rounded-2xl shadow-2xl border-2 border-amber-400/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200 max-w-[92vw] sm:max-w-md w-full font-sans">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#2A050B] text-amber-100 px-4 py-3 rounded-2xl shadow-2xl border border-amber-400/80 flex items-center gap-3 max-w-[92vw] sm:max-w-md w-full font-sans">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
             wishlistToast.type === 'added' ? 'bg-red-600 text-white shadow-md' : 'bg-stone-800 text-stone-300'
           }`}>
@@ -801,9 +855,9 @@ export default function App() {
                 setWishlistToast(null);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-[11px] font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 px-3 py-1.5 rounded-xl transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+              className="text-[11px] font-black bg-amber-400 hover:bg-amber-300 text-amber-950 px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer whitespace-nowrap"
             >
-              View List ❤️
+              View Saved
             </button>
           )}
           <button
@@ -815,8 +869,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODALS & DRAWERS */}
-      
       {/* Admin Password Lock Modal */}
       <AdminPasswordModal
         isOpen={isAdminPasswordModalOpen}
@@ -829,57 +881,13 @@ export default function App() {
         settings={settings}
       />
       
-      {/* Product Detail Modal */}
+      {/* Product Detail & WhatsApp Inquiry Modal */}
       <ProductDetailModal
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
-        onAddToCart={handleAddToCart}
-        onBuyNow={handleBuyNow}
         isWishlisted={selectedProduct ? isWishlisted(selectedProduct.id) : false}
         onToggleWishlist={toggleWishlist}
-      />
-
-      {/* Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        cartItems={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-        onProceedToCheckout={() => {
-          setCheckoutItems(cartItems);
-          setIsCartOpen(false);
-          setIsCheckoutOpen(true);
-        }}
-        settings={settings}
-      />
-
-      {/* UPI Checkout & Payment Modal */}
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        cartItems={checkoutItems.length > 0 ? checkoutItems : cartItems}
-        settings={settings}
-        onOrderPlacedSuccess={handleOrderPlacedSuccess}
-      />
-
-      {/* Order Success Modal */}
-      <OrderSuccessModal
-        order={placedOrderSuccess}
-        settings={settings}
-        onClose={() => setPlacedOrderSuccess(null)}
-        onTrackOrder={(orderId) => {
-          setTrackerQuery(orderId);
-          setTrackerModalOpen(true);
-        }}
-      />
-
-      {/* Order Status Tracker Modal */}
-      <OrderTrackerModal
-        isOpen={trackerModalOpen}
-        onClose={() => setTrackerModalOpen(false)}
-        initialQuery={trackerQuery}
-        webhookUrl={settings.googleSheetWebhookUrl || DEFAULT_SHOP_SETTINGS.googleSheetWebhookUrl}
+        shopPhone={settings.phoneNumber}
       />
 
     </div>

@@ -4,13 +4,10 @@ import { ProductCard } from './ProductCard';
 import { 
   Heart, 
   ArrowLeft, 
-  ShoppingBag, 
   Trash2, 
-  Sparkles, 
-  ShieldCheck, 
-  Truck, 
   CheckCircle2,
-  PackageOpen
+  MessageCircle,
+  Store
 } from 'lucide-react';
 
 interface WishlistViewProps {
@@ -19,10 +16,9 @@ interface WishlistViewProps {
   onBackToShop: () => void;
   onToggleWishlist: (productId: string) => void;
   isWishlisted: (productId: string) => boolean;
-  onQuickAdd: (product: Product) => void;
   onViewDetails: (product: Product) => void;
-  onAddAllToCart: (products: Product[]) => void;
   onClearWishlist: () => void;
+  shopPhone?: string;
 }
 
 export const WishlistView: React.FC<WishlistViewProps> = ({
@@ -31,87 +27,81 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
   onBackToShop,
   onToggleWishlist,
   isWishlisted,
-  onQuickAdd,
   onViewDetails,
-  onAddAllToCart,
-  onClearWishlist
+  onClearWishlist,
+  shopPhone = '9417124082'
 }) => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Recommendations when empty or for inspiration
   const recommendedSuits = allProducts
     .filter((p) => !wishlistProducts.some((wp) => wp.id === p.id))
     .slice(0, 4);
 
-  const inStockCount = wishlistProducts.filter((p) => p.inStock).length;
-  const totalWishlistValue = wishlistProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+  const cleanPhone = shopPhone.replace(/[^0-9]/g, '') || '9417124082';
+  const savedListText = wishlistProducts
+    .map((p, idx) => `${idx + 1}. ${p.name} (Code: ${p.id}) - ₹${p.price}`)
+    .join('\n');
+
+  const whatsappAllUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
+    `Sat Sri Akal Bhraava Di Hatti! Main aap di website ton eh ${wishlistProducts.length} suit pasand kite han:\n\n${savedListText}\n\nKripa karke daso ehna vicho kehre-kehre suit dukan te available han ji?`
+  )}`;
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
-      {/* Top Banner / Breadcrumb Bar */}
-      <div className="bg-gradient-to-r from-[#32080E] via-amber-950 to-red-950 text-amber-50 rounded-3xl p-4 sm:p-6 shadow-xl border-2 border-amber-400/40 relative overflow-hidden">
-        {/* Background decorative pattern */}
-        <div className="absolute -right-8 -bottom-8 opacity-10 pointer-events-none">
-          <Heart className="w-48 h-48 text-amber-200" />
-        </div>
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="space-y-6 pb-12">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-[#32080E] via-amber-950 to-red-950 text-amber-50 rounded-2xl p-4 sm:p-6 shadow-lg border border-amber-400/40">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1.5">
             <button
               onClick={onBackToShop}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl border border-amber-300/30 active:scale-95 cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Continue Shopping</span>
+              <span>Back to Suit Catalog</span>
             </button>
 
             <div className="flex items-center gap-3 pt-1">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-amber-600 flex items-center justify-center text-white shadow-md border border-amber-300/50">
+              <div className="w-10 h-10 rounded-xl bg-red-700 flex items-center justify-center text-white shadow-sm border border-amber-300/40">
                 <Heart className="w-5 h-5 fill-white" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-black font-serif text-white tracking-tight flex items-center gap-2">
-                  <span>My Saved Wishlist</span>
-                  <span className="text-xs font-sans font-black bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full font-mono">
-                    {wishlistProducts.length} {wishlistProducts.length === 1 ? 'Suit' : 'Suits'}
-                  </span>
+                <h1 className="text-xl sm:text-2xl font-black font-serif text-white tracking-tight">
+                  Saved Suit Designs ({wishlistProducts.length})
                 </h1>
                 <p className="text-xs text-amber-200/90 font-medium">
-                  Your bookmarked suits are stored safely on your device for quick ordering anytime.
+                  Send your shortlisted designs on WhatsApp to confirm availability at our Maur Mandi showroom.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons for Wishlist */}
           {wishlistProducts.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 pt-2 md:pt-0">
-              {inStockCount > 0 && (
-                <button
-                  onClick={() => onAddAllToCart(wishlistProducts.filter((p) => p.inStock))}
-                  className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 font-black text-xs px-3.5 py-2.5 rounded-2xl transition-all shadow-md flex items-center gap-1.5 border border-amber-200 active:scale-95 cursor-pointer"
-                  title="Add all in-stock suits to your shopping bag"
-                >
-                  <ShoppingBag className="w-4 h-4 text-amber-950" />
-                  <span>Add All In-Stock to Bag ({inStockCount})</span>
-                </button>
-              )}
+              <a
+                href={whatsappAllUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-colors shadow-md flex items-center gap-2 border border-emerald-400/40 whitespace-nowrap"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-100 shrink-0" />
+                <span>Inquire All ({wishlistProducts.length}) on WhatsApp</span>
+              </a>
 
               {showClearConfirm ? (
-                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-2xl border border-red-500/50">
+                <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-red-500/50">
                   <span className="text-[11px] text-red-200 font-bold px-2">Clear all?</span>
                   <button
                     onClick={() => {
                       onClearWishlist();
                       setShowClearConfirm(false);
                     }}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-xl transition-all"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
                   >
                     Yes
                   </button>
                   <button
                     onClick={() => setShowClearConfirm(false)}
-                    className="bg-stone-700 hover:bg-stone-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-xl transition-all"
+                    className="bg-stone-700 hover:bg-stone-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
                   >
                     No
                   </button>
@@ -119,8 +109,7 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
               ) : (
                 <button
                   onClick={() => setShowClearConfirm(true)}
-                  className="bg-white/10 hover:bg-red-900/50 text-amber-200 hover:text-red-200 font-bold text-xs px-3 py-2.5 rounded-2xl transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer"
-                  title="Clear all saved items"
+                  className="bg-white/10 hover:bg-red-900/50 text-amber-200 hover:text-red-200 font-bold text-xs px-3 py-2.5 rounded-xl transition-all border border-white/20 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Clear List</span>
@@ -134,81 +123,69 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
       {/* Main Wishlist Products Section */}
       {wishlistProducts.length > 0 ? (
         <div className="space-y-6">
-          {/* Wishlist Summary Bar */}
-          <div className="bg-white rounded-2xl border border-amber-200 p-3 sm:p-4 flex items-center justify-between gap-4 shadow-xs flex-wrap">
-            <div className="flex items-center gap-4 text-xs font-semibold text-stone-700">
-              <span className="flex items-center gap-1.5 text-stone-900">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Showing <strong>{wishlistProducts.length}</strong> saved items</span>
-              </span>
-              <span className="hidden sm:inline text-stone-300">|</span>
-              <span className="hidden sm:inline text-stone-600">
-                Total Value: <strong className="font-mono text-red-950">₹{totalWishlistValue.toLocaleString('en-IN')}</strong>
-              </span>
+          <div className="bg-white rounded-xl border border-amber-200 p-3 sm:p-4 flex items-center justify-between gap-4 shadow-2xs flex-wrap">
+            <div className="flex items-center gap-2 text-xs font-semibold text-stone-700">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>You have shortlisted <strong>{wishlistProducts.length}</strong> suit designs</span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] bg-amber-50 text-amber-900 font-bold px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
-                <Truck className="w-3 h-3 text-amber-700" /> Free Postal Shipping in India
-              </span>
+            <div className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold">
+              <Store className="w-3.5 h-3.5 text-amber-700" />
+              <span>Show this list at our shop or send on WhatsApp</span>
             </div>
           </div>
 
-          {/* Product Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {wishlistProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
-                onQuickAdd={onQuickAdd}
                 onViewDetails={onViewDetails}
                 isWishlisted={isWishlisted(product.id)}
                 onToggleWishlist={onToggleWishlist}
+                shopPhone={shopPhone}
               />
             ))}
           </div>
         </div>
       ) : (
-        /* Empty State */
-        <div className="bg-white rounded-3xl border-2 border-dashed border-amber-300/80 p-8 sm:p-14 text-center max-w-2xl mx-auto space-y-5 shadow-xs">
-          <div className="w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center mx-auto text-amber-700 shadow-inner">
-            <Heart className="w-10 h-10 text-amber-600 animate-pulse" />
+        <div className="bg-white rounded-2xl border border-amber-300/80 p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4 shadow-2xs">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-700">
+            <Heart className="w-8 h-8 text-amber-600" />
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-bold font-serif text-stone-900">
-              Your Wishlist is Empty
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-bold font-serif text-stone-900">
+              No Saved Suit Designs Yet
             </h2>
             <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
-              You haven't bookmarked any suits yet. Explore our Royal Punjabi Suits, Farshi Suits, Cotton Suits & Ruaab collections, then tap the <span className="inline-flex items-center text-red-600 font-bold gap-0.5"><Heart className="w-3.5 h-3.5 fill-red-600 inline" /> heart icon</span> on any suit to bookmark it here!
+              Tap the heart icon on any suit design in our catalog to save it here. You can then send all your favorite designs together on WhatsApp or show them when you visit our shop.
             </p>
           </div>
 
           <div className="pt-2">
             <button
               onClick={onBackToShop}
-              className="bg-gradient-to-r from-red-950 via-amber-950 to-red-950 hover:scale-102 text-amber-100 font-black text-sm px-6 py-3.5 rounded-2xl transition-all shadow-lg border border-amber-400/40 inline-flex items-center gap-2 active:scale-95 cursor-pointer"
+              className="bg-[#32080E] hover:bg-amber-950 text-amber-100 font-black text-xs sm:text-sm px-6 py-3 rounded-xl transition-all shadow-md border border-amber-400/40 inline-flex items-center gap-2 cursor-pointer"
             >
-              <span>Explore Suits Catalog</span>
+              <span>Browse Suit Catalog</span>
               <span>➔</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Suggested & Popular Suits if Wishlist is empty or small */}
+      {/* Suggested Designs */}
       {recommendedSuits.length > 0 && (
         <div className="pt-6 border-t border-amber-200/80 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base sm:text-lg font-bold font-serif text-stone-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              <span>Recommended Suits for You</span>
+            <h3 className="text-base sm:text-lg font-bold font-serif text-stone-900">
+              More Designs from Our Showroom
             </h3>
             <button
               onClick={onBackToShop}
-              className="text-xs font-bold text-amber-900 hover:text-red-900 hover:underline"
+              className="text-xs font-bold text-amber-900 hover:text-red-900 hover:underline cursor-pointer"
             >
-              View Full Catalog ➔
+              View All Designs ➔
             </button>
           </div>
 
@@ -217,10 +194,10 @@ export const WishlistView: React.FC<WishlistViewProps> = ({
               <ProductCard
                 key={product.id}
                 product={product}
-                onQuickAdd={onQuickAdd}
                 onViewDetails={onViewDetails}
                 isWishlisted={isWishlisted(product.id)}
                 onToggleWishlist={onToggleWishlist}
+                shopPhone={shopPhone}
               />
             ))}
           </div>
