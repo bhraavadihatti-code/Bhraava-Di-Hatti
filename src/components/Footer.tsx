@@ -95,14 +95,14 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
             </ul>
           </div>
 
-          {/* Wholesale & Limited Sets Info */}
+          {/* Showroom Visit & Inquiry Info */}
           <div className="space-y-3 bg-[#250509]/90 border border-amber-500/30 p-4 rounded-2xl text-xs">
             <h4 className="font-bold text-amber-200 flex items-center gap-1.5 font-serif">
               <Store className="w-4 h-4 text-amber-400" />
-              <span>Wholesale & Retail Notice</span>
+              <span>Visit Our Showroom</span>
             </h4>
             <p className="text-amber-300/90 text-[11px] leading-relaxed">
-              ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ ਲਿਮਿਟਡ 1 ਜਾਂ 2 ਸੈੱਟ ਹੀ ਆਉਂਦੇ ਹਨ। ਕੋਈ ਵੀ ਡਿਜ਼ਾਈਨ ਪਸੰਦ ਆਉਣ 'ਤੇ WhatsApp ਰਾਹੀਂ ਸਟਾਕ ਪਤਾ ਕਰੋ ਜਾਂ ਸਿੱਧਾ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
+              ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਰੋਜ਼ ਨਵੇਂ ਡਿਜ਼ਾਈਨ ਅਤੇ ਪਿਓਰ ਕੱਪੜੇ ਦੀ ਪੂਰੀ ਵਰਾਇਟੀ ਮਿਲਦੀ ਹੈ। ਕੋਈ ਵੀ ਸੂਟ ਪਸੰਦ ਆਉਣ 'ਤੇ WhatsApp ਰਾਹੀਂ ਪੁੱਛੋ ਜਾਂ ਸਿੱਧਾ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
             </p>
             <a
               href={mapsUrl}

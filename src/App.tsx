@@ -1129,7 +1129,7 @@ export default function App() {
                         Visit {settings.shopName} ({settings.firmName})
                       </h3>
                       <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                        ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਰੋਜ਼ ਨਵਾਂ ਮਾਲ ਆਉਂਦਾ ਹੈ ਅਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ ਸਿਰਫ਼ <strong>1 ਜਾਂ 2 ਸੈੱਟ</strong> ਹੀ ਹੁੰਦੇ ਹਨ। ਇਸ ਲਈ ਅਸੀਂ ਵੈੱਬਸਾਈਟ 'ਤੇ ਸਿੱਧੀ ਆਨਲਾਈਨ ਪੇਮੈਂਟ ਨਹੀਂ ਲੈਂਦੇ — ਪਹਿਲਾਂ ਆਪਣੀ ਪਸੰਦ ਦਾ ਸੂਟ WhatsApp 'ਤੇ ਭੇਜ ਕੇ ਪਤਾ ਕਰੋ ਜਾਂ ਸਿੱਧਾ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
+                        ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਰੋਜ਼ ਨਵੇਂ ਅਤੇ ਪਿਓਰ ਕੁਆਲਿਟੀ ਦੇ ਸੂਟਾਂ ਦੇ ਡਿਜ਼ਾਈਨ ਆਉਂਦੇ ਹਨ। ਆਪਣੀ ਪਸੰਦ ਦਾ ਸੂਟ ਚੁਣ ਕੇ WhatsApp 'ਤੇ ਜਾਣਕਾਰੀ ਲਓ ਜਾਂ ਸਿੱਧਾ ਸਾਡੇ ਸ਼ੋਰੂਮ (ਮੌੜ ਮੰਡੀ) ਵਿਜ਼ਿਟ ਕਰੋ।
                       </p>
                     </div>
 
@@ -1143,7 +1143,7 @@ export default function App() {
                       <div className="bg-stone-50 border border-stone-200/80 p-3.5 rounded-2xl space-y-1">
                         <p className="font-bold text-stone-900">02. Ask on WhatsApp</p>
                         <p className="text-stone-600 leading-relaxed">
-                          Tap the WhatsApp button on any suit to confirm if that set is in stock at the shop.
+                          Tap the WhatsApp button on any suit to get full details and confirm availability.
                         </p>
                       </div>
                       <div className="bg-stone-50 border border-stone-200/80 p-3.5 rounded-2xl space-y-1">

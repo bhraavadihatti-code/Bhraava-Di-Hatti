@@ -15,7 +15,6 @@ import {
   Heart,
   MessageCircle,
   Phone,
-  Store,
   MapPin
 } from 'lucide-react';
 import { formatImageUrl } from '../lib/imageUtils';
@@ -284,7 +283,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-stone-600 mt-1">
-                  Direct Showroom Rate · Wholesale & Retail Set Available
+                  Direct Showroom Rate · 100% Pure Quality Fabric
                 </p>
               </div>
 
@@ -404,14 +403,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </div>
                 </div>
               )}
-
-              {/* Wholesale Limited Set Notice */}
-              <div className="mt-4 bg-amber-50/90 border border-amber-200/90 p-3 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
-                <Store className="w-4 h-4 text-amber-800 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  <strong>Limited Set Notice:</strong> ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ ਸਿਰਫ਼ 1 ਜਾਂ 2 ਸੈੱਟ ਹੀ ਆਉਂਦੇ ਹਨ। ਹੇਠਾਂ WhatsApp ਬਟਨ ਦਬਾ ਕੇ ਪੁੱਛੋ ਕਿ ਇਹ ਸੂਟ ਦੁਕਾਨ 'ਤੇ ਮੌਜੂਦ ਹੈ ਜਾਂ ਨਹੀਂ।
-                </p>
-              </div>
             </div>
 
             {/* Bottom Inquiry & Save Actions */}

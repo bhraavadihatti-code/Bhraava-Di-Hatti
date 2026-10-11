@@ -15,7 +15,7 @@ const BANNER_SLIDES = [
     id: 1,
     kicker: "Wholesale & Retail Showroom · Estd. 1986",
     title: "Pure Handloom Punjabi Suits & Boutique Sets",
-    subtitle: "Fresh designs arriving daily at Maur Mandi. Every design comes in limited 1 to 2 sets — check availability on WhatsApp or visit our showroom.",
+    subtitle: "Fresh designs arriving daily at Maur Mandi. Browse our latest unstitched suit collection and inquire directly on WhatsApp or visit our showroom.",
     highlight: "Direct Wholesale Rates",
     image: heroBannerImg
   },
@@ -29,9 +29,9 @@ const BANNER_SLIDES = [
   },
   {
     id: 3,
-    kicker: "Daily New Arrivals · Limited Sets",
+    kicker: "Daily New Arrivals · Maur Mandi Showroom",
     title: "Cotton, Farshi & Designer Suit Varieties",
-    subtitle: "Browse our live digital catalog below. Send any suit code on WhatsApp to confirm if the set is available at the shop counter.",
+    subtitle: "Browse our live digital catalog below. Send any suit code on WhatsApp for quick inquiry or visit our showroom directly.",
     highlight: "New Stock Every Week",
     image: farshiSuitImg
   }
@@ -168,7 +168,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
             <div className="flex items-center gap-2.5 bg-black/45 border border-amber-500/30 p-3 rounded-xl">
               <Store className="w-5 h-5 text-amber-400 shrink-0" />
               <div>
-                <p className="font-bold text-amber-100">Limited 1–2 Sets</p>
+                <p className="font-bold text-amber-100">Latest Collection</p>
                 <p className="text-[11px] text-amber-300/80">Exclusive Designs</p>
               </div>
             </div>
@@ -231,7 +231,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ settings, onExploreCatal
               {settings.shopName}
             </h3>
             <p className="text-xs text-amber-200/90 leading-relaxed">
-              ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਡਿਜ਼ਾਈਨ ਦੇ 1–2 ਸੈੱਟ ਹੀ ਆਉਂਦੇ ਹਨ। ਪਸੰਦ ਆਏ ਸੂਟ ਦਾ ਸਟਾਕ WhatsApp 'ਤੇ ਪੁੱਛੋ ਜਾਂ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
+              ਸਾਡੀ ਦੁਕਾਨ 'ਤੇ ਹਰ ਰੋਜ਼ ਨਵੇਂ ਅਤੇ ਸ਼ਾਨਦਾਰ ਸੂਟਾਂ ਦੇ ਡਿਜ਼ਾਈਨ ਆਉਂਦੇ ਹਨ। ਪਸੰਦ ਆਏ ਸੂਟ ਬਾਰੇ WhatsApp 'ਤੇ ਪੁੱਛੋ ਜਾਂ ਦੁਕਾਨ 'ਤੇ ਵਿਜ਼ਿਟ ਕਰੋ।
             </p>
           </div>
 

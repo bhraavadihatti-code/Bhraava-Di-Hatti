@@ -173,8 +173,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 </span>
               )}
             </div>
-            <p className="text-[9px] sm:text-[10px] text-stone-500 font-medium shrink-0">
-              {product.inStock ? '1–2 Sets' : 'Sold Out'}
+            <p className={`text-[9px] sm:text-[10px] font-semibold shrink-0 ${product.inStock ? 'text-emerald-700' : 'text-stone-500'}`}>
+              {product.inStock ? 'In Stock' : 'Sold Out'}
             </p>
           </div>
 
