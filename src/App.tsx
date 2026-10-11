@@ -59,7 +59,18 @@ export default function App() {
   });
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [settings, setSettings] = useState<ShopSettings>(DEFAULT_SHOP_SETTINGS);
+  const [settings, setSettings] = useState<ShopSettings>(() => {
+    try {
+      const saved = localStorage.getItem('bdh_settings_cache_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_SHOP_SETTINGS, ...parsed };
+        }
+      }
+    } catch {}
+    return DEFAULT_SHOP_SETTINGS;
+  });
 
   // Filter & Search State
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('All');
@@ -417,7 +428,19 @@ export default function App() {
       const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setSettings(data);
+        setSettings((prev) => {
+          const mergedCats = Array.from(
+            new Set([
+              ...(Array.isArray(data?.categories) && data.categories.length > 0 ? data.categories : DEFAULT_CATEGORIES),
+              ...(Array.isArray(prev?.categories) ? prev.categories : [])
+            ])
+          );
+          const next = { ...prev, ...data, categories: mergedCats };
+          try {
+            localStorage.setItem('bdh_settings_cache_v1', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
       }
     } catch (err) {
       console.warn('Network fetching settings (using local fallback):', err);
@@ -453,6 +476,14 @@ export default function App() {
               }
             } else if (data.type === 'NEW_ORDER' || data.type === 'ORDER_UPDATED') {
               fetchOrders();
+            } else if (data.type === 'SETTINGS_UPDATED' && data.settings) {
+              setSettings((prev) => {
+                const next = { ...prev, ...data.settings };
+                try {
+                  localStorage.setItem('bdh_settings_cache_v1', JSON.stringify(next));
+                } catch {}
+                return next;
+              });
             }
           } catch (e) {
             console.error('SSE sync error:', e);
@@ -501,20 +532,48 @@ export default function App() {
     }
   }, [activeView]);
 
-  // Category List
-  const categories: ProductCategory[] = settings.categories && settings.categories.length > 0
+  // Category List (includes settings.categories + any custom Other varieties present on products)
+  const baseCategories: ProductCategory[] = settings.categories && settings.categories.length > 0
     ? (settings.categories.includes('All') ? settings.categories : ['All', ...settings.categories])
     : DEFAULT_CATEGORIES;
+
+  const productDerivedVarieties: string[] = products
+    .flatMap((p) => [
+      p.category || '',
+      ...(Array.isArray(p.tags) ? p.tags : [])
+    ])
+    .flatMap((v) => String(v).split(','))
+    .map((v) => v.trim())
+    .filter((v) => Boolean(v && v.toLowerCase() !== 'all'));
+
+  const categories: ProductCategory[] = [...baseCategories];
+  for (const pv of productDerivedVarieties) {
+    if (!categories.some((c) => c.trim().toLowerCase() === pv.toLowerCase())) {
+      categories.push(pv);
+    }
+  }
 
   // Filtered & Sorted Products (with singular/plural category normalization)
   const filteredProducts = products
     .filter((p) => {
-      const normProdCat = (p.category || '').trim().toLowerCase().replace(/s$/, '');
       const normSelectedCat = (selectedCategory || '').trim().toLowerCase().replace(/s$/, '');
+      const prodVarieties = [
+        p.category || '',
+        ...(Array.isArray(p.tags) ? p.tags : [])
+      ]
+        .flatMap((v) => String(v).split(','))
+        .map((v) => v.trim())
+        .filter(Boolean);
+
       const matchesCategory =
         selectedCategory === 'All' ||
-        p.category === selectedCategory ||
-        (normProdCat && normProdCat === normSelectedCat);
+        prodVarieties.some((v) => {
+          const normV = v.toLowerCase().replace(/s$/, '');
+          return (
+            v.toLowerCase() === (selectedCategory || '').trim().toLowerCase() ||
+            (normV && normV === normSelectedCat)
+          );
+        });
 
       const query = searchQuery.trim().toLowerCase();
       const matchesSearch = 
@@ -523,7 +582,8 @@ export default function App() {
         (p.fabric || '').toLowerCase().includes(query) ||
         (p.description || '').toLowerCase().includes(query) ||
         (p.id || '').toLowerCase().includes(query) ||
-        (p.category || '').toLowerCase().includes(query);
+        (p.category || '').toLowerCase().includes(query) ||
+        prodVarieties.some((v) => v.toLowerCase().includes(query));
 
       let matchesPrice = true;
       if (priceFilter === 'under1500') {
@@ -825,6 +885,13 @@ export default function App() {
   };
 
   const handleUpdateSettings = async (newSettings: Partial<ShopSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem('bdh_settings_cache_v1', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
@@ -833,7 +900,13 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSettings(data);
+        setSettings((prev) => {
+          const next = { ...prev, ...data };
+          try {
+            localStorage.setItem('bdh_settings_cache_v1', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
       }
     } catch (e) {
       console.error('Update settings error:', e);

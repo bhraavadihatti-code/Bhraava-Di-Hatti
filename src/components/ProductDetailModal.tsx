@@ -61,7 +61,30 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const currentImageUrl = allImages[activeImgIdx] || product.imageUrl || fallbackSuitImg;
   const cleanPhone = shopPhone.replace(/[^0-9]/g, '') || '9417124082';
 
-  const whatsappMessage = `Sat Sri Akal Bhraava Di Hatti (Maur Mandi)!\nMainu aap di website ton eh suit pasand aaya hai:\n\n• Suit Name: ${product.name}\n• Design Code: ${product.id}\n• Selected Color: ${selectedColor}\n• Fabric: ${product.fabric}\n• Rate: ₹${product.price}\n\nKripa karke check karke daso eh suit dukan te available hai ji?`;
+  const joinedSizesLower = (product.sizes || []).join(' ').toLowerCase();
+  const resolvedSuitCut =
+    product.suitCut ||
+    (joinedSizesLower.includes('all over 5') || joinedSizesLower.includes('5.00 m')
+      ? 'all_over_5m'
+      : joinedSizesLower.includes('all over 3.5') || joinedSizesLower.includes('3.50 m')
+      ? 'all_over_3.5m'
+      : '2.50m_2.50m');
+
+  const resolvedDupattaCut =
+    product.dupattaCut ||
+    (joinedSizesLower.includes('without dupatta') ? 'without_dupatta' : 'with_2.25m');
+
+  const suitCutSummaryText =
+    resolvedSuitCut === 'all_over_5m'
+      ? 'All Over 5.00 m'
+      : resolvedSuitCut === 'all_over_3.5m'
+      ? 'All Over 3.50 m'
+      : 'Top 2.50 m + Bottom 2.50 m';
+
+  const dupattaSummaryText =
+    resolvedDupattaCut === 'without_dupatta' ? 'Without Dupatta' : '2.25 m Dupatta';
+
+  const whatsappMessage = `Sat Sri Akal Bhraava Di Hatti (Maur Mandi)!\nMainu aap di website ton eh suit pasand aaya hai:\n\n• Suit Name: ${product.name}\n• Design Code: ${product.id}\n• Suit Cut: ${suitCutSummaryText} (${dupattaSummaryText})\n• Selected Color: ${selectedColor}\n• Fabric: ${product.fabric}\n• Rate: ₹${product.price}\n\nKripa karke check karke daso eh suit dukan te available hai ji?`;
   const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
   const handleNextImg = (e?: React.MouseEvent) => {
@@ -274,20 +297,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <span className="font-bold text-stone-800 block text-[11px]">
                   Unstitched Suit Cut Specifications
                 </span>
-                <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-stone-700">
-                  <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
-                    <span className="block font-semibold text-stone-900">Top / Shirt</span>
-                    <span className="text-[10px] text-amber-900 font-mono font-bold">2.50 Meters</span>
+                {resolvedSuitCut === 'all_over_5m' ? (
+                  <div className="grid grid-cols-2 gap-2 text-center text-[11px] text-stone-700">
+                    <div className="bg-white p-2 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">All Over Suit (Top + Bottom)</span>
+                      <span className="text-[11px] text-amber-900 font-mono font-bold">5.00 m</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">Dupatta</span>
+                      <span className="text-[11px] text-amber-900 font-mono font-bold">
+                        {resolvedDupattaCut === 'without_dupatta' ? 'Without Dupatta' : '2.25 m'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
-                    <span className="block font-semibold text-stone-900">Bottom / Salwar</span>
-                    <span className="text-[10px] text-amber-900 font-mono font-bold">2.50 - 3.00 M</span>
+                ) : resolvedSuitCut === 'all_over_3.5m' ? (
+                  <div className="grid grid-cols-2 gap-2 text-center text-[11px] text-stone-700">
+                    <div className="bg-white p-2 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">All Over Suit</span>
+                      <span className="text-[11px] text-amber-900 font-mono font-bold">3.50 m</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">Dupatta</span>
+                      <span className="text-[11px] text-amber-900 font-mono font-bold">
+                        {resolvedDupattaCut === 'without_dupatta' ? 'Without Dupatta' : '2.25 m'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
-                    <span className="block font-semibold text-stone-900">Dupatta</span>
-                    <span className="text-[10px] text-amber-900 font-mono font-bold">2.25 Meters</span>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-stone-700">
+                    <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">Top / Shirt</span>
+                      <span className="text-[10px] text-amber-900 font-mono font-bold">2.50 m</span>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">Bottom / Salwar</span>
+                      <span className="text-[10px] text-amber-900 font-mono font-bold">2.50 m</span>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-lg border border-stone-200/80">
+                      <span className="block font-semibold text-stone-900">Dupatta</span>
+                      <span className="text-[10px] text-amber-900 font-mono font-bold">
+                        {resolvedDupattaCut === 'without_dupatta' ? 'Without Dupatta' : '2.25 m'}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Fabric & Work Type */}

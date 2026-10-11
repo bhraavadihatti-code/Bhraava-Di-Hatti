@@ -545,6 +545,19 @@ export function parseProductsFromSheet(rows: any[]): Product[] {
     const colors = colorRaw.includes(',') ? colorRaw.split(',').map(s => s.trim()) : [colorRaw];
     const sizeRaw = String(r.Sizes || r.sizes || 'Unstitched');
     const sizes = sizeRaw.includes(',') ? sizeRaw.split(',').map(s => s.trim()) : [sizeRaw];
+    const sizeLower = sizeRaw.toLowerCase();
+    const suitCut: string =
+      r.SuitCut ||
+      r.suitCut ||
+      (sizeLower.includes('all over 5') || sizeLower.includes('5.00 m') || sizeLower.includes('5 m')
+        ? 'all_over_5m'
+        : sizeLower.includes('all over 3.5') || sizeLower.includes('3.50 m') || sizeLower.includes('3.5 m')
+        ? 'all_over_3.5m'
+        : '2.50m_2.50m');
+    const dupattaCut: string =
+      r.DupattaCut ||
+      r.dupattaCut ||
+      (sizeLower.includes('without dupatta') ? 'without_dupatta' : 'with_2.25m');
     const rawImg = String(r.ImageURL || r.imageUrl || r.image || '').trim();
     const imgUrl = normalizeSheetImageUrl(rawImg) || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=800';
     const stock = String(r.Stock || r.stock || 'In Stock').toLowerCase().includes('in');
@@ -565,6 +578,8 @@ export function parseProductsFromSheet(rows: any[]): Product[] {
       workType: String(r.WorkType || r.workType || 'Traditional Punjabi Work').trim(),
       colors,
       sizes,
+      suitCut,
+      dupattaCut,
       imageUrl: imgUrl,
       images: [imgUrl],
       inStock: stock,

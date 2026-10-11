@@ -14,6 +14,8 @@ export interface Product {
   workType?: string;
   colors: string[];
   sizes: string[];
+  suitCut?: '2.50m_2.50m' | 'all_over_5m' | 'all_over_3.5m' | string;
+  dupattaCut?: 'with_2.25m' | 'without_dupatta' | string;
   imageUrl: string; // Clean Full HD ImageURL
   sheetImageUrl?: string; // Compact Google-Sheets-safe ImageURL (<= 47,500 chars)
   images?: string[]; // Multiple HD photos (4-5 images per product)

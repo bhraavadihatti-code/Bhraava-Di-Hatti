@@ -642,12 +642,39 @@ app.post('/api/products', async (req, res) => {
 
     saveProducts(products);
 
+    // Automatically ensure any custom variety/brand in product category/tags is saved to settings.categories
+    const settings = loadSettings();
+    const incomingVarieties = [
+      newProduct.category || '',
+      ...(Array.isArray(newProduct.tags) ? newProduct.tags : [])
+    ]
+      .flatMap((v) => String(v).split(','))
+      .map((s) => s.trim())
+      .filter((s) => Boolean(s && s.toLowerCase() !== 'all'));
+
+    if (incomingVarieties.length > 0) {
+      const currentCats = Array.isArray(settings.categories) && settings.categories.length > 0
+        ? [...settings.categories]
+        : ['All', 'Punjabi Suit', 'Farshi Suit', 'Cotton Suit', 'Dupatta Suit', 'Trousers Salwar Suits', 'AK Tax', 'Om Creation', 'Shiva'];
+      let catsUpdated = false;
+      for (const v of incomingVarieties) {
+        if (!currentCats.some((c) => String(c).trim().toLowerCase() === v.toLowerCase())) {
+          currentCats.push(v);
+          catsUpdated = true;
+        }
+      }
+      if (catsUpdated) {
+        settings.categories = currentCats;
+        saveSettings(settings);
+        broadcastSSE({ type: 'SETTINGS_UPDATED', settings });
+      }
+    }
+
     // Broadcast SSE to all connected phones/admin immediately
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
     // Await Google Sheets sync so Cloud Run keeps CPU active until the row is written
     let sheetSynced = false;
-    const settings = loadSettings();
     const webhookUrl = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "";
     if (webhookUrl) {
       try {
@@ -697,10 +724,36 @@ app.put('/api/products/:id', async (req, res) => {
 
     saveProducts(products);
 
+    const settings = loadSettings();
+    const incomingVarieties = [
+      products[index].category || '',
+      ...(Array.isArray(products[index].tags) ? products[index].tags : [])
+    ]
+      .flatMap((v) => String(v).split(','))
+      .map((s) => s.trim())
+      .filter((s) => Boolean(s && s.toLowerCase() !== 'all'));
+
+    if (incomingVarieties.length > 0) {
+      const currentCats = Array.isArray(settings.categories) && settings.categories.length > 0
+        ? [...settings.categories]
+        : ['All', 'Punjabi Suit', 'Farshi Suit', 'Cotton Suit', 'Dupatta Suit', 'Trousers Salwar Suits', 'AK Tax', 'Om Creation', 'Shiva'];
+      let catsUpdated = false;
+      for (const v of incomingVarieties) {
+        if (!currentCats.some((c) => String(c).trim().toLowerCase() === v.toLowerCase())) {
+          currentCats.push(v);
+          catsUpdated = true;
+        }
+      }
+      if (catsUpdated) {
+        settings.categories = currentCats;
+        saveSettings(settings);
+        broadcastSSE({ type: 'SETTINGS_UPDATED', settings });
+      }
+    }
+
     broadcastSSE({ type: 'PRODUCTS_UPDATED', products });
 
     let sheetSynced = false;
-    const settings = loadSettings();
     const webhookUrl = settings.googleSheetWebhookUrl || process.env.GOOGLE_SHEET_WEBHOOK_URL || "";
     if (webhookUrl) {
       try {
@@ -1220,6 +1273,7 @@ app.post('/api/settings', (req, res) => {
   const current = loadSettings();
   const updated = { ...current, ...newSettings };
   saveSettings(updated);
+  broadcastSSE({ type: 'SETTINGS_UPDATED', settings: updated });
   res.json(updated);
 });
 

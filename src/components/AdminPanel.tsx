@@ -79,6 +79,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [newColorInput, setNewColorInput] = useState('');
   const [newTagInput, setNewTagInput] = useState('');
+  const [showOtherVarietyInput, setShowOtherVarietyInput] = useState(false);
+  const [otherVarietyInput, setOtherVarietyInput] = useState('');
+  const otherVarietyInputRef = React.useRef<HTMLInputElement | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
@@ -197,7 +200,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     fabric: 'Pure Cotton / Silk',
     workType: 'Heavy Embroidery & Zari Work',
     colors: ['Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
-    sizes: ['Unstitched', 'L (40)', 'XL (42)'],
+    sizes: ['Top 2.50 m + Bottom 2.50 m (With 2.25 m Dupatta)'],
+    suitCut: '2.50m_2.50m',
+    dupattaCut: 'with_2.25m',
     imageUrl: '',
     images: [],
     inStock: true
@@ -313,14 +318,118 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
   const DEFAULT_CAT_LIST = [
-    'Punjabi Suits',
-    'Banarasi Sarees',
-    'Lehengas',
-    'Men Kurtas',
-    'Dress Materials',
-    'Dupattas & Shawls',
-    'Festive Collection'
+    'Punjabi Suit',
+    'Farshi Suit',
+    'Cotton Suit',
+    'Dupatta Suit',
+    'Trousers Salwar Suits',
+    'AK Tax',
+    'Om Creation',
+    'Shiva'
   ];
+
+  const selectedVarieties: string[] = Array.from(
+    new Set(
+      (productForm.tags && productForm.tags.length > 0
+        ? productForm.tags
+        : productForm.category
+        ? String(productForm.category)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : []
+      ).filter(Boolean)
+    )
+  ).slice(0, 3);
+
+  const baseVarietyOptions: string[] = (
+    settingsForm.categories && settingsForm.categories.length > 0
+      ? settingsForm.categories
+      : settings.categories && settings.categories.length > 0
+      ? settings.categories
+      : ['All', ...DEFAULT_CAT_LIST]
+  ).filter((c) => c && c !== 'All');
+
+  const productDerivedVarieties: string[] = products
+    .flatMap((p) => [
+      p.category || '',
+      ...(Array.isArray(p.tags) ? p.tags : [])
+    ])
+    .flatMap((v) => String(v).split(','))
+    .map((v) => v.trim())
+    .filter((v) => Boolean(v && v.toLowerCase() !== 'all'));
+
+  const availableVarietyOptions: string[] = [...baseVarietyOptions];
+  for (const pv of [...productDerivedVarieties, ...selectedVarieties]) {
+    if (pv && !availableVarietyOptions.some((b) => b.trim().toLowerCase() === pv.toLowerCase())) {
+      availableVarietyOptions.push(pv);
+    }
+  }
+
+  const handleToggleVarietyOption = (optionName: string) => {
+    setProductModalError(null);
+    const exists = selectedVarieties.some(
+      (v) => v.toLowerCase() === optionName.toLowerCase()
+    );
+    let nextSelected: string[];
+    if (exists) {
+      nextSelected = selectedVarieties.filter(
+        (v) => v.toLowerCase() !== optionName.toLowerCase()
+      );
+    } else {
+      if (selectedVarieties.length >= 3) {
+        setProductModalError('⚠️ अधिकतम 3 (Max 3) ही सिलेक्ट कर सकते हैं! दूसरा चुनने के लिए पहले किसी एक पर टैप करके उसे हटाएं।');
+        return;
+      }
+      nextSelected = [...selectedVarieties, optionName];
+    }
+    setProductForm((prev) => ({
+      ...prev,
+      category: nextSelected.join(', '),
+      tags: nextSelected
+    }));
+  };
+
+  const handleAddOtherVariety = async () => {
+    const val = otherVarietyInput.trim();
+    if (!val) return;
+    setProductModalError(null);
+
+    const alreadySelected = selectedVarieties.some(
+      (v) => v.toLowerCase() === val.toLowerCase()
+    );
+    if (!alreadySelected && selectedVarieties.length >= 3) {
+      setProductModalError('⚠️ अधिकतम 3 (Max 3) ही सिलेक्ट कर सकते हैं! पहले ऊपर से किसी एक को अन-सिलेक्ट करें।');
+      return;
+    }
+
+    const nextSelected = alreadySelected ? selectedVarieties : [...selectedVarieties, val];
+    setProductForm((prev) => ({
+      ...prev,
+      category: nextSelected.join(', '),
+      tags: nextSelected
+    }));
+
+    const currentCats =
+      settingsForm.categories && settingsForm.categories.length > 0
+        ? settingsForm.categories
+        : settings.categories && settings.categories.length > 0
+        ? settings.categories
+        : ['All', ...DEFAULT_CAT_LIST];
+
+    const withAll = currentCats.includes('All') ? currentCats : ['All', ...currentCats];
+    const existsInCats = withAll.some((c) => c.toLowerCase() === val.toLowerCase());
+    if (!existsInCats) {
+      const updatedCats = [...withAll, val];
+      setSettingsForm((prev) => ({ ...prev, categories: updatedCats }));
+      try {
+        await onUpdateSettings({ categories: updatedCats });
+      } catch {}
+    }
+
+    setOtherVarietyInput('');
+    setShowOtherVarietyInput(false);
+  };
 
   const handleAddCategory = () => {
     const val = newCategoryInput.trim();
@@ -485,20 +594,81 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         ? Number(productForm.originalPrice)
         : numericPrice + 500;
 
+    // Merge selected varieties + any typed text in the "+ Other" input (up to Max 3)
+    const typedOtherItems = otherVarietyInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const combinedVarieties: string[] = [...selectedVarieties];
+    for (const item of typedOtherItems) {
+      if (
+        combinedVarieties.length < 3 &&
+        !combinedVarieties.some((v) => v.toLowerCase() === item.toLowerCase())
+      ) {
+        combinedVarieties.push(item);
+      }
+    }
+
+    const finalVarieties =
+      combinedVarieties.length > 0 ? combinedVarieties.slice(0, 3) : ['Punjabi Suit'];
+
+    // Automatically add any newly typed/selected custom varieties into Shop Settings Categories
+    // so both the Home Page Variety bar and Add Product option buttons update directly
+    const currentCats =
+      settingsForm.categories && settingsForm.categories.length > 0
+        ? settingsForm.categories
+        : settings.categories && settings.categories.length > 0
+        ? settings.categories
+        : ['All', ...DEFAULT_CAT_LIST];
+    const withAll = currentCats.includes('All') ? [...currentCats] : ['All', ...currentCats];
+    let catsChanged = false;
+    for (const v of finalVarieties) {
+      if (v && !withAll.some((c) => c.toLowerCase() === v.toLowerCase())) {
+        withAll.push(v);
+        catsChanged = true;
+      }
+    }
+    if (catsChanged) {
+      setSettingsForm((prev) => ({ ...prev, categories: withAll }));
+      try {
+        await onUpdateSettings({ categories: withAll });
+      } catch {}
+    }
+
+    const selectedSuitCut = productForm.suitCut || '2.50m_2.50m';
+    const selectedDupattaCut = productForm.dupattaCut || 'with_2.25m';
+
+    const suitCutLabel =
+      selectedSuitCut === 'all_over_5m'
+        ? 'All Over 5.00 m'
+        : selectedSuitCut === 'all_over_3.5m'
+        ? 'All Over 3.50 m'
+        : 'Top 2.50 m + Bottom 2.50 m';
+
+    const dupattaCutLabel =
+      selectedDupattaCut === 'without_dupatta'
+        ? 'Without Dupatta'
+        : 'With 2.25 m Dupatta';
+
+    const computedCutSizeSummary = `${suitCutLabel} (${dupattaCutLabel})`;
+
     const finalProduct: Product = {
       id: targetId,
       name: productForm.name.trim(),
       firmName: settings.firmName || "Jai Durga Cloth Emporium",
       shopName: settings.shopName || "Bhraava Di Hatti",
-      category: productForm.category || 'Punjabi Suits',
-      tags: productForm.tags && productForm.tags.length > 0 ? productForm.tags : [productForm.category || 'Punjabi Suits'],
+      category: finalVarieties.join(', '),
+      tags: finalVarieties,
       price: numericPrice,
       originalPrice: numericOriginalPrice,
       description: productForm.description || '',
       fabric: productForm.fabric || 'Pure Unstitched Cotton/Silk',
       workType: productForm.workType || 'Traditional Punjabi Work',
       colors: productForm.colors && productForm.colors.length > 0 ? productForm.colors : ['Crimson Red', 'Royal Blue'],
-      sizes: productForm.sizes && productForm.sizes.length > 0 ? productForm.sizes : ['Unstitched'],
+      sizes: [computedCutSizeSummary],
+      suitCut: selectedSuitCut,
+      dupattaCut: selectedDupattaCut,
       imageUrl: allImagesList[0],
       sheetImageUrl: getSheetSafeImage(allImagesList[0]) || productForm.sheetImageUrl,
       images: allImagesList,
@@ -521,6 +691,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       // Remove reused ID from deletedSerialNumbers list if present
       setDeletedSerialNumbers((prev) => prev.filter((id) => id !== finalProduct.id));
 
+      setShowOtherVarietyInput(false);
+      setOtherVarietyInput('');
       setShowAddProductModal(false);
       setEditingProductId(null);
       setProductModalError(null);
@@ -1258,19 +1430,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={() => {
                     setEditingProductId(null);
                     setProductModalError(null);
+                    setShowOtherVarietyInput(false);
+                    setOtherVarietyInput('');
                     const nextSerial = getSuggestedSerialNo();
                     setProductForm({
                       id: nextSerial,
                       name: '',
-                      category: 'Punjabi Suits',
-                      tags: ['Punjabi Suits', 'Cotton Suit', 'Unstitched'],
+                      category: '',
+                      tags: [],
                       price: undefined,
                       originalPrice: undefined,
                       description: 'Premium unstitched Punjabi suit material with heavy embroidery dupatta.',
                       fabric: '100% Pure Cotton',
                       workType: 'Gotta Patti & Zari Embroidery',
                       colors: ['Crimson Red', 'Royal Blue', 'Bottle Green', 'Mustard Yellow'],
-                      sizes: ['Unstitched', 'L (40)', 'XL (42)'],
+                      sizes: ['Top 2.50 m + Bottom 2.50 m (With 2.25 m Dupatta)'],
+                      suitCut: '2.50m_2.50m',
+                      dupattaCut: 'with_2.25m',
                       imageUrl: '',
                       images: ['', '', '', '', ''],
                       inStock: true,
@@ -1392,6 +1568,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         onClick={() => {
                           setEditingProductId(p.id);
                           setProductModalError(null);
+                          setShowOtherVarietyInput(false);
+                          setOtherVarietyInput('');
                           const existingImgs = Array.from(new Set([p.imageUrl, ...(p.images || [])].filter(Boolean)));
                           const paddedSlots = [
                             existingImgs[0] || '',
@@ -1400,8 +1578,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             existingImgs[3] || '',
                             existingImgs[4] || ''
                           ];
+                          const ignoreGenericTags = new Set(['unstitched', '3-piece material', 'free delivery', 'salwar suit']);
+                          const existingVarieties = Array.from(
+                            new Set(
+                              [
+                                ...String(p.category || '').split(',').map((s) => s.trim()),
+                                ...(Array.isArray(p.tags) ? p.tags.map((t) => String(t).trim()) : [])
+                              ].filter((v) => v && !ignoreGenericTags.has(v.toLowerCase()))
+                            )
+                          ).slice(0, 3);
+                          const joinedSizesLower = (p.sizes || []).join(' ').toLowerCase();
+                          const resolvedSuitCut =
+                            p.suitCut ||
+                            (joinedSizesLower.includes('all over 5') || joinedSizesLower.includes('5.00 m')
+                              ? 'all_over_5m'
+                              : joinedSizesLower.includes('all over 3.5') || joinedSizesLower.includes('3.50 m')
+                              ? 'all_over_3.5m'
+                              : '2.50m_2.50m');
+                          const resolvedDupattaCut =
+                            p.dupattaCut ||
+                            (joinedSizesLower.includes('without dupatta') ? 'without_dupatta' : 'with_2.25m');
                           setProductForm({
                             ...p,
+                            category: existingVarieties.join(', '),
+                            tags: existingVarieties,
+                            suitCut: resolvedSuitCut,
+                            dupattaCut: resolvedDupattaCut,
                             imageUrl: existingImgs[0] || '',
                             images: paddedSlots
                           });
@@ -2153,53 +2355,143 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </div>
 
-              {/* Main Category & Tags */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-800 mb-1">Main Category</label>
-                  <select
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
-                    className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2.5 text-sm font-semibold"
+              {/* Variety / Fabric / Brand Selection (Max 3 Select + Other) */}
+              <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-300 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block font-extrabold text-amber-950 text-xs">
+                    Select Variety / Fabric / Brand (Optional — Max 3 Select):
+                  </label>
+                  <span
+                    className={`text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full border ${
+                      selectedVarieties.length >= 3
+                        ? 'bg-red-900 text-amber-200 border-red-950'
+                        : 'bg-amber-200/90 text-amber-950 border-amber-400'
+                    }`}
                   >
-                    {(settingsForm.categories && settingsForm.categories.length > 0 
-                      ? settingsForm.categories.filter(c => c !== 'All') 
-                      : DEFAULT_CAT_LIST
-                    ).map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    {selectedVarieties.length} / 3 Selected
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-gray-800 mb-1">
-                    Category Tags (Max 3)
-                  </label>
-                  <div className="flex gap-1 mb-1">
-                    <input
-                      type="text"
-                      placeholder="e.g. Cotton Suit, 3-Piece"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      className="w-full bg-slate-50 border border-gray-300 rounded-lg p-2 text-xs"
-                    />
+                {/* All Variety & Brand Options (Punjabi Suit, AK Tax, Shiva, etc.) */}
+                <div className="flex flex-wrap gap-1.5">
+                  {availableVarietyOptions.map((opt) => {
+                    const isSelected = selectedVarieties.some(
+                      (v) => v.toLowerCase() === opt.toLowerCase()
+                    );
+                    const isDisabled = !isSelected && selectedVarieties.length >= 3;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => handleToggleVarietyOption(opt)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 border cursor-pointer active:scale-95 ${
+                          isSelected
+                            ? 'bg-[#32080E] text-amber-200 border-amber-500 shadow-xs ring-2 ring-amber-400/60'
+                            : isDisabled
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60'
+                            : 'bg-white text-stone-800 hover:bg-amber-100 border-amber-300'
+                        }`}
+                      >
+                        <span>{isSelected ? '✓' : '+'}</span>
+                        <span>{opt}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* "+ Other" Button & Synchronous Auto-Focus Keyboard Input */}
+                <div className="pt-1.5 border-t border-amber-200/80">
+                  {!showOtherVarietyInput && (
                     <button
                       type="button"
-                      onClick={handleAddTag}
-                      className="bg-amber-800 text-white font-bold px-3 py-1 rounded-lg text-xs shrink-0"
+                      onClick={() => {
+                        setProductModalError(null);
+                        if (selectedVarieties.length >= 3) {
+                          setProductModalError('⚠️ अधिकतम 3 (Max 3) ही सिलेक्ट कर सकते हैं! नया जोड़ने के लिए पहले ऊपर से किसी एक को अन-सिलेक्ट करें।');
+                          return;
+                        }
+                        setShowOtherVarietyInput(true);
+                        if (otherVarietyInputRef.current) {
+                          otherVarietyInputRef.current.focus();
+                        }
+                        setTimeout(() => {
+                          otherVarietyInputRef.current?.focus();
+                        }, 15);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-amber-800 hover:bg-amber-900 text-amber-100 border border-amber-600 shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95"
                     >
-                      + Add
+                      <span>➕ Other (नया नाम / ब्रांड जोड़ें)</span>
                     </button>
+                  )}
+
+                  <div
+                    className={
+                      showOtherVarietyInput
+                        ? 'space-y-1.5'
+                        : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+                    }
+                  >
+                    <label className="block text-[11px] font-bold text-amber-950">
+                      Other — नया नाम लिखें (यह Home Page और इस लिस्ट दोनों में जुड़ जाएगा):
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        ref={otherVarietyInputRef}
+                        type="text"
+                        enterKeyHint="done"
+                        placeholder="Type new variety / brand name..."
+                        value={otherVarietyInput}
+                        onChange={(e) => setOtherVarietyInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddOtherVariety();
+                          }
+                        }}
+                        className="flex-1 bg-white border-2 border-amber-500 rounded-xl px-3 py-2 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-700"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddOtherVariety}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs shrink-0 cursor-pointer active:scale-95"
+                      >
+                        + Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOtherVarietyInput(false);
+                          setOtherVarietyInput('');
+                        }}
+                        className="bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold px-2.5 py-2 rounded-xl text-xs shrink-0 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {(productForm.tags || []).map((t, idx) => (
-                      <span key={idx} className="bg-amber-100 text-amber-950 font-semibold px-2 py-0.5 rounded-md text-[11px] flex items-center gap-1 border border-amber-300">
-                        {t}
-                        <button type="button" onClick={() => handleRemoveTag(t)} className="text-red-700 font-bold ml-1">×</button>
+                </div>
+
+                {/* Selected Varieties Summary */}
+                {selectedVarieties.length > 0 && (
+                  <div className="pt-1 flex items-center gap-1.5 flex-wrap text-[11px]">
+                    <span className="font-bold text-amber-950">Selected ({selectedVarieties.length}/3):</span>
+                    {selectedVarieties.map((sv) => (
+                      <span
+                        key={sv}
+                        className="bg-amber-200/90 text-amber-950 font-extrabold px-2 py-0.5 rounded-lg border border-amber-400 flex items-center gap-1"
+                      >
+                        {sv}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleVarietyOption(sv)}
+                          className="text-red-800 hover:text-red-950 font-black ml-0.5 cursor-pointer"
+                        >
+                          ×
+                        </button>
                       </span>
                     ))}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Pricing & "You Save" Calculation */}
@@ -2465,6 +2757,130 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <button type="button" onClick={() => handleRemoveColor(col)} className="text-red-600 font-extrabold hover:text-red-900">×</button>
                     </span>
                   ))}
+                </div>
+              </div>
+
+              {/* Unstitched Suit Cut & Dupatta Specifications Selector */}
+              <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-amber-950 text-xs">
+                    📏 Suit Cut & Dupatta Specifications (सूट और दुपट्टे का नाप चुनें):
+                  </label>
+                </div>
+
+                {/* 1. Suit Cut Selection */}
+                <div className="space-y-1.5">
+                  <span className="block text-[11px] font-bold text-stone-800">
+                    1. Suit Cut (सूट का कपड़ा / नाप):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      {
+                        id: '2.50m_2.50m',
+                        title: '2.50 m Top + 2.50 m Bottom',
+                        sub: 'Matching (Top 2.50m, Salwar 2.50m)'
+                      },
+                      {
+                        id: 'all_over_5m',
+                        title: 'All Over 5.00 m',
+                        sub: 'Full 5 Meter All Over Suit'
+                      },
+                      {
+                        id: 'all_over_3.5m',
+                        title: 'All Over 3.50 m',
+                        sub: '3.50 Meter All Over Fabric'
+                      }
+                    ].map((opt) => {
+                      const active = (productForm.suitCut || '2.50m_2.50m') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setProductForm((prev) => ({ ...prev, suitCut: opt.id }))}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-95 ${
+                            active
+                              ? 'bg-[#32080E] text-amber-200 border-amber-500 shadow-xs ring-2 ring-amber-400/60'
+                              : 'bg-white text-stone-800 hover:bg-amber-100 border-amber-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-extrabold">{opt.title}</span>
+                            <span className="text-xs font-black">{active ? '✓' : ''}</span>
+                          </div>
+                          <span
+                            className={`block text-[10px] mt-0.5 ${
+                              active ? 'text-amber-300/90' : 'text-stone-500'
+                            }`}
+                          >
+                            {opt.sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Dupatta Selection */}
+                <div className="space-y-1.5 pt-1 border-t border-amber-200/80">
+                  <span className="block text-[11px] font-bold text-stone-800">
+                    2. Dupatta Option (दुपट्टा):
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      {
+                        id: 'with_2.25m',
+                        title: 'With 2.25 m Dupatta',
+                        sub: '2.25 मीटर दुपट्टे के साथ'
+                      },
+                      {
+                        id: 'without_dupatta',
+                        title: 'Without Dupatta',
+                        sub: 'बिना दुपट्टे के (No Dupatta)'
+                      }
+                    ].map((opt) => {
+                      const active = (productForm.dupattaCut || 'with_2.25m') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setProductForm((prev) => ({ ...prev, dupattaCut: opt.id }))}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-95 ${
+                            active
+                              ? 'bg-[#32080E] text-amber-200 border-amber-500 shadow-xs ring-2 ring-amber-400/60'
+                              : 'bg-white text-stone-800 hover:bg-amber-100 border-amber-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-extrabold">{opt.title}</span>
+                            <span className="text-xs font-black">{active ? '✓' : ''}</span>
+                          </div>
+                          <span
+                            className={`block text-[10px] mt-0.5 ${
+                              active ? 'text-amber-300/90' : 'text-stone-500'
+                            }`}
+                          >
+                            {opt.sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Live Preview of how it will look to customer */}
+                <div className="bg-white/90 border border-amber-300 rounded-xl p-2 text-[11px] flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-bold text-stone-600">Customer View Preview:</span>
+                  <span className="font-mono font-extrabold text-amber-950">
+                    {(productForm.suitCut || '2.50m_2.50m') === 'all_over_5m'
+                      ? 'All Over Suit: 5.00 m'
+                      : (productForm.suitCut || '2.50m_2.50m') === 'all_over_3.5m'
+                      ? 'All Over Suit: 3.50 m'
+                      : 'Top: 2.50 m | Bottom: 2.50 m'}{' '}
+                    |{' '}
+                    {(productForm.dupattaCut || 'with_2.25m') === 'without_dupatta'
+                      ? 'Dupatta: Without Dupatta'
+                      : 'Dupatta: 2.25 m'}
+                  </span>
                 </div>
               </div>
 
