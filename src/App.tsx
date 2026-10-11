@@ -994,9 +994,12 @@ export default function App() {
         ) : (
           <div className="space-y-8">
             
-            {/* Hero Showcase Banner */}
+            {/* Hero Showcase Banner & Visual Variety Tiles */}
             <HeroBanner
               settings={settings}
+              selectedCategory={selectedCategory}
+              onSelectCategory={(cat) => setSelectedCategory(cat)}
+              products={products}
               onExploreCatalog={() => {
                 const el = document.getElementById('catalog-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
