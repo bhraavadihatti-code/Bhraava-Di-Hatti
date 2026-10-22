@@ -32,7 +32,11 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   telegramBotToken: "8752135508:AAF2X43YeNzGKFazG9cFzMUNzVgnMs3Vju0",
   telegramChatId: "",
   telegramEnabled: true,
-  googleSheetWebhookUrl: "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec"
+  googleSheetWebhookUrl: "https://script.google.com/macros/s/AKfycbwJrtBmrcGAKu41hddYZNltiQiFFg_WNfLhluhTJSW1tkOU4aWKE1D0-11MRqekMjjj/exec",
+  instagramUrl: "https://instagram.com/bhraava_di_hatti",
+  facebookUrl: "https://facebook.com/bhraavadihatti",
+  googleReviewUrl: "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac",
+  youtubeUrl: ""
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

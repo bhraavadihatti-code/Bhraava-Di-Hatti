@@ -111,4 +111,8 @@ export interface ShopSettings {
   googleSheetSpreadsheetId?: string;
   googleSheetLastSync?: string;
   nextSheetSerialNo?: number;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  googleReviewUrl?: string;
+  youtubeUrl?: string;
 }

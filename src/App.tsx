@@ -16,6 +16,7 @@ import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { PriceFilterOption, SortOption } from './components/CategoryAndPriceFilter';
 import { WishlistView } from './components/WishlistView';
 import { Footer } from './components/Footer';
+import { LinktreePage } from './components/LinktreePage';
 import { sendOrderTelegramNotification } from './utils/telegram';
 import { syncProductToGoogleSheets, syncOrderToGoogleSheets, fetchGoogleSheetAll } from './lib/googleSheetsService';
 import { formatImageUrl } from './lib/imageUtils';
@@ -27,7 +28,7 @@ const SCROLL_BATCH_SIZE = 4;
 
 export default function App() {
   // App view mode
-  const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist'>('shop');
+  const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist' | 'links'>('shop');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
 
@@ -145,6 +146,33 @@ export default function App() {
       console.warn('LocalStorage error writing wishlist:', e);
     }
   }, [wishlistIds]);
+
+  // Check URL path or query parameter for direct Linktree / QR code scans
+  useEffect(() => {
+    const checkDirectRoute = () => {
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (
+        path.includes('/links') || 
+        path.includes('/linktree') || 
+        path.includes('/qr') || 
+        path.includes('/bio') ||
+        search.includes('page=links') || 
+        search.includes('view=links') || 
+        hash.includes('links') || 
+        hash.includes('linktree')
+      ) {
+        setActiveView('links');
+      } else if (path === '/' && !search && !hash) {
+        setActiveView((prev) => (prev === 'links' ? 'shop' : prev));
+      }
+    };
+
+    checkDirectRoute();
+    window.addEventListener('popstate', checkDirectRoute);
+    return () => window.removeEventListener('popstate', checkDirectRoute);
+  }, []);
 
   const toggleWishlist = (productId: string) => {
     setWishlistIds((prev) => {
@@ -934,6 +962,11 @@ export default function App() {
   )}`;
   const mapsUrl = "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
+  // Dedicated Linktree / QR Code Bio Page View
+  if (activeView === 'links') {
+    return <LinktreePage settings={settings} />;
+  }
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-[#FAF7F2] text-stone-900 font-sans flex flex-col">
       
@@ -954,6 +987,18 @@ export default function App() {
             handleRequestAdmin();
           } else {
             setActiveView(v);
+            if (v === 'links') {
+              try {
+                window.history.pushState(null, '', '/links');
+              } catch {}
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (v === 'shop') {
+              try {
+                if (window.location.pathname.includes('/links')) {
+                  window.history.pushState(null, '', '/');
+                }
+              } catch {}
+            }
           }
         }}
         wishlistCount={wishlistIds.length}
@@ -976,6 +1021,13 @@ export default function App() {
             onSyncOrders={fetchOrders}
             onSyncProducts={fetchProducts}
             onSyncWithSheet={syncWithGoogleSheet}
+            onOpenLinks={() => {
+              setActiveView('links');
+              try {
+                window.history.pushState(null, '', '/links');
+              } catch {}
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         ) : activeView === 'wishlist' ? (
           <WishlistView
@@ -1219,6 +1271,13 @@ export default function App() {
       <Footer
         settings={settings}
         onOpenAdmin={handleRequestAdmin}
+        onOpenLinks={() => {
+          setActiveView('links');
+          try {
+            window.history.pushState(null, '', '/links');
+          } catch {}
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       {/* Saved Design Toast Notification */}

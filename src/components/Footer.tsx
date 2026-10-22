@@ -1,13 +1,14 @@
 import React from 'react';
 import { ShopSettings } from '../types';
-import { Phone, MapPin, ShieldCheck, Heart, Clock, MessageSquare, Navigation, Store } from 'lucide-react';
+import { Phone, MapPin, ShieldCheck, Heart, Clock, MessageSquare, Navigation, Store, QrCode } from 'lucide-react';
 
 interface FooterProps {
   settings: ShopSettings;
   onOpenAdmin: () => void;
+  onOpenLinks?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ settings }) => {
+export const Footer: React.FC<FooterProps> = ({ settings, onOpenLinks }) => {
   const cleanPhone = (settings.phoneNumber || '9417124082').replace(/[^0-9]/g, '');
   const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
     `Sat Sri Akal ${settings.shopName}, I want to inquire about your wholesale and retail suit collection.`
@@ -53,6 +54,17 @@ export const Footer: React.FC<FooterProps> = ({ settings }) => {
                 <Navigation className="w-3.5 h-3.5 text-amber-400" />
                 <span>Google Maps</span>
               </a>
+              {onOpenLinks && (
+                <button
+                  type="button"
+                  onClick={onOpenLinks}
+                  className="bg-amber-500 hover:bg-amber-400 text-[#32080E] font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer whitespace-nowrap active:scale-95"
+                  title="Open Store Linktree & Printable QR Sticker"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-[#32080E]" />
+                  <span>QR Sticker & Links</span>
+                </button>
+              )}
             </div>
           </div>
 

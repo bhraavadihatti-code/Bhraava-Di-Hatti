@@ -8,7 +8,8 @@ import {
   Tag,
   Check,
   Heart,
-  MapPin
+  MapPin,
+  QrCode
 } from 'lucide-react';
 import { ProductCategory, ShopSettings } from '../types';
 import { PriceFilterOption } from './CategoryAndPriceFilter';
@@ -23,8 +24,8 @@ interface NavbarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onOpenAdmin: () => void;
-  activeView: 'shop' | 'admin' | 'wishlist';
-  setActiveView: (view: 'shop' | 'admin' | 'wishlist') => void;
+  activeView: 'shop' | 'admin' | 'wishlist' | 'links';
+  setActiveView: (view: 'shop' | 'admin' | 'wishlist' | 'links') => void;
   wishlistCount: number;
 }
 
@@ -183,6 +184,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {wishlistCount}
                 </span>
               )}
+            </button>
+
+            {/* Linktree / Store Links Logo Button (Placed directly next to Heart icon) */}
+            <button
+              onClick={() => {
+                setActiveView('links');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              aria-label="Linktree & Shop Links"
+              title="Linktree & Shop Links (ਦੁਕਾਨ ਦੇ ਸਾਰੇ ਲਿੰਕ)"
+              className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border transition-all shrink-0 cursor-pointer active:scale-95 shadow-2xs ${
+                activeView === 'links'
+                  ? 'bg-[#32080E] text-amber-300 border-amber-500 ring-2 ring-amber-400'
+                  : 'bg-emerald-50 text-emerald-950 hover:bg-emerald-100 border-emerald-300'
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700"
+                aria-hidden="true"
+              >
+                <path d="M13.736 5.853l4.005-4.117 2.325 2.38-4.2 4.007h5.908v3.305h-5.937l4.229 4.108-2.325 2.38-4.005-4.117v7.975h-3.472v-7.975l-4.005 4.117-2.325-2.38 4.229-4.108h-5.937V8.123h5.908l-4.2-4.007 2.325-2.38 4.005 4.117V0h3.472v5.853z" />
+              </svg>
             </button>
 
             {/* WhatsApp Logo Button */}

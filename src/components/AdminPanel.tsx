@@ -49,6 +49,7 @@ interface AdminPanelProps {
   onSyncOrders?: () => Promise<void>;
   onSyncProducts?: () => Promise<void>;
   onSyncWithSheet?: () => Promise<any>;
+  onOpenLinks?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -63,7 +64,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onLogout,
   onSyncOrders,
   onSyncProducts,
-  onSyncWithSheet
+  onSyncWithSheet,
+  onOpenLinks
 }) => {
   // Simple PIN protection state (default PIN: 1234)
   const [pinInput, setPinInput] = useState('');
@@ -219,7 +221,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
-    const files: File[] = Array.from(fileList).slice(0, 5);
+    const files: File[] = (Array.from(fileList) as File[]).slice(0, 5);
     e.target.value = ''; // Reset input so same file can be re-selected if needed
 
     setIsUploadingPhoto(true);
@@ -328,7 +330,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     'Shiva'
   ];
 
-  const selectedVarieties: string[] = Array.from(
+  const selectedVarieties: string[] = (Array.from(
     new Set(
       (productForm.tags && productForm.tags.length > 0
         ? productForm.tags
@@ -338,9 +340,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             .map((s) => s.trim())
             .filter(Boolean)
         : []
-      ).filter(Boolean)
+      ).filter((item): item is string => Boolean(item && typeof item === 'string'))
     )
-  ).slice(0, 3);
+  ) as string[]).slice(0, 3);
 
   const baseVarietyOptions: string[] = (
     settingsForm.categories && settingsForm.categories.length > 0
@@ -1025,6 +1027,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <Settings className="w-4 h-4" />
               <span>Shop Settings & UPI</span>
             </button>
+
+            {onOpenLinks && (
+              <button
+                type="button"
+                onClick={onOpenLinks}
+                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="Open Public Linktree & Printable QR Sticker Studio"
+              >
+                <QrCode className="w-4 h-4 text-amber-800" />
+                <span>🖨️ QR Sticker & Linktree</span>
+              </button>
+            )}
           </div>
 
           {onLogout && (
@@ -1777,6 +1791,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onChange={(e) => setSettingsForm({ ...settingsForm, noticeText: e.target.value })}
                   className="w-full bg-slate-50 border border-gray-300 rounded-xl p-2.5 text-sm"
                 />
+              </div>
+
+              {/* Social Profiles & Review Links for QR Linktree */}
+              <div className="bg-amber-50/80 border border-amber-300 p-4 rounded-2xl space-y-3">
+                <label className="block font-extrabold text-amber-950 text-xs flex items-center gap-1.5">
+                  🔗 Linktree & QR Sticker Social Links (ਲਿੰਕਟ੍ਰੀ ਪ੍ਰੋਫਾਈਲ ਲਿੰਕ):
+                </label>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-stone-700 mb-1">Instagram URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://instagram.com/bhraava_di_hatti"
+                      value={settingsForm.instagramUrl || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, instagramUrl: e.target.value })}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-stone-700 mb-1">Facebook URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://facebook.com/bhraavadihatti"
+                      value={settingsForm.facebookUrl || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, facebookUrl: e.target.value })}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block font-bold text-stone-700 mb-1">Google Review URL (5★ Review Link)</label>
+                    <input
+                      type="text"
+                      placeholder="https://maps.app.goo.gl/..."
+                      value={settingsForm.googleReviewUrl || ''}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, googleReviewUrl: e.target.value })}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-medium"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Category Management Card */}
