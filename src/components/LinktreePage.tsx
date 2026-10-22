@@ -10,11 +10,8 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({ settings }) => {
   const cleanPhone1 = (settings.phoneNumber || '9417124082').replace(/[^0-9]/g, '');
   const cleanPhone2 = (settings.phoneNumber2 || '9915046357').replace(/[^0-9]/g, '');
 
-  const whatsappUrl = `https://wa.me/91${cleanPhone1}?text=${encodeURIComponent(
-    `ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ ਜੀ! ਮੈਂ ਭਰਾਵਾਂ ਦੀ ਹੱਟੀ (ਮੌੜ ਮੰਡੀ) ਤੋਂ ਨਵੇਂ ਪੰਜਾਬੀ ਸੂਟਾਂ ਦੀਆਂ ਫੋਟੋਆਂ ਅਤੇ ਜਾਣਕਾਰੀ ਲੈਣੀ ਚਾਹੁੰਦਾ/ਚਾਹੁੰਦੀ ਹਾਂ।`
-  )}`;
-
-  const youtubeUrl = settings.youtubeUrl || "https://www.youtube.com";
+  const whatsappUrl = settings.whatsappGroupUrl || "https://chat.whatsapp.com/FaYpQ8dnw5bE4ks4gNkyy3?s=cl&p=a&mlu=4&ilr=4";
+  const youtubeUrl = settings.youtubeUrl || "https://youtube.com/@bhraavadihatti?si=uFi3k3OvAQfrZCj4";
   const instagramUrl = settings.instagramUrl || "https://instagram.com/bhraava_di_hatti";
   const googleUrl = settings.googleReviewUrl || settings.mapsUrl || "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
 
@@ -90,9 +87,9 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({ settings }) => {
               <div className="text-left">
                 <div className="flex items-center gap-2">
                   <span className="font-black text-sm sm:text-base tracking-wide">WhatsApp</span>
-                  <span className="bg-emerald-900/60 text-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Chat & Order</span>
+                  <span className="bg-emerald-900/60 text-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Join Group</span>
                 </div>
-                <p className="text-xs text-emerald-100/90 mt-0.5">Chat & Order Suits on WhatsApp (94171-24082)</p>
+                <p className="text-xs text-emerald-100/90 mt-0.5">Join Official Group for Daily Suit Photos & Offers</p>
               </div>
             </div>
             <ExternalLink className="w-5 h-5 text-emerald-200 group-hover:translate-x-1 transition-transform shrink-0" />
@@ -114,9 +111,9 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({ settings }) => {
               <div className="text-left">
                 <div className="flex items-center gap-2">
                   <span className="font-black text-sm sm:text-base tracking-wide">YouTube</span>
-                  <span className="bg-red-950/60 text-red-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Videos</span>
+                  <span className="bg-red-950/60 text-red-200 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">@bhraavadihatti</span>
                 </div>
-                <p className="text-xs text-red-100/90 mt-0.5">Watch Latest Unstitched Suit Designs & Videos</p>
+                <p className="text-xs text-red-100/90 mt-0.5">Watch Latest Unstitched Suit Videos & Updates</p>
               </div>
             </div>
             <ExternalLink className="w-5 h-5 text-red-200 group-hover:translate-x-1 transition-transform shrink-0" />

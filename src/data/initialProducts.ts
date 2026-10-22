@@ -36,7 +36,8 @@ export const DEFAULT_SHOP_SETTINGS: ShopSettings = {
   instagramUrl: "https://instagram.com/bhraava_di_hatti",
   facebookUrl: "https://facebook.com/bhraavadihatti",
   googleReviewUrl: "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac",
-  youtubeUrl: ""
+  youtubeUrl: "https://youtube.com/@bhraavadihatti?si=uFi3k3OvAQfrZCj4",
+  whatsappGroupUrl: "https://chat.whatsapp.com/FaYpQ8dnw5bE4ks4gNkyy3?s=cl&p=a&mlu=4&ilr=4"
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

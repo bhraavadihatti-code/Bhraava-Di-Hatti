@@ -115,4 +115,5 @@ export interface ShopSettings {
   facebookUrl?: string;
   googleReviewUrl?: string;
   youtubeUrl?: string;
+  whatsappGroupUrl?: string;
 }
