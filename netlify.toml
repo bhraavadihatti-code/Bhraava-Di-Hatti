@@ -1,0 +1,9 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+# SPA Fallback: Direct all incoming paths (like /links) to index.html with HTTP 200 OK
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

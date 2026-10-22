@@ -1,0 +1,3 @@
+# Netlify Single-Page Application (SPA) redirect rule
+# Ensures refreshing on routes like /links, /admin, etc. loads /index.html with status 200
+/*    /index.html   200

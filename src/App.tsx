@@ -27,8 +27,27 @@ const INITIAL_VISIBLE_COUNT = 6;
 const SCROLL_BATCH_SIZE = 4;
 
 export default function App() {
-  // App view mode
-  const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist' | 'links'>('shop');
+  // App view mode - Synchronously check URL so refreshing on /links immediately loads the page
+  const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist' | 'links'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = (window.location.pathname || '').toLowerCase();
+      const search = (window.location.search || '').toLowerCase();
+      const hash = (window.location.hash || '').toLowerCase();
+      if (
+        path.includes('/links') || 
+        path.includes('/linktree') || 
+        path.includes('/qr') || 
+        path.includes('/bio') ||
+        search.includes('page=links') || 
+        search.includes('view=links') || 
+        hash.includes('links') || 
+        hash.includes('linktree')
+      ) {
+        return 'links';
+      }
+    }
+    return 'shop';
+  });
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
 
