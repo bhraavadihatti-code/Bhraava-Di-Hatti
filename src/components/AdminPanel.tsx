@@ -32,7 +32,11 @@ import {
   Sparkles,
   Camera,
   Zap,
-  Send
+  Send,
+  Download,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { syncOrderToGoogleSheets, syncProductToGoogleSheets, fetchGoogleSheetAll } from '../lib/googleSheetsService';
 
@@ -71,10 +75,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [pinInput, setPinInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(true); // Default unlocked for easy shop access, can lock if desired
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'settings'>('products');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'settings' | 'sticker'>('products');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetSyncingTop, setSheetSyncingTop] = useState(false);
+
+  // 1500 Print Ready Gold Sticker Studio state
+  const [stickerVariant, setStickerVariant] = useState<'gold' | 'badge'>('gold');
+  const [copiedSpecsToast, setCopiedSpecsToast] = useState(false);
+  const [showPrintSheet, setShowPrintSheet] = useState(false);
 
   // Add Product Form state (declared before effects to avoid TDZ errors)
   const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -1028,6 +1037,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <span>Shop Settings & UPI</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('sticker')}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all ${
+                activeTab === 'sticker'
+                  ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-md ring-2 ring-amber-400'
+                  : 'bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-950 hover:bg-amber-100 border border-amber-300'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>🎖️ 1500 Gold Sticker (ਪ੍ਰਿੰਟ ਸਟਿੱਕਰ)</span>
+            </button>
+
             {onOpenLinks && (
               <button
                 type="button"
@@ -1677,8 +1698,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* TAB 3: SHOP SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 max-w-2xl mx-auto shadow-xs">
-            <h3 className="text-lg font-bold font-serif text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-2xl border border-gray-200 max-w-2xl mx-auto shadow-xs space-y-4">
+            
+            {/* 1500 Gold Print Sticker Quick Link Banner */}
+            <div className="bg-gradient-to-r from-amber-500/15 via-yellow-400/20 to-amber-500/15 border-2 border-amber-400/90 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-600 to-yellow-600 text-white flex items-center justify-center font-bold text-xl shadow-xs shrink-0">
+                  🎖️
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-amber-950 text-sm">
+                    1500 Gold Print Sticker Studio Ready
+                  </h4>
+                  <p className="text-xs text-amber-900/80">
+                    Original QR, Centered Title & Corrected Address — 100% Ready to Download & Print
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('sticker')}
+                className="bg-amber-900 hover:bg-amber-950 text-white font-bold text-xs px-3.5 py-2 rounded-xl shrink-0 transition-all shadow-xs cursor-pointer active:scale-95 text-center"
+              >
+                Open Sticker Studio →
+              </button>
+            </div>
+
+            <h3 className="text-lg font-bold font-serif text-gray-900 mb-2 flex items-center gap-2">
               <Settings className="w-5 h-5 text-amber-800" />
               Configure Shop & Online UPI Settings
             </h3>
@@ -2211,6 +2257,302 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
             </form>
+          </div>
+        )}
+
+        {/* TAB 4: 1500 GOLD PRINT STICKER STUDIO */}
+        {activeTab === 'sticker' && (
+          <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Header Card */}
+            <div className="bg-gradient-to-r from-amber-800 via-yellow-700 to-amber-900 text-white p-6 sm:p-7 rounded-3xl shadow-xl border-2 border-amber-400/80 relative overflow-hidden">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 bg-black/30 backdrop-blur-xs px-3.5 py-1 rounded-full text-amber-200 text-xs font-black border border-amber-300/40">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>1500 Physical Stickers · Print Ready Studio</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight drop-shadow-md text-amber-50">
+                    ਭਰਾਵਾਂ ਦੀ ਹੱਟੀ · Gold Metallic Sticker
+                  </h2>
+                  <p className="text-amber-100/90 text-xs sm:text-sm font-medium max-w-xl leading-relaxed">
+                    ਤੁਹਾਡੇ ਕਹਿਣ ਮੁਤਾਬਕ Original QR Code, Centered Title ("Exclusive Suit Collection") ਅਤੇ Correct Address ("Bus Stand Road") ਦੇ ਨਾਲ 1500 ਸਟਿੱਕਰ ਛਪਵਾਉਣ ਲਈ ਫਾਈਨਲ ਡਿਜ਼ਾਈਨ ਤਿਆਰ ਹੈ।
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
+                  <a
+                    href={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
+                    download={`Bhraava_Di_Hatti_1500_Sticker_${stickerVariant === 'gold' ? 'Gold' : 'Badge'}.png`}
+                    className="bg-white hover:bg-amber-50 text-amber-950 font-black text-xs px-4 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Download className="w-4 h-4 text-amber-700" />
+                    <span>Download Print PNG (1.8MB)</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintSheet(!showPrintSheet)}
+                    className="bg-black/40 hover:bg-black/60 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-amber-300/50 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Printer className="w-4 h-4 text-amber-300" />
+                    <span>{showPrintSheet ? '✕ Close Print Sheet' : '🖨️ View Multi-Sticker Sheet'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* In-page Multi-Sticker Printable Sheet Preview */}
+            {showPrintSheet && (
+              <div className="bg-white p-6 rounded-3xl border-2 border-amber-500 shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-200 gap-3">
+                  <div>
+                    <h3 className="font-serif font-black text-lg text-gray-900 flex items-center gap-2">
+                      <Printer className="w-5 h-5 text-amber-800" />
+                      Print Preview Sheet (6 Stickers Per Page)
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      Standard layout (3.5" × 2.0" each) ready for sticker paper or sample printing.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Print Document Now</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPrintSheet(false)}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3.5 py-2.5 rounded-xl cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-stone-100 rounded-2xl border border-stone-200">
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <div key={num} className="bg-white p-2 rounded-xl shadow-xs border border-gray-300 overflow-hidden">
+                      <img
+                        src={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
+                        alt={`Bhraava Di Hatti Sticker ${num}`}
+                        className="w-full h-auto rounded-lg object-contain"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Design Selector & Live Interactive Preview */}
+            <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                <div>
+                  <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                    <span>🖼️ Sticker Design Options (ਡਿਜ਼ਾਈਨ ਦੀ ਚੋਣ ਕਰੋ)</span>
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    ਦੋਵੇਂ ਡਿਜ਼ਾਈਨ 100% ਤਿਆਰ ਹਨ, ਜੋ ਵੀ ਤੁਹਾਡੇ ਪ੍ਰਿੰਟਰ ਨੂੰ ਸਭ ਤੋਂ ਵਧੀਆ ਲੱਗੇ ਉਹ ਚੁਣੋ:
+                  </p>
+                </div>
+
+                {/* Switcher Buttons */}
+                <div className="inline-flex p-1 bg-stone-100 rounded-2xl border border-stone-300">
+                  <button
+                    type="button"
+                    onClick={() => setStickerVariant('gold')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                      stickerVariant === 'gold'
+                        ? 'bg-amber-800 text-white shadow-xs'
+                        : 'text-stone-700 hover:text-stone-900'
+                    }`}
+                  >
+                    <span>🏆 Option 1: Direct Gold Metal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStickerVariant('badge')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                      stickerVariant === 'badge'
+                        ? 'bg-amber-800 text-white shadow-xs'
+                        : 'text-stone-700 hover:text-stone-900'
+                    }`}
+                  >
+                    <span>⬜ Option 2: White QR Badge</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* High-Resolution Preview Card */}
+              <div className="relative group bg-[#F5F2EB] p-4 sm:p-6 rounded-2xl border-2 border-dashed border-amber-300/80 flex flex-col items-center justify-center">
+                <div className="relative max-w-2xl w-full shadow-2xl rounded-2xl overflow-hidden ring-4 ring-amber-400/30 transition-transform group-hover:scale-[1.01]">
+                  <img
+                    src={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
+                    alt="Bhraava Di Hatti Gold Sticker Print Ready"
+                    className="w-full h-auto block"
+                  />
+                  {/* Subtle Size Badge overlay */}
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs text-amber-200 text-[11px] font-black px-2.5 py-1 rounded-lg border border-amber-400/40">
+                    Standard Size: 3.5" × 2.0" (300 DPI)
+                  </div>
+                </div>
+
+                {/* Quick actions bar directly under preview */}
+                <div className="w-full max-w-2xl mt-4 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-stone-700 flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      QR Target:
+                    </span>
+                    <a
+                      href="https://bhraavadihatti.netlify.app/links"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-mono font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg border border-amber-300 flex items-center gap-1 transition-colors"
+                    >
+                      <span>https://bhraavadihatti.netlify.app/links</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.jpg' : '/assets/bhraava_di_hatti_badge_sticker.jpg'}
+                      download={`Bhraava_Di_Hatti_Sticker_${stickerVariant}.jpg`}
+                      className="text-xs font-bold text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-300 shadow-2xs flex items-center gap-1 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-stone-600" />
+                      <span>Download JPG (650KB)</span>
+                    </a>
+
+                    <a
+                      href={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
+                      download={`Bhraava_Di_Hatti_Sticker_${stickerVariant}.png`}
+                      className="text-xs font-black text-white bg-amber-900 hover:bg-amber-950 px-3.5 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Download Ultra HD PNG</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* 1500 Sticker Press Specifications Box */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                
+                {/* A. Printer Technical Specs */}
+                <div className="bg-amber-50/70 border border-amber-300 p-4 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-xs uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                      <span>🖨️ ਪ੍ਰਿੰਟਰ ਲਈ ਨਿਰਦੇਸ਼ (Printing Instructions)</span>
+                    </h4>
+                    <span className="text-[10px] font-black bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                      1500 Copies
+                    </span>
+                  </div>
+
+                  <ul className="text-xs text-stone-800 space-y-1.5">
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-amber-700 font-bold">•</span>
+                      <span><strong>ਗਿਣਤੀ (Quantity):</strong> 1,500 Pcs (ਸਟਿੱਕਰ)</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-amber-700 font-bold">•</span>
+                      <span><strong>ਸਾਈਜ਼ (Size):</strong> 3.5 × 2.0 ਇੰਚ (88.9 × 50.8 mm) — ਸਟੈਂਡਰਡ ਕਾਰਡ ਸਾਈਜ਼</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-amber-700 font-bold">•</span>
+                      <span><strong>ਸ਼ੀਟ / ਪੇਪਰ (Material):</strong> Golden Metallic Vinyl / Brushed Gold Polyester Sticker</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-amber-700 font-bold">•</span>
+                      <span><strong>ਲੇਮੀਨੇਸ਼ਨ (Coating):</strong> Waterproof Gloss Lamination (ਪਾਣੀ ਅਤੇ ਸਕ੍ਰੈਚ ਤੋਂ ਸੁਰੱਖਿਅਤ)</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="text-amber-700 font-bold">•</span>
+                      <span><strong>ਗੂੰਦ (Adhesive):</strong> Strong Self-Adhesive Gumming (ਸੂਟ ਦੇ ਡੱਬਿਆਂ ਅਤੇ ਲਿਫ਼ਾਫ਼ਿਆਂ ਉੱਤੇ ਚਿਪਕਾਉਣ ਲਈ)</span>
+                    </li>
+                  </ul>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = `*BHRAAVA DI HATTI - 1500 STICKER PRINT ORDER SPECIFICATIONS*\n\n` +
+                        `• Quantity: 1500 Stickers\n` +
+                        `• Size: 3.5 x 2.0 inches (Visiting card standard size)\n` +
+                        `• Material: Golden Brushed Metallic Vinyl / Polyester Sticker\n` +
+                        `• Finishing: Waterproof Gloss / Matte Lamination\n` +
+                        `• Adhesive: Strong Self-Adhesive Gumming\n` +
+                        `• QR Link: https://bhraavadihatti.netlify.app/links\n` +
+                        `• Phone Numbers: 94171 24082 | 99150 46357\n` +
+                        `• Address: Bus Stand Road, Maur Mandi, District Bathinda (Punjab)`;
+                      navigator.clipboard.writeText(text);
+                      setCopiedSpecsToast(true);
+                      setTimeout(() => setCopiedSpecsToast(false), 2500);
+                    }}
+                    className="w-full bg-white hover:bg-amber-100/60 text-amber-950 font-bold text-xs py-2 rounded-xl border border-amber-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                  >
+                    {copiedSpecsToast ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700 font-black">Copied to Clipboard! (WhatsApp ਤੇ ਭੇਜੋ)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-amber-800" />
+                        <span>Copy Specifications for WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* B. Verification & Checklist */}
+                <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-3">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-stone-900 flex items-center gap-1.5">
+                    <span>✅ ਸਟਿੱਕਰ ਕੁਆਲਿਟੀ ਚੈੱਕ (Verified Checklist)</span>
+                  </h4>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-start gap-2 bg-white p-2 rounded-xl border border-stone-200">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">✓</div>
+                      <div>
+                        <strong className="text-stone-900">Original QR Code:</strong>
+                        <p className="text-[11px] text-stone-600">ਸਕ੍ਰੀਨਸ਼ੌਟ ਵਾਲਾ ਓਰੀਜਨਲ QR ਕੋਡ ਲੱਗਾ ਹੈ, ਜੋ ਸਿੱਧਾ Linktree ਪੇਜ ਖੋਲ੍ਹਦਾ ਹੈ।</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 bg-white p-2 rounded-xl border border-stone-200">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">✓</div>
+                      <div>
+                        <strong className="text-stone-900">Centered Headings:</strong>
+                        <p className="text-[11px] text-stone-600">"Exclusive Suit Collection" ਨੂੰ ਵੱਡੇ ਅੱਖਰਾਂ ਦੇ ਬਿਲਕੁਲ ਸੈਂਟਰ ਵਿੱਚ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 bg-white p-2 rounded-xl border border-stone-200">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">✓</div>
+                      <div>
+                        <strong className="text-stone-900">Correct Address Spelling:</strong>
+                        <p className="text-[11px] text-stone-600">"Bus Stand Raad" ਦੀ ਗਲਤੀ ਠੀਕ ਕਰਕੇ "Bus Stand Road" ਕਰ ਦਿੱਤੀ ਗਈ ਹੈ।</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 bg-white p-2 rounded-xl border border-stone-200">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">✓</div>
+                      <div>
+                        <strong className="text-stone-900">Compact Balanced QR:</strong>
+                        <p className="text-[11px] text-stone-600">QR ਕੋਡ ਦਾ ਸਾਈਜ਼ ਛੋਟਾ ਅਤੇ ਸੰਤੁਲਿਤ ਹੈ ਤਾਂ ਜੋ ਕਾਰਡ ਖੁੱਲ੍ਹਾ ਅਤੇ ਸਾਫ਼ ਦਿਸੇ।</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
           </div>
         )}
 
