@@ -1861,7 +1861,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <label className="block font-bold text-stone-700 mb-1">Facebook URL</label>
                     <input
                       type="text"
-                      placeholder="https://facebook.com/bhraavadihatti"
+                      placeholder="https://www.facebook.com/share/19VJ4a1jax/"
                       value={settingsForm.facebookUrl || ''}
                       onChange={(e) => setSettingsForm({ ...settingsForm, facebookUrl: e.target.value })}
                       className="w-full bg-white border border-amber-300 rounded-xl p-2.5 text-xs font-medium"

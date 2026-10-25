@@ -85,6 +85,9 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
+          if (!parsed.facebookUrl || parsed.facebookUrl === "https://facebook.com/bhraavadihatti") {
+            parsed.facebookUrl = "https://www.facebook.com/share/19VJ4a1jax/";
+          }
           return { ...DEFAULT_SHOP_SETTINGS, ...parsed };
         }
       }
@@ -983,7 +986,20 @@ export default function App() {
 
   // Dedicated Linktree / QR Code Bio Page View
   if (activeView === 'links') {
-    return <LinktreePage settings={settings} />;
+    return (
+      <LinktreePage 
+        settings={settings} 
+        onBackToShop={() => {
+          setActiveView('shop');
+          try {
+            if (window.location.pathname.includes('/links')) {
+              window.history.pushState(null, '', '/');
+            }
+          } catch {}
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
   }
 
   return (
