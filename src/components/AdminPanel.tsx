@@ -81,7 +81,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [sheetSyncingTop, setSheetSyncingTop] = useState(false);
 
   // 1500 Print Ready Gold Sticker Studio state
-  const [stickerVariant, setStickerVariant] = useState<'gold' | 'badge'>('gold');
+  const [stickerVariant, setStickerVariant] = useState<'gold' | 'badge' | 'mockup'>('gold');
   const [copiedSpecsToast, setCopiedSpecsToast] = useState(false);
   const [showPrintSheet, setShowPrintSheet] = useState(false);
 
@@ -2360,7 +2360,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 {/* Switcher Buttons */}
-                <div className="inline-flex p-1 bg-stone-100 rounded-2xl border border-stone-300">
+                <div className="inline-flex p-1 bg-stone-100 rounded-2xl border border-stone-300 flex-wrap gap-1">
                   <button
                     type="button"
                     onClick={() => setStickerVariant('gold')}
@@ -2383,6 +2383,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   >
                     <span>⬜ Option 2: White QR Badge</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setStickerVariant('mockup')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
+                      stickerVariant === 'mockup'
+                        ? 'bg-amber-800 text-white shadow-xs'
+                        : 'text-stone-700 hover:text-stone-900'
+                    }`}
+                  >
+                    <span>🌟 Option 3: 3D Studio Mockup</span>
+                  </button>
                 </div>
               </div>
 
@@ -2390,13 +2401,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="relative group bg-[#F5F2EB] p-4 sm:p-6 rounded-2xl border-2 border-dashed border-amber-300/80 flex flex-col items-center justify-center">
                 <div className="relative max-w-2xl w-full shadow-2xl rounded-2xl overflow-hidden ring-4 ring-amber-400/30 transition-transform group-hover:scale-[1.01]">
                   <img
-                    src={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
-                    alt="Bhraava Di Hatti Gold Sticker Print Ready"
+                    src={
+                      stickerVariant === 'gold'
+                        ? '/assets/bhraava_di_hatti_gold_sticker.png'
+                        : stickerVariant === 'badge'
+                        ? '/assets/bhraava_di_hatti_badge_sticker.png'
+                        : '/assets/bhraava_di_hatti_mockup_3d.jpg'
+                    }
+                    alt="Bhraava Di Hatti Gold Sticker Artwork"
                     className="w-full h-auto block"
                   />
                   {/* Subtle Size Badge overlay */}
                   <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs text-amber-200 text-[11px] font-black px-2.5 py-1 rounded-lg border border-amber-400/40">
-                    Standard Size: 3.5" × 2.0" (300 DPI)
+                    {stickerVariant === 'mockup' ? '3D Realistic Studio Render' : 'Vector Die-Cut: 3.5" × 2.0" (300 DPI)'}
                   </div>
                 </div>
 
@@ -2418,23 +2435,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </a>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <a
-                      href={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.jpg' : '/assets/bhraava_di_hatti_badge_sticker.jpg'}
+                      href="/assets/bhraava_di_hatti_sticker.svg"
+                      download="Bhraava_Di_Hatti_Vector_Sticker.svg"
+                      className="text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl border border-amber-300 shadow-2xs flex items-center gap-1 transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-800" />
+                      <span>Vector SVG</span>
+                    </a>
+
+                    <a
+                      href={
+                        stickerVariant === 'gold'
+                          ? '/assets/bhraava_di_hatti_gold_sticker.jpg'
+                          : stickerVariant === 'badge'
+                          ? '/assets/bhraava_di_hatti_badge_sticker.jpg'
+                          : '/assets/bhraava_di_hatti_mockup_3d.jpg'
+                      }
                       download={`Bhraava_Di_Hatti_Sticker_${stickerVariant}.jpg`}
                       className="text-xs font-bold text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-300 shadow-2xs flex items-center gap-1 transition-colors"
                     >
                       <Download className="w-3.5 h-3.5 text-stone-600" />
-                      <span>Download JPG (650KB)</span>
+                      <span>JPG (High-Res)</span>
                     </a>
 
                     <a
-                      href={stickerVariant === 'gold' ? '/assets/bhraava_di_hatti_gold_sticker.png' : '/assets/bhraava_di_hatti_badge_sticker.png'}
+                      href={
+                        stickerVariant === 'gold'
+                          ? '/assets/bhraava_di_hatti_gold_sticker.png'
+                          : stickerVariant === 'badge'
+                          ? '/assets/bhraava_di_hatti_badge_sticker.png'
+                          : '/assets/bhraava_di_hatti_mockup_3d.jpg'
+                      }
                       download={`Bhraava_Di_Hatti_Sticker_${stickerVariant}.png`}
                       className="text-xs font-black text-white bg-amber-900 hover:bg-amber-950 px-3.5 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-colors"
                     >
                       <Download className="w-3.5 h-3.5 text-amber-200" />
-                      <span>Download Ultra HD PNG</span>
+                      <span>Ultra HD PNG</span>
                     </a>
                   </div>
                 </div>
