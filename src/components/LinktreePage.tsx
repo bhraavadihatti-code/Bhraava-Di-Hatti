@@ -1,19 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ShopSettings } from '../types';
 import { 
   Phone, 
   MapPin, 
   ShieldCheck, 
-  ExternalLink, 
-  Truck, 
-  Package, 
-  Clock, 
-  CheckCircle2, 
-  ChevronDown, 
-  ChevronUp, 
-  ShoppingBag,
-  Send,
-  Sparkles
+  ExternalLink
 } from 'lucide-react';
 
 interface LinktreePageProps {
@@ -22,11 +13,8 @@ interface LinktreePageProps {
 }
 
 export const LinktreePage: React.FC<LinktreePageProps> = ({ settings, onBackToShop }) => {
-  const [showDeliveryDetails, setShowDeliveryDetails] = useState(false);
-
   const cleanPhone1 = (settings.phoneNumber || '9417124082').replace(/[^0-9]/g, '');
   const cleanPhone2 = (settings.phoneNumber2 || '9915046357').replace(/[^0-9]/g, '');
-  const whatsappNum = (settings.whatsappNumber || '919417124082').replace(/[^0-9]/g, '');
 
   const whatsappUrl = settings.whatsappGroupUrl || "https://chat.whatsapp.com/FaYpQ8dnw5bE4ks4gNkyy3?s=cl&p=a&mlu=4&ilr=4";
   const youtubeUrl = settings.youtubeUrl || "https://youtube.com/@bhraavadihatti?si=uFi3k3OvAQfrZCj4";
@@ -35,11 +23,6 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({ settings, onBackToSh
     ? settings.facebookUrl
     : "https://www.facebook.com/share/19VJ4a1jax/";
   const googleUrl = settings.googleReviewUrl || settings.mapsUrl || "https://maps.app.goo.gl/A2QC78d9DyRc3eRD6?g_st=ac";
-
-  const orderWhatsappText = encodeURIComponent(
-    `ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ ਜੀ! ਮੈਨੂੰ ਭਰਾਵਾਂ ਦੀ ਹੱਟੀ ਤੋਂ ਸੂਟ ਮੰਗਵਾਉਣਾ ਹੈ ਅਤੇ All India Speed Post Delivery ਬਾਰੇ ਜਾਣਕਾਰੀ ਚਾਹੀਦੀ ਹੈ।`
-  );
-  const directOrderWhatsappUrl = `https://wa.me/${whatsappNum}?text=${orderWhatsappText}`;
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-stone-900 font-sans selection:bg-amber-200 selection:text-amber-950 flex flex-col justify-between">
@@ -94,159 +77,7 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({ settings, onBackToSh
           </p>
         </div>
 
-        {/* 2. ALL INDIA SPEED POST DELIVERY CARD (ਨਵੀਂ ਆਲ ਇੰਡੀਆ ਡਿਲੀਵਰੀ ਸੁਵਿਧਾ) */}
-        <section 
-          aria-label="All India Speed Post Delivery"
-          className="relative bg-gradient-to-br from-[#1C2818] via-[#142010] to-[#0A1208] text-white rounded-3xl p-5 shadow-xl border-2 border-emerald-500/40 overflow-hidden"
-        >
-          {/* Subtle Green/Gold Ambient Glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-emerald-500/20 via-transparent to-transparent pointer-events-none rounded-full blur-xl" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-radial from-amber-400/15 via-transparent to-transparent pointer-events-none rounded-full blur-xl" />
-
-          {/* Top Banner Tag */}
-          <div className="flex items-center justify-between mb-3">
-            <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-              <Truck className="w-3.5 h-3.5 text-stone-950" />
-              <span>All India Speed Post</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>Safe Parcel</span>
-            </span>
-          </div>
-
-          {/* Main Headline */}
-          <div className="text-left">
-            <h2 className="text-lg font-black font-serif text-amber-200 tracking-tight flex items-center gap-1.5">
-              <span>ਆਲ ਇੰਡੀਆ ਸਪੀਡ ਡਿਲੀਵਰੀ ਉਪਲਬਧ</span>
-            </h2>
-            <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
-              ਘਰ ਬੈਠੇ ਪੰਜਾਬੀ ਸੂਟ ਮੰਗਵਾਓ · ਪੰਜਾਬ ਤੋਂ ਲੈ ਕੇ ਪੂਰੇ ਭਾਰਤ ਦੇ ਹਰ ਪਿੰਡ ਤੇ ਸ਼ਹਿਰ ਤੱਕ
-            </p>
-          </div>
-
-          {/* 3 Key Service Highlights */}
-          <div className="grid grid-cols-1 gap-2 mt-3.5 pt-3 border-t border-emerald-500/20 text-xs">
-            {/* Speed Timeline */}
-            <div className="flex items-center gap-2.5 bg-white/5 p-2.5 rounded-xl border border-emerald-500/20">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-300">
-                <Clock className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-white">ਡਿਲੀਵਰੀ ਸਮਾਂ: 2 ਤੋਂ 5 ਦਿਨ</p>
-                <p className="text-[11px] text-emerald-200/80">ਪੰਜਾਬ/ਉੱਤਰੀ ਭਾਰਤ: 2-3 ਦਿਨ · ਬਾਕੀ ਭਾਰਤ: 3-5 ਦਿਨ</p>
-              </div>
-            </div>
-
-            {/* Tracking Guarantee */}
-            <div className="flex items-center gap-2.5 bg-white/5 p-2.5 rounded-xl border border-emerald-500/20">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-300">
-                <Package className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-white">ਲਾਈਵ ਟਰੈਕਿੰਗ (Live Tracking ID)</p>
-                <p className="text-[11px] text-amber-200/80">ਡਿਸਪੈਚ ਹੁੰਦੇ ਹੀ Speed Post ਨੰਬਰ (ED...IN) WhatsApp ਤੇ ਮਿਲੇਗਾ</p>
-              </div>
-            </div>
-
-            {/* Free Shipping Threshold */}
-            <div className="flex items-center gap-2.5 bg-gradient-to-r from-amber-500/20 to-transparent p-2.5 rounded-xl border border-amber-400/30">
-              <div className="w-7 h-7 rounded-lg bg-amber-400 text-stone-950 flex items-center justify-center shrink-0 font-black">
-                🎁
-              </div>
-              <div className="text-left">
-                <p className="font-bold text-amber-300">₹{settings.minOrderForFreeShipping || 1999}+ ਦੇ ਆਰਡਰ 'ਤੇ ਮੁਫ਼ਤ ਡਿਲੀਵਰੀ</p>
-                <p className="text-[11px] text-stone-300">ਛੋਟੇ ਆਰਡਰਾਂ 'ਤੇ ਸਿਰਫ਼ ਵਾਜਬ ਸਰਕਾਰੀ ਸਪੀਡ ਪੋਸਟ ਚਾਰਜ</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Action: Order Directly on WhatsApp */}
-          <div className="mt-4 flex flex-col gap-2">
-            <a
-              href={directOrderWhatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-stone-950 font-black text-sm rounded-xl shadow-lg hover:shadow-emerald-500/25 transition-all transform hover:-translate-y-0.5 active:scale-98"
-            >
-              <Send className="w-4 h-4 text-stone-950" />
-              <span>WhatsApp 'ਤੇ ਸੂਟ ਆਰਡਰ ਕਰੋ (Order via WhatsApp)</span>
-            </a>
-
-            {/* Toggle Full Details */}
-            <button
-              onClick={() => setShowDeliveryDetails(!showDeliveryDetails)}
-              className="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-emerald-300/90 hover:text-emerald-200 transition-colors cursor-pointer"
-            >
-              <span>{showDeliveryDetails ? 'ਘੱਟ ਜਾਣਕਾਰੀ ਦੇਖੋ' : 'ਡਿਲੀਵਰੀ ਪ੍ਰਕਿਰਿਆ ਅਤੇ FAQ ਦੇਖੋ (How It Works)'}</span>
-              {showDeliveryDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
-          {/* Expanded FAQ / How It Works Accordion */}
-          {showDeliveryDetails && (
-            <div className="mt-3 pt-3 border-t border-emerald-500/30 space-y-2.5 text-left text-xs bg-black/30 p-3.5 rounded-2xl animate-in fade-in duration-200">
-              <p className="font-bold text-amber-300 uppercase tracking-wide text-[11px]">
-                ਸੂਟ ਮੰਗਵਾਉਣ ਦਾ ਤਰੀਕਾ (Step-by-Step Order Guide):
-              </p>
-
-              <div className="space-y-2 text-stone-200">
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white">1. ਸੂਟ ਚੁਣੋ:</span> ਸਾਡੇ WhatsApp ਗਰੁੱਪ, ਯੂਟਿਊਬ ਜਾਂ ਵੈੱਬਸਾਈਟ ਤੋਂ ਆਪਣਾ ਪਸੰਦੀਦਾ ਸੂਟ ਦੇਖੋ।
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white">2. ਸਕ੍ਰੀਨਸ਼ੌਟ ਭੇਜੋ:</span> ਸੂਟ ਦੀ ਫੋਟੋ ਸਾਡੇ WhatsApp (94171-24082) 'ਤੇ ਭੇਜ ਕੇ ਬੁੱਕ ਕਰੋ।
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white">3. ਭੁਗਤਾਨ (UPI / Bank):</span> Google Pay, PhonePe, Paytm (boism-9417124082@boi) ਰਾਹੀਂ ਆਸਾਨ ਪੇਮੈਂਟ ਕਰੋ।
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-white">4. ਰਸੀਦ ਤੇ ਟਰੈਕਿੰਗ:</span> ਪਾਰਸਲ ਡਿਸਪੈਚ ਹੁੰਦੇ ਹੀ India Post Speed Post ਦੀ ਰਸੀਦ ਅਤੇ ਟਰੈਕਿੰਗ ਲਿੰਕ ਮਿਲੇਗਾ।
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-emerald-950/60 rounded-xl border border-emerald-400/30 text-[11px] text-emerald-200 leading-relaxed mt-2">
-                <strong>ਭਰੋਸੇਯੋਗ ਸੇਵਾ:</strong> ਜੈ ਦੁਰਗਾ ਕਲੋਥ ਐਂਪੋਰੀਅਮ (Estd. 1986). ਸਾਰੇ ਸੂਟ ਡਬਲ ਵਾਟਰਪਰੂਫ ਪੈਕਿੰਗ ਵਿੱਚ ਭੇਜੇ ਜਾਂਦੇ ਹਨ ਤਾਂ ਜੋ ਕੱਪੜਾ ਬਿਲਕੁਲ ਸੁਰੱਖਿਅਤ ਪਹੁੰਚੇ।
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* 3. BROWSE CATALOG BUTTON (If customer wants to view products) */}
-        {onBackToShop ? (
-          <button
-            onClick={onBackToShop}
-            className="w-full flex items-center justify-center gap-2.5 p-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-amber-950 font-black text-sm rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer border border-amber-300"
-          >
-            <ShoppingBag className="w-4 h-4 text-amber-950" />
-            <span>🛍️ ਸਾਰੇ ਸੂਟ ਆਨਲਾਈਨ ਦੇਖੋ (Browse Suit Catalog)</span>
-          </button>
-        ) : (
-          <a
-            href="/"
-            className="w-full flex items-center justify-center gap-2.5 p-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-amber-950 font-black text-sm rounded-2xl shadow-md transition-all active:scale-98 cursor-pointer border border-amber-300"
-          >
-            <ShoppingBag className="w-4 h-4 text-amber-950" />
-            <span>🛍️ ਸਾਰੇ ਸੂਟ ਆਨਲਾਈਨ ਦੇਖੋ (Browse Suit Catalog)</span>
-          </a>
-        )}
-
-        {/* 4. THE CORE SOCIAL & PLATFORM LINKS */}
+        {/* 2. THE CORE LINKS: WhatsApp, YouTube, Instagram, Facebook, Google */}
         <div className="space-y-3 pt-1">
 
           {/* A. WHATSAPP */}
