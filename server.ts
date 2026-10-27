@@ -16,7 +16,14 @@ import {
 import { formatImageUrl } from './src/lib/imageUtils.js';
 
 const app = express();
-const PORT = 3000;
+
+const portArgIndex = process.argv.indexOf('--port');
+const cliPort = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : undefined;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : (cliPort || 3000);
+
+const hostArgIndex = process.argv.indexOf('--host');
+const cliHost = hostArgIndex !== -1 && process.argv[hostArgIndex + 1] ? process.argv[hostArgIndex + 1] : undefined;
+const HOST = process.env.HOST || cliHost || '0.0.0.0';
 
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
@@ -1283,7 +1290,10 @@ app.post('/api/settings', (req, res) => {
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -1295,8 +1305,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Bhraava Di Hatti - Jai Durga Cloth Emporium server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Bhraava Di Hatti - Jai Durga Cloth Emporium server running on http://${HOST}:${PORT}`);
     
     const syncSheetToServer = async () => {
       try {
