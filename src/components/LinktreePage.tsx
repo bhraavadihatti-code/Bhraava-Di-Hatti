@@ -113,16 +113,16 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
         {/* 2. SOCIAL AND BUSINESS LINK CARDS */}
         <section className="space-y-3 pt-1">
 
-          {/* 2. WHATSAPP GROUP (Recognizable Brand Green) */}
+          {/* 1. WHATSAPP GROUP (Authentic Official WhatsApp Green) */}
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#25D366] to-[#1EBE5D] hover:from-[#20BA5A] hover:to-[#18A24F] text-white rounded-[20px] shadow-[0_3px_10px_rgba(37,211,102,0.2)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-white/20"
+            className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#25D366] via-[#1EBE5D] to-[#128C7E] hover:from-[#22C35E] hover:to-[#0F7A6E] text-white rounded-[20px] shadow-[0_4px_14px_rgba(18,140,126,0.22)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-white/25"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-white">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <svg viewBox="0 0 24 24" fill="#25D366" className="w-7 h-7">
                   <path d="M12.031 2c-5.516 0-9.969 4.453-9.969 9.969 0 1.758.459 3.474 1.332 4.988L2 22l5.168-1.356a9.927 9.927 0 0 0 4.863 1.268h.004c5.515 0 9.965-4.453 9.965-9.969 0-2.664-1.037-5.168-2.921-7.052A9.908 9.908 0 0 0 12.031 2zm5.822 14.273c-.246.693-1.425 1.326-1.979 1.409-.506.075-1.147.107-1.852-.116-.428-.135-.976-.317-1.678-.62-2.953-1.275-4.881-4.248-5.029-4.445-.148-.197-1.2-1.597-1.2-3.046 0-1.449.759-2.162 1.029-2.457.27-.295.59-.369.787-.369.197 0 .393.002.565.01.182.009.426-.069.666.508.246.59.836 2.04.909 2.187.074.148.123.32.025.516-.098.197-.148.32-.295.492-.148.172-.311.384-.443.516-.148.147-.302.307-.13.602.172.295.764 1.261 1.641 2.043 1.128 1.006 2.079 1.318 2.374 1.465.295.148.467.123.639-.074.172-.197.738-.86.934-1.155.197-.295.393-.246.664-.148.27.098 1.721.811 2.016.959.295.148.492.221.566.344.074.123.074.713-.172 1.406z" />
                 </svg>
               </div>
@@ -131,11 +131,11 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
                   <span className="font-black text-sm sm:text-base tracking-wide truncate">
                     WhatsApp Group
                   </span>
-                  <span className="bg-black/25 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0">
+                  <span className="bg-black/25 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 border border-white/20">
                     JOIN GROUP
                   </span>
                 </div>
-                <p className="text-xs text-white/90 mt-0.5 truncate">
+                <p className="text-xs text-white/95 font-medium mt-0.5 truncate">
                   Daily Suit Photos, New Arrivals & Wholesale Rates
                 </p>
               </div>
@@ -143,29 +143,29 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
             <ExternalLink className="w-5 h-5 text-white/90 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
           </a>
 
-          {/* 3. YOUTUBE (Recognizable Brand Red) */}
+          {/* 2. YOUTUBE (Authentic Official YouTube Red) */}
           <a
             href={youtubeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#FF0000] to-[#D90000] hover:from-[#E60000] hover:to-[#B80000] text-white rounded-[20px] shadow-[0_3px_10px_rgba(255,0,0,0.2)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-white/20"
+            className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#FF0000] via-[#E60000] to-[#C4120A] hover:from-[#E60000] hover:to-[#B20E08] text-white rounded-[20px] shadow-[0_4px_14px_rgba(204,0,0,0.22)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-white/25"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-white">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <svg viewBox="0 0 24 24" fill="#FF0000" className="w-7 h-7">
                   <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </div>
               <div className="text-left min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black text-sm sm:text-base tracking-wide truncate">
-                    YouTube
+                    YouTube Channel
                   </span>
-                  <span className="bg-black/25 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0">
+                  <span className="bg-black/25 backdrop-blur-xs text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 border border-white/20">
                     @bhraavadihatti
                   </span>
                 </div>
-                <p className="text-xs text-white/90 mt-0.5 truncate">
+                <p className="text-xs text-white/95 font-medium mt-0.5 truncate">
                   Watch Suit Videos, Fabric Reviews & Shop Updates
                 </p>
               </div>
@@ -181,8 +181,8 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
             className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-95 text-white rounded-[20px] shadow-[0_3px_10px_rgba(253,29,29,0.2)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-white/20"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-white">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <svg viewBox="0 0 24 24" fill="#E1306C" className="w-7 h-7">
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                 </svg>
               </div>
@@ -211,8 +211,8 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
             className="group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#1877F2] to-[#0D65D9] hover:from-[#166FE5] hover:to-[#0B5BC5] text-white rounded-[20px] shadow-[0_3px_10px_rgba(24,119,242,0.2)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-blue-400/30"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-white">
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <svg viewBox="0 0 24 24" fill="#1877F2" className="w-7 h-7">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
               </div>
