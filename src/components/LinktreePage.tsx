@@ -5,7 +5,6 @@ import {
   MapPin, 
   ShieldCheck, 
   ExternalLink,
-  ShoppingBag,
   Navigation
 } from 'lucide-react';
 
@@ -37,15 +36,35 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
       {/* Centered Mobile Card Layout */}
       <main className="w-full max-w-md mx-auto px-4 py-6 sm:py-8 space-y-3.5">
 
-        {/* 1. BUSINESS PROFILE & BRAND HEADER CARD */}
-        <section className="bg-[#FFFCF6] rounded-[22px] p-6 sm:p-7 text-center shadow-[0_2px_12px_rgba(41,37,31,0.05)] border-2 border-[#E5D9C5] relative overflow-hidden transition-all">
+        {/* 1. BUSINESS PROFILE & BRAND HEADER CARD (With Side Effects & Luxury Framing) */}
+        <section className="bg-gradient-to-b from-[#FFFFFF] via-[#FFFDF8] to-[#F8F2E8] rounded-[22px] p-6 sm:p-7 text-center shadow-[0_4px_20px_rgba(41,37,31,0.08)] border-2 border-[#E5D9C5] relative overflow-hidden transition-all">
           
-          {/* Subtle Champagne Top Glow */}
-          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 bg-[#8B641F]/8 rounded-full blur-2xl pointer-events-none" />
+          {/* Side Effect: Left Ambient Golden Glow */}
+          <div className="absolute top-1/2 -left-10 -translate-y-1/2 w-28 h-48 bg-gradient-to-r from-[#8B641F]/20 via-[#D4AF37]/10 to-transparent rounded-full blur-xl pointer-events-none" />
+          
+          {/* Side Effect: Right Ambient Burgundy-Gold Glow */}
+          <div className="absolute top-1/2 -right-10 -translate-y-1/2 w-28 h-48 bg-gradient-to-l from-[#5B2630]/20 via-[#8B641F]/10 to-transparent rounded-full blur-xl pointer-events-none" />
 
-          {/* Circular Shop Logo with Gold Border */}
-          <div className="relative inline-block mb-3.5">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#8B641F] via-[#D4AF37] to-[#8B641F] p-1 shadow-md mx-auto ring-4 ring-[#8B641F]/15">
+          {/* Side Effect: Left & Right Vertical Golden Hairline Borders */}
+          <div className="absolute top-7 bottom-7 left-0 w-1 bg-gradient-to-b from-transparent via-[#8B641F]/60 to-transparent rounded-r pointer-events-none" />
+          <div className="absolute top-7 bottom-7 right-0 w-1 bg-gradient-to-b from-transparent via-[#8B641F]/60 to-transparent rounded-l pointer-events-none" />
+
+          {/* Top & Bottom Ambient Radial Highlights */}
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-56 h-28 bg-[#8B641F]/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-56 h-24 bg-[#5B2630]/8 rounded-full blur-2xl pointer-events-none" />
+
+          {/* Luxury Inset Border Frame (Double-line Plaque Effect) */}
+          <div className="absolute inset-2.5 rounded-[17px] border border-[#8B641F]/25 pointer-events-none" />
+
+          {/* 4 Corner Antique Gold Accents */}
+          <div className="absolute top-3.5 left-3.5 w-3.5 h-3.5 border-t-2 border-l-2 border-[#8B641F]/50 rounded-tl pointer-events-none" />
+          <div className="absolute top-3.5 right-3.5 w-3.5 h-3.5 border-t-2 border-r-2 border-[#8B641F]/50 rounded-tr pointer-events-none" />
+          <div className="absolute bottom-3.5 left-3.5 w-3.5 h-3.5 border-b-2 border-l-2 border-[#8B641F]/50 rounded-bl pointer-events-none" />
+          <div className="absolute bottom-3.5 right-3.5 w-3.5 h-3.5 border-b-2 border-r-2 border-[#8B641F]/50 rounded-br pointer-events-none" />
+
+          {/* Circular Shop Logo with Gold Border & Golden Halo */}
+          <div className="relative inline-block mb-3.5 z-10">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#8B641F] via-[#D4AF37] to-[#8B641F] p-1 shadow-[0_4px_16px_rgba(139,100,31,0.28)] mx-auto ring-4 ring-[#8B641F]/20">
               <div className="w-full h-full rounded-full bg-[#5B2630] flex flex-col items-center justify-center text-center p-2 border border-[#E5D9C5]">
                 <span className="text-xl font-serif font-black tracking-wider text-[#FFFCF6]">
                   ਭਰਾਵਾਂ
@@ -55,93 +74,44 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
                 </span>
               </div>
             </div>
-            <div className="absolute -bottom-1 -right-1 bg-[#8B641F] text-[#FFFCF6] p-1.5 rounded-full shadow-xs border-2 border-[#FFFCF6]" title="Verified Showroom">
+            <div className="absolute -bottom-1 -right-1 bg-[#8B641F] text-[#FFFCF6] p-1.5 rounded-full shadow-md border-2 border-[#FFFCF6]" title="Verified Showroom">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
 
           {/* Business Name (Refined Serif Heading in Deep Burgundy) */}
-          <h1 className="text-2xl sm:text-3xl font-black font-serif tracking-tight text-[#5B2630]">
+          <h1 className="text-2xl sm:text-3xl font-black font-serif tracking-tight text-[#5B2630] relative z-10 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
             {settings.shopName || "Bhraava Di Hatti"}
           </h1>
 
-          {/* Registered / Trading Subtitle */}
-          <p className="text-[#8B641F] font-bold text-sm sm:text-base mt-0.5 tracking-wide">
-            {settings.firmName || "Jai Durga Cloth Emporium"}
-          </p>
+          {/* Registered / Trading Subtitle with Ornamental Flourishes */}
+          <div className="flex items-center justify-center gap-2 mt-1 relative z-10">
+            <span className="h-px w-6 bg-gradient-to-r from-transparent to-[#8B641F]/50" />
+            <p className="text-[#8B641F] font-extrabold text-sm sm:text-base tracking-wide">
+              {settings.firmName || "Jai Durga Cloth Emporium"}
+            </p>
+            <span className="h-px w-6 bg-gradient-to-l from-transparent to-[#8B641F]/50" />
+          </div>
 
           {/* Badges: Maur Mandi, Punjab & Established 1986 */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-            <span className="inline-flex items-center gap-1 bg-[#F5F0E6] text-[#29251F] text-xs font-semibold px-3 py-1 rounded-full border border-[#E5D9C5]">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5 relative z-10">
+            <span className="inline-flex items-center gap-1 bg-[#F5F0E6] hover:bg-[#EBE2D2] text-[#29251F] text-xs font-semibold px-3 py-1 rounded-full border border-[#E5D9C5] shadow-2xs transition-colors">
               <MapPin className="w-3.5 h-3.5 text-[#8B641F]" />
               <span>Maur Mandi, Punjab</span>
             </span>
-            <span className="inline-flex items-center gap-1 bg-[#5B2630]/8 text-[#5B2630] text-xs font-black px-3 py-1 rounded-full border border-[#5B2630]/20">
+            <span className="inline-flex items-center gap-1 bg-[#5B2630]/8 hover:bg-[#5B2630]/12 text-[#5B2630] text-xs font-black px-3 py-1 rounded-full border border-[#5B2630]/20 shadow-2xs transition-colors">
               <span>Estd. 1986</span>
             </span>
           </div>
 
           {/* Positioning Description */}
-          <p className="text-xs sm:text-[13px] text-[#6E675D] mt-3 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs sm:text-[13px] text-[#6E675D] mt-3 max-w-xs mx-auto leading-relaxed relative z-10">
             Specialists in Unstitched Punjabi Suits, Farshi Salwar Suits & Pure Cotton Fabrics.
           </p>
         </section>
 
-        {/* 2. SOCIAL AND BUSINESS LINK CARDS (Exact Order 1-6) */}
+        {/* 2. SOCIAL AND BUSINESS LINK CARDS */}
         <section className="space-y-3 pt-1">
-
-          {/* 1. ONLINE SHOP / BROWSE CATALOGUE (Refined Orange-to-Gold Treatment) */}
-          {onBackToShop ? (
-            <button
-              onClick={onBackToShop}
-              className="w-full group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#B86B14] via-[#C97D1A] to-[#8B641F] hover:from-[#A55F10] hover:to-[#7A571A] text-white font-black rounded-[20px] shadow-[0_3px_10px_rgba(184,107,20,0.25)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-amber-300/40 cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <ShoppingBag className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-sm sm:text-base tracking-wide text-white truncate">
-                      ਆਨਲਾਈਨ ਸੂਟ ਕਲੈਕਸ਼ਨ ਦੇਖੋ
-                    </span>
-                    <span className="bg-white/25 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0 border border-white/30">
-                      LIVE SHOP
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/90 font-medium mt-0.5 truncate">
-                    Browse Catalogue, Prices & Order Online
-                  </p>
-                </div>
-              </div>
-              <ExternalLink className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-            </button>
-          ) : (
-            <a
-              href="/"
-              className="w-full group relative flex items-center justify-between p-4 bg-gradient-to-r from-[#B86B14] via-[#C97D1A] to-[#8B641F] text-white font-black rounded-[20px] shadow-[0_3px_10px_rgba(184,107,20,0.25)] hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.99] border border-amber-300/40"
-            >
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
-                  <ShoppingBag className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-left min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-sm sm:text-base tracking-wide text-white truncate">
-                      ਆਨਲਾਈਨ ਸੂਟ ਕਲੈਕਸ਼ਨ ਦੇਖੋ
-                    </span>
-                    <span className="bg-white/25 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase shrink-0">
-                      LIVE SHOP
-                    </span>
-                  </div>
-                  <p className="text-xs text-white/90 font-medium mt-0.5 truncate">
-                    Browse Catalogue, Prices & Order Online
-                  </p>
-                </div>
-              </div>
-              <ExternalLink className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
-            </a>
-          )}
 
           {/* 2. WHATSAPP GROUP (Recognizable Brand Green) */}
           <a
@@ -374,18 +344,6 @@ export const LinktreePage: React.FC<LinktreePageProps> = ({
         <p className="text-[11px] text-[#6E675D]">
           Bus Stand Road, Maur Mandi, District Bathinda, Punjab, India - 151509
         </p>
-
-        {/* Subtle Store Admin Link */}
-        {onOpenAdmin && (
-          <div className="pt-2">
-            <button
-              onClick={onOpenAdmin}
-              className="text-[11px] text-[#8B641F] hover:text-[#5B2630] font-semibold underline underline-offset-2 transition-colors cursor-pointer"
-            >
-              ਸ਼ੋਰੂਮ ਐਡਮਿਨ ਪੈਨਲ (Store Owner Login)
-            </button>
-          </div>
-        )}
       </footer>
 
     </div>
