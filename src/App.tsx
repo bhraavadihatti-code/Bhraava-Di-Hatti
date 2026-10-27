@@ -27,26 +27,37 @@ const INITIAL_VISIBLE_COUNT = 6;
 const SCROLL_BATCH_SIZE = 4;
 
 export default function App() {
-  // App view mode - Synchronously check URL so refreshing on /links immediately loads the page
+  // App view mode - Defaults to the Linktree digital showroom landing page as requested
   const [activeView, setActiveView] = useState<'shop' | 'admin' | 'wishlist' | 'links'>(() => {
     if (typeof window !== 'undefined') {
       const path = (window.location.pathname || '').toLowerCase();
       const search = (window.location.search || '').toLowerCase();
       const hash = (window.location.hash || '').toLowerCase();
       if (
-        path.includes('/links') || 
-        path.includes('/linktree') || 
-        path.includes('/qr') || 
-        path.includes('/bio') ||
-        search.includes('page=links') || 
-        search.includes('view=links') || 
-        hash.includes('links') || 
-        hash.includes('linktree')
+        path.includes('/shop') || 
+        path.includes('/catalogue') || 
+        path.includes('/catalog') ||
+        search.includes('view=shop') || 
+        search.includes('page=shop') || 
+        hash.includes('shop')
       ) {
-        return 'links';
+        return 'shop';
+      }
+      if (
+        path.includes('/admin') ||
+        search.includes('view=admin') ||
+        hash.includes('admin')
+      ) {
+        return 'admin';
+      }
+      if (
+        path.includes('/wishlist') ||
+        search.includes('view=wishlist')
+      ) {
+        return 'wishlist';
       }
     }
-    return 'shop';
+    return 'links';
   });
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isAdminPasswordModalOpen, setIsAdminPasswordModalOpen] = useState(false);
@@ -998,6 +1009,7 @@ export default function App() {
           } catch {}
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onOpenAdmin={handleRequestAdmin}
       />
     );
   }
